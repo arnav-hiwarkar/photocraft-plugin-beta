@@ -50,7 +50,7 @@ pub fn contract() -> Result<AppContract, IdError> {
             ("resource.preset", 1, 0),
             ("resource.lut", 1, 0),
             ("craft-theme", 1, 0),
-        ]),
+        ]).without(craft_ext_core::manifest::ContributionKind::Tool, "Tools are not supported in PhotoCraft yet"),
         ops: definitions
             .into_iter()
             .map(|(id, kind, summary, requires, permission_rule)| OpSpec { id, kind, summary, requires, permission_rule, args: "{}", result: "{}" })

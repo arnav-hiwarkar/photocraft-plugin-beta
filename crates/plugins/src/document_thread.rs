@@ -74,6 +74,9 @@ impl AppApi for DocumentApi {
     fn contract(&self) -> &AppContract {
         &self.contract
     }
+    fn authorizes_on_owner_thread(&self) -> bool {
+        true
+    }
     fn begin(&self, invocation: &Invocation) -> Result<(), OpError> {
         self.request(invocation, Action::Begin).map(|_| ())
     }
@@ -105,6 +108,39 @@ mod tests {
     }
     fn capture(document: u64) -> Capture {
         Capture { document: Some(document), epoch: 1, revision: 2, surface: None }
+    }
+    #[test]
+    fn recoverable_operation_error_allows_following_call_and_commit() {
+        let (api, rx) = DocumentApi::channel(Duration::from_secs(1)).unwrap();
+        assert!(api.authorizes_on_owner_thread());
+        *api.context.lock().unwrap() = Some(capture(1));
+        let worker = std::thread::spawn(move || {
+            let inv = invocation();
+            api.begin(&inv).unwrap();
+            assert_eq!(api.call(&inv, "unknown", Value::Null).unwrap_err().code, Code::NotFound);
+            assert!(!inv.cancelled());
+            api.call(&inv, "document.info", Value::Null).unwrap();
+            api.finish(&inv, true);
+            assert!(api.finish_error.lock().unwrap().is_none());
+        });
+        rx.recv().unwrap().reply(Ok(Value::Null));
+        rx.recv().unwrap().reply(Err(OpError::new(Code::NotFound, "Unknown operation")));
+        rx.recv().unwrap().reply(Ok(Value::Null));
+        let finish = rx.recv().unwrap();
+        assert!(matches!(finish.action, Action::Finish { commit: true }));
+        finish.reply(Ok(Value::Null));
+        worker.join().unwrap();
+    }
+    #[test]
+    fn tools_are_explicitly_unavailable() {
+        assert!(
+            crate::contract()
+                .unwrap()
+                .provided
+                .unsupported
+                .iter()
+                .any(|(kind, reason)| *kind == craft_ext_core::manifest::ContributionKind::Tool && reason == "Tools are not supported in PhotoCraft yet")
+        );
     }
     #[test]
     fn workers_keep_independent_dispatch_identity() {

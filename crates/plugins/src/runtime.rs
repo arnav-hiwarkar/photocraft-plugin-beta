@@ -132,7 +132,19 @@ impl Runtime {
                         };
                         let Ok(mut session) = runner else { return };
                         let mut failures = 0u32;
-                        for job in rx {
+                        loop {
+                            // Consent, revocation and unreadable grant stores must stop
+                            // helpers even when no plugin events arrive.
+                            if let Runner::Native(helper) = &mut session {
+                                if !helper.supervise() {
+                                    break;
+                                }
+                            }
+                            let job = match rx.recv_timeout(Duration::from_secs(1)) {
+                                Ok(job) => job,
+                                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                            };
                             if failures >= 3 {
                                 let _ = job.done.send(Err("Plugin paused after three failures".into()));
                                 continue;
@@ -183,6 +195,7 @@ impl Runtime {
         }
         let enabled = crate::store::enabled().map_err(|e| OpError::denied(e.to_string()))?;
         if !enabled.iter().any(|(p, v, _, _, cs)| p == &inv.plugin && v == &inv.version && cs.contains(&inv.contribution))
+            || LiveGrants.stopped(&inv.plugin, inv.version)
             || LiveGrants.generation(&inv.plugin) != inv.grant_generation
         {
             return Err(OpError::denied("Contribution disabled or grants changed"));

@@ -20,8 +20,11 @@ The following named integration tasks remain; this migration is **incomplete**:
   epoch and revision **at dispatch**; every operation rechecks contribution enablement,
   live grants and `authorize()` immediately before execution. Begin → calls → finish
   are served without interleaving user edits. Success folds edits into one history
-  entry `<label> · <plugin>`; errors (including ignored operation errors), timeout,
-  cancellation, revocation or stale document/surface roll back document and history.
+  entry `<label> · <plugin>`. Denied, missing and invalid single operations return
+  recoverable errors; a guest may handle them and commit its successful edits.
+  Event failure, timeout, cancellation, revocation or stale document/surface roll
+  back document and history. The adapter declares owner-thread authorization so
+  state-dependent permission requirements are never evaluated on the worker.
   Commands execute synchronously through `Session::execute` (also for CLI/automation).
 - PhotoCraft-plugin-panels: done. Shared Nodes are validated before publication and
   drawn by ui-egui, including panels and `ui.window.open` floating windows. UI changes
@@ -136,3 +139,17 @@ dependency pulled in through `cap-std`, which this change does not touch. Added 
 (engine tests are outside the local limit): `plugin_sessions::tests::filter_apply_runs_only_allowlisted_filters_with_clean_params`
 and `plugin_filters::tests::plugin_filters_say_why_they_are_unavailable_on_masks_channels_and_profiles`.
 No build/run, workspace tests or clippy were invoked.
+
+## Suite-review parity
+
+Tools are not supported in PhotoCraft yet. The provided contract marks Tool
+contributions unavailable with that reason, even when their session contract matches.
+Native helpers are supervised on startup and at least once per second while idle;
+revocation, lost consent, safe mode or an unreadable grant store stops them.
+Live grants open a fresh store snapshot for every check: read errors deny permissions,
+report stopped state and invalidate running invocation generations until readable again.
+
+Parity-fix validation: `cargo test -p photocraft-plugins` passed all 16 tests,
+including recoverable bridge errors followed by another call and commit, owner-thread
+opt-in and Tool unavailability. `cargo check -p photocraft-engine` passed.
+The idle native-helper cadence was inspected in code; no helper/app was launched.

@@ -144,6 +144,9 @@ impl Session {
                 continue;
             }
             let valid = self.plugin_valid(rt, &inv, &capture, revision);
+            // Only invocation/scope invalidation poisons the transaction. Guests may
+            // handle individual authorization and validation errors and continue.
+            failed |= valid.is_err();
             match &r.action {
                 Action::Finish { commit: wanted } => {
                     commit = *wanted && !failed && valid.is_ok();
@@ -173,12 +176,11 @@ impl Session {
                             self.plugin_op(op, args.clone(), active_layer, &selection)
                         }
                     });
-                    failed |= out.is_err();
+                    failed |= rt.valid(&inv).is_err();
                     revision = self.active().map_or(0, |d| d.revision);
                     r.reply(out);
                 }
                 Action::Begin => {
-                    failed = true;
                     r.reply(Err(OpError::new(Code::Stale, "Nested event")));
                 }
             }
