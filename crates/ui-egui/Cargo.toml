@@ -91,3 +91,9 @@ toml = "1"
 [[example]]
 name = "flat_open_bench"
 test = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.craft-ext-ui]
+workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.craft-ext-store]
+workspace = true

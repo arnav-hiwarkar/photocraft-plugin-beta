@@ -104,6 +104,9 @@ fn frame_convert_dialog(app: &mut PhotocraftApp, id: &str) -> Result<Value, Stri
 
 /// [`invoke`] without the unsaved-changes prompt, for once the user has already answered it.
 fn invoke_early_commands(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
+    if id == "plugins.manage" || id == "edit.preferences.plugIns" {
+        return Some(crate::plugin_manager::open().map(|()| json!({"window":"plugins"})));
+    }
     if let Some(tool) = crate::tool_shortcuts::tool(id) {
         crate::tool_memory::select(app, tool);
         return Some(Ok(json!({"tool": tool})));
@@ -176,10 +179,6 @@ fn invoke_early_commands(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str,
     }
     // Window > Timeline panel.
     if let Some(r) = crate::timeline_ui::menu(app, id, params) {
-        return Some(r);
-    }
-    // Filter › Plug-ins (installed WebAssembly plug-ins, Install Plug-in…).
-    if let Some(r) = crate::plugin_ui::menu(app, id, params) {
         return Some(r);
     }
     // History panel menu › History Options… (without params: its dialog).

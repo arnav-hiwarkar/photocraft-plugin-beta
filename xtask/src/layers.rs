@@ -59,7 +59,7 @@ pub const TABLE: &[(&str, Class)] = &[
     ("tools", Class::Layer(4)),
     ("viewport", Class::Layer(4)),
     ("ml", Class::Layer(4)),
-    ("plugins", Class::Layer(4)),
+    ("plugins", Class::Layer(4)), // Shared Craft adapter; no legacy runtime.
     ("engine", Class::Layer(5)),
     ("ui-egui", Class::Layer(6)),
     ("automation", Class::Layer(6)),

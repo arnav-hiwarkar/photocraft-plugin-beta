@@ -19,6 +19,7 @@ pub struct MenuItem {
 /// Is `id` implemented by the engine or the shell (a live menu item)? Shared by the menus and
 /// the parity report ([`crate::parity`]).
 pub fn is_live(id: &str) -> bool {
+    if id == "plugins.manage" { return true; }
     static UI_IDS: std::sync::OnceLock<std::collections::HashSet<&'static str>> = std::sync::OnceLock::new();
     photocraft_engine::commands::find(id).is_some()
         || crate::tool_shortcuts::tool(id).is_some()
@@ -86,6 +87,7 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             color: None,
         });
     }
+    items.push(MenuItem { id: "plugins.manage".into(), label: "Plugins…".into(), path: vec!["Plugins".into()], shortcut: None, enabled: true, checked: None, color: None });
     for mut e in extra {
         let dup = items.iter().any(|i| i.id == e.id || (i.path == e.path && i.label.trim_end_matches('…') == e.label.trim_end_matches('…')));
         if !dup {
@@ -100,7 +102,6 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             items.insert(at, e);
         }
     }
-    crate::plugin_ui::insert_menu_items(app, &mut items);
     if let Some(mask) = app.session.active().and_then(|s| s.active_layer.and_then(|id| s.doc.layer(id))).and_then(|l| l.mask.as_ref())
         && let Some(item) = items.iter_mut().find(|i| i.id == "layer.layerMask.enabled")
     {

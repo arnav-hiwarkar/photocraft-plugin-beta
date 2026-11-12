@@ -798,7 +798,6 @@ fn automation_rejects_ambient_path_commands_and_preferences() {
         ".scriptEvents.enabled",
         "historyLog.filePath",
         ".historyLog.filePath",
-        "plugIns.additionalPluginsFolder",
         "fileHandling.lutFolder",
         "fileHandling",
         "scratchDisks.disks",

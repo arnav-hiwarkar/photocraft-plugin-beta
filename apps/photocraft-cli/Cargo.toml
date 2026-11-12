@@ -30,6 +30,8 @@ name = "gpu_bench"
 required-features = ["gpu"]
 
 [dependencies]
+photocraft-plugins.workspace = true
+craft-ext-cli.workspace = true
 photocraft-automation = { path = "../../crates/automation" }
 photocraft-doc = { workspace = true }
 photocraft-engine = { workspace = true }

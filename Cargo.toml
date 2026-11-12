@@ -10,6 +10,13 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.95"
 
 [workspace.dependencies]
+# Beta layout; switch to git dependencies before upstreaming.
+craft-ext-core = { path = "../craft-extensions/crates/ext-core" }
+craft-ext-store = { path = "../craft-extensions/crates/ext-store" }
+craft-ext-host = { path = "../craft-extensions/crates/ext-host" }
+craft-ext-ui = { path = "../craft-extensions/crates/ext-ui" }
+craft-ext-cli = { path = "../craft-extensions/crates/ext-cli" }
+
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "6e03f65bf45181db77ba6229716e6624db9eb25b", features = ["serde"] }
 # internal
 photocraft-geom = { path = "crates/geom" }

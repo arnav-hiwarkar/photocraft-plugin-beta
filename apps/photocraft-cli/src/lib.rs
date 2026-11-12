@@ -50,7 +50,20 @@ where
             return e.exit_code();
         }
     };
+    if let Command::Plugin { args } = &cli.command {
+        if args.as_slice() == ["contract"] {
+            return match photocraft_plugins::contract() {
+                Ok(c) => if write!(out, "{}", c.to_markdown()).is_ok() { 0 } else { 1 },
+                Err(e) => { let _ = writeln!(err, "{e}"); 1 }
+            };
+        }
+        return match photocraft_plugins::store::manager() {
+            Ok(m) => craft_ext_cli::run_plugin(&m, args, out, err),
+            Err(e) => { let _ = writeln!(err, "{e}"); 1 }
+        };
+    }
     let result = match &cli.command {
+        Command::Plugin { .. } => Ok(()),
         Command::Convert(a) => convert(a, out, err),
         Command::Info(a) => info(a, out),
         Command::Run(a) => run_cmds(a, out, err),

@@ -647,14 +647,14 @@ fn lasso(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// The History step name for `historyName` `n`: refused when it has a control or line-break
 /// character anywhere; otherwise without its invisible end padding (see
-/// [`photocraft_plugins::manifest::trim_name`]), so a name that looks like "Patch Tool" is "Patch Tool",
+/// [`crate::history_name::trim_name`]), so a name that looks like "Patch Tool" is "Patch Tool",
 /// and then held to the plug-in menu-label rule.
 fn history_name(n: &str) -> Option<&str> {
     if n.chars().any(|c| c.is_control() || matches!(c, '\u{2028}' | '\u{2029}')) {
         return None;
     }
-    let t = photocraft_plugins::manifest::trim_name(n);
-    photocraft_plugins::manifest::printable_name(t).then_some(t)
+    let t = crate::history_name::trim_name(n);
+    crate::history_name::printable_name(t).then_some(t)
 }
 
 /// Selects the polygon `pts` with the lasso tools' `mode`, `antiAlias` and `feather` params, as

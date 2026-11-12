@@ -244,9 +244,9 @@ what an agent can't finish alone.
 - **Estimate:** 300–600 h. **Human:** owner decision #41 (model licences, local vs remote).
 
 ### G16. Plug-in compatibility
-- **Missing:** hosting Photoshop .8BF filters (#2647), UXP panels, CEP. PhotoCraft has its own
-  sandboxed WebAssembly plug-in ABI v1 (`docs/plugins.md`), but ABI v2 (panels, progress, other
-  layers) is missing (AUTO-219-6).
+- **Missing:** hosting Photoshop .8BF filters (#2647), UXP panels, CEP. PhotoCraft is migrating to the
+  shared Craft plugin platform; remaining integration work is tracked in
+  `docs/plugin-migration.md`.
 - **Estimate:** 250–450 h. **Human:** .8BF needs native code under the isolated-`unsafe` rule.
 
 ## UI / UX gaps

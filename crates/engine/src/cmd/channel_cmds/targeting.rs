@@ -233,7 +233,6 @@ pub(crate) fn routed(id: &str) -> bool {
     // (`paint.mixerLoad`) don't edit pixels, so they never follow or refuse a channel target.
     id.starts_with("filter.")
         || id == "edit.stroke"
-        || id == "plugin.run"
         || matches!(id, "paint.magicEraser" | "paint.backgroundEraser" | "paint.colorReplacement" | "shape.paint" | "path.fill" | "path.stroke" | "edit.clear" | "edit.cut")
         || id.starts_with("image.adjustments.")
         || matches!(id, "edit.fill" | "image.applyImage")

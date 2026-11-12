@@ -132,7 +132,6 @@ pub use cmd::pattern_fill_cmds;
 pub use cmd::perspective_crop_cmds;
 pub use cmd::photo_cmds;
 pub use cmd::pick_cmds;
-pub use cmd::plugin_cmds;
 pub use cmd::preset_import_cmds;
 pub use cmd::print_cmds;
 pub use cmd::rasterize_style_cmds;
@@ -380,3 +379,5 @@ mod brush_clear_background_tests;
 pub mod command_hints;
 #[cfg(test)]
 mod pencil_auto_erase_exact_tests;
+
+mod history_name;

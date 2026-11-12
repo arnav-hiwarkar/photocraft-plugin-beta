@@ -1020,9 +1020,6 @@ impl GuidesGridAndSlices {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct PlugIns {
-    /// Load the WebAssembly plug-ins (`*.wasm`) in `additional_plugins_folder` (native only).
-    pub use_additional_plugins_folder: bool,
-    pub additional_plugins_folder: String,
     pub show_extension_panels: bool,
     pub allow_scripts_to_connect: bool,
     pub generator_enabled: bool,
@@ -1031,8 +1028,6 @@ pub struct PlugIns {
 impl Default for PlugIns {
     fn default() -> Self {
         Self {
-            use_additional_plugins_folder: false,
-            additional_plugins_folder: String::new(),
             show_extension_panels: true,
             allow_scripts_to_connect: false,
             generator_enabled: false,
@@ -1570,7 +1565,6 @@ impl Session {
         crate::transform_cmds::set_budget(u64::from(self.prefs().performance.effective_memory_usage_mb()) << 20);
         // Without waiting for the system font scan: this runs on the UI thread at launch.
         photocraft_text::set_shared_missing_glyph_protection(self.prefs().type_.missing_glyph_protection());
-        crate::plugin_cmds::sync_prefs(self);
     }
 
     /// Re-apply History's byte limit after the scratch disk paused (a write, create or

@@ -1,55 +1,176 @@
-//! Sandboxed WebAssembly plug-ins for PhotoCraft.
-//!
-//! A plug-in is a WebAssembly module that implements the PhotoCraft plug-in ABI (v1, documented
-//! in `docs/plugins.md`). It runs in [`wasmi`], a pure-Rust interpreter, with:
-//!
-//! - **no host imports**: no WASI, file system, network, clock or randomness. A module that
-//!   imports anything is rejected;
-//! - an **instruction budget** (fuel) per call, metered in slices so a wall-clock deadline is
-//!   also enforced (native builds), so infinite loops end with an error;
-//! - a **linear-memory cap**, a **recursion-depth cap** and wasmi's strict module limits;
-//! - a **fresh instance per band**, so no state leaks between calls.
-//!
-//! Every failure (malformed module, trap, exhausted budget, bad output) is an [`Error`]; nothing
-//! a module does can panic or hang the host.
-//!
-//! Pixels are handed over as interleaved, normalised `f32` samples in the document's own colour
-//! model (bit-depth and colour-mode agnostic), in horizontal bands so the copy stays bounded.
-//! [`Plugin::apply`] runs a filter on a [`photocraft_raster::Surface`], blending by the selection.
-//! The process-wide [`registry`] holds the installed plug-ins.
+//! PhotoCraft's boundary to the shared Craft plugin platform.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
+use craft_ext_core::{
+    contract::Provided,
+    id::{AppId, IdError},
+    permission::Permission,
+};
+use craft_ext_host::api::{AppContract, EventSpec, OpKind, OpSpec, SlotSpec};
+use serde_json::Value;
 
-mod apply;
-pub mod manifest;
-pub mod registry;
-mod runtime;
-
-pub use apply::format_code;
-pub use manifest::{Area, Kind, Manifest, ParamSpec, Unit};
-pub use runtime::{ABI_VERSION, Limits, Plugin};
-
-/// A plug-in error. Every way a module can misbehave ends here, never in a panic.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum Error {
-    #[error("not a valid plug-in module: {0}")]
-    Module(String),
-    #[error("plug-in ABI: {0}")]
-    Abi(String),
-    #[error("plug-in manifest: {0}")]
-    Manifest(String),
-    #[error("plug-in trapped: {0}")]
-    Trap(String),
-    #[error("plug-in exceeded its {0}")]
-    Limit(String),
-    #[error("plug-in parameters: {0}")]
-    Params(String),
-    #[error("plug-in failed: {0}")]
-    Failed(String),
-    #[error("no plug-in {0:?} is installed")]
-    NotFound(String),
-    #[error("{0}")]
-    Io(String),
+pub fn safe_mode() -> bool {
+    std::env::var_os("PHOTOCRAFT_SAFE_MODE").is_some_and(|v| v == "1")
+}
+fn read_document(_: &Value) -> Vec<Permission> {
+    permission("document.read:document")
+}
+fn read_selection(_: &Value) -> Vec<Permission> {
+    permission("document.read:selection")
+}
+fn edit_document(_: &Value) -> Vec<Permission> {
+    permission("document.edit:document")
+}
+fn window(_: &Value) -> Vec<Permission> {
+    permission("ui.window")
+}
+fn permission(s: &str) -> Vec<Permission> {
+    Permission::parse(s).into_iter().collect()
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+/// Fallible because the shared platform validates app identifiers at construction.
+pub fn contract() -> Result<AppContract, IdError> {
+    let definitions = [
+        ("document.info", OpKind::Query, "Read the active document", read_document as fn(&Value) -> Vec<Permission>, "document.read:document"),
+        ("layer.list", OpKind::Query, "List document layers", read_document, "document.read:document"),
+        ("selection.get", OpKind::Query, "Read the captured selection", read_selection, "document.read:selection"),
+        ("layer.rename", OpKind::Edit, "Rename a captured layer", edit_document, "document.edit:document"),
+        ("filter.apply", OpKind::Edit, "Apply {filter, params} on the active layer", edit_document, "document.edit:document"),
+        ("ui.panel.set", OpKind::Ui, "Set a declarative panel", craft_ext_host::api::none, "none"),
+        ("ui.window.open", OpKind::Ui, "Open a declarative window", window, "ui.window"),
+        ("ui.notify", OpKind::Ui, "Show a notification", craft_ext_host::api::none, "none"),
+        ("plugin.resources", OpKind::Query, "List enabled presets and LUTs", craft_ext_host::api::none, "none"),
+    ];
+    Ok(AppContract {
+        app: AppId::new("photocraft")?,
+        display_name: "PhotoCraft",
+        provided: Provided::new(&[
+            ("raster.filter", 1, 0),
+            ("photocraft.session", 1, 0),
+            ("resource.preset", 1, 0),
+            ("resource.lut", 1, 0),
+            ("craft-theme", 1, 0),
+        ]),
+        ops: definitions
+            .into_iter()
+            .map(|(id, kind, summary, requires, permission_rule)| OpSpec { id, kind, summary, requires, permission_rule, args: "{}", result: "{}" })
+            .collect(),
+        events: ["init", "command", "ui", "app", "dispose"]
+            .into_iter()
+            .map(|name| EventSpec {
+                name,
+                summary: if name == "app" { "document.opened, selection.changed" } else { name },
+                payload: "{}",
+                needs_app_events: name == "app",
+            })
+            .collect(),
+        slots: vec![
+            SlotSpec { kind: "effect", summary: "Filter → Plugins → category" },
+            SlotSpec { kind: "command", summary: "Plugins → plugin → label" },
+            SlotSpec { kind: "panel", summary: "Plugin panels" },
+            SlotSpec { kind: "preset", summary: "Plugin filter presets" },
+            SlotSpec { kind: "lut", summary: "plugin.resources" },
+        ],
+        notes: "RGB(A) 8/16/32-bit only, premultiplied RGBA f32 in the named document working space. Other modes: This filter works on RGB images. Destructive filters need no project record. TODO(PhotoCraft-plugin-projects): persist non-destructive plugin references and refuse export if missing. TODO(PhotoCraft-plugin-integration): bind session operations, menus, parameter dialogs and panels to the document thread before enabling execution.",
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod store {
+    use super::*;
+    use craft_ext_store::{
+        Manager, Store,
+        view::{EnabledRelease, GrantView},
+    };
+    pub fn manager() -> Result<Manager, Box<dyn std::error::Error>> {
+        let c = contract()?;
+        Ok(Manager::new(
+            Store::at(craft_ext_store::location::default_root()?),
+            Some(c.app),
+            c.provided,
+            format!("{}-{}", if cfg!(target_os = "macos") { "macos" } else { std::env::consts::OS }, std::env::consts::ARCH),
+        ))
+    }
+    #[derive(Clone)]
+    pub struct FilterSource {
+        pub plugin: craft_ext_core::id::ExtensionId,
+        pub version: craft_ext_core::version::Version,
+        pub root: std::path::PathBuf,
+        pub contribution: craft_ext_core::manifest::Contribution,
+    }
+    pub fn filters() -> Result<Vec<FilterSource>, Box<dyn std::error::Error>> {
+        let mut filters = Vec::new();
+        for (plugin, version, root, manifest, enabled) in enabled()? {
+            for contribution in manifest.contributions {
+                if enabled.contains(&contribution.id)
+                    && contribution.kind == craft_ext_core::manifest::ContributionKind::Effect
+                    && contribution.contract.check(&contract()?.provided).is_none()
+                {
+                    filters.push(FilterSource { plugin: plugin.clone(), version, root: root.clone(), contribution });
+                }
+            }
+        }
+        Ok(filters)
+    }
+    /// Management remains available in safe mode; executable contributions do not.
+    pub fn enabled() -> Result<Vec<EnabledRelease>, Box<dyn std::error::Error>> {
+        if safe_mode() {
+            return Ok(Vec::new());
+        }
+        let app = AppId::new("photocraft")?;
+        let view = GrantView::open(craft_ext_store::location::default_root()?, app.clone())?;
+        Ok(view.enabled_contributions(&app)?)
+    }
+}
+
+/// Run on the caller's worker thread, with a private runtime instance. No document is
+/// touched until this returns successfully; the caller owns the undo transaction.
+pub fn transform(
+    module: &[u8],
+    id: &str,
+    pixels: &[f32],
+    width: u32,
+    height: u32,
+    color: &str,
+    params: Value,
+    check: &dyn Fn() -> Result<(), craft_ext_host::wasm::PluginError>,
+) -> Result<Vec<f32>, craft_ext_host::wasm::PluginError> {
+    use craft_ext_host::wasm::{Filter, Plugin, PluginError};
+    if safe_mode() {
+        return Err(PluginError::Stopped("Safe mode is enabled".into()));
+    }
+    check()?;
+    let plugin = Plugin::load(id, module)?;
+    let mut filter = Filter::new(&plugin, std::sync::Arc::new(|_, _, _| {}))?;
+    let mut output = pixels.to_vec();
+    let ctx = serde_json::json!({"params":params,"time":0.0,"scale":1.0,"origin":[0,0],"full":[width,height],"quality":"final","seed":0,"color":color});
+    filter.run(&ctx, &mut output, width, height, check)?;
+    check()?;
+    Ok(output)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl store::FilterSource {
+    /// Refresh enabled contributions before every run and every host fuel slice.
+    pub fn run(&self, pixels: &[f32], width: u32, height: u32, color: &str, params: Value) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+        use craft_ext_host::wasm::PluginError;
+        let validate = || -> Result<(), PluginError> {
+            let releases = store::enabled().map_err(|e| PluginError::Stopped(e.to_string()))?;
+            if releases.iter().any(|(id, version, root, _, enabled)| {
+                id == &self.plugin && version == &self.version && root == &self.root && enabled.contains(&self.contribution.id)
+            }) {
+                Ok(())
+            } else {
+                Err(PluginError::Stopped("The plugin is disabled or its permissions changed".into()))
+            }
+        };
+        validate()?;
+        let module = self.contribution.module.as_ref().ok_or("The filter has no Wasm module")?;
+        use std::io::Read as _;
+        let mut bytes = Vec::new();
+        std::fs::File::open(self.root.join(module))?.take(craft_ext_host::wasm::MAX_MODULE_BYTES as u64 + 1).read_to_end(&mut bytes)?;
+        Ok(transform(&bytes, self.plugin.as_str(), pixels, width, height, color, params, &validate)?)
+    }
+}
+
+pub mod document_thread;

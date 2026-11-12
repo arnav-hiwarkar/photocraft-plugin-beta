@@ -194,8 +194,6 @@ native winit dependency.
 - `crates/*/fuzz/Cargo.toml` are independent fuzz workspaces. None depends on
   egui, eframe, winit, epaint or craft-ui; no change is expected. Verify with
   `rg` after the bump.
-- `examples/plugins/invert-rs/Cargo.toml` is a separate `[workspace]` for a
-  wasm plugin and has no UI dependency.
 - `apps/photocraft-web-boot` and `apps/photocraft-cli` have no egui dependency.
 - There is no `vendor/` directory, `[source]` replacement, or machine-local
   `.cargo/config.toml` patch in this checkout. The only `.cargo/config.toml`

@@ -215,10 +215,6 @@ pub(crate) fn apply_filter_to_surface_in(
     if let Some(kind) = id.strip_prefix("image.adjustments.") {
         return crate::adjust_cmds::adjust_as_filter(kind, params, surf);
     }
-    // WebAssembly plug-in smart filters (plugin_cmds).
-    if id == crate::plugin_cmds::RUN {
-        return Ok(crate::plugin_cmds::apply_to_surface(id, params, surf, selection, canvas));
-    }
     let Some(mut fp) = params_for(id, params) else { return Ok(None) };
     // A map that can no longer be read (moved or deleted since) leaves the pixels alone, like an
     // unknown filter; the command itself already refused an unreadable map when it was added.

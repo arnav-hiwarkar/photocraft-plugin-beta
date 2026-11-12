@@ -30,6 +30,8 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
+    /// Manage shared Craft plugins
+    Plugin { #[arg(trailing_var_arg = true, allow_hyphen_values = true)] args: Vec<String> },
     Convert(ConvertArgs),
     Info(InfoArgs),
     Run(RunArgs),

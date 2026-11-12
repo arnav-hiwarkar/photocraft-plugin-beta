@@ -133,7 +133,7 @@ photocraft/
 │  ├─ io/                      photocraft-io        import/export orchestration; doc ⇄ PSD mapping; PDF/SVG import (features)
 │  │  ── intelligence ──
 │  ├─ ml/                      photocraft-ml        model registry + InferenceBackend trait (ort native / burn|candle web); SAM2, matting, depth, sky
-│  ├─ plugins/                 photocraft-plugins   sandboxed WebAssembly filter plug-ins (wasmi host, limits, ABI v1, registry)
+│  ├─ plugins/                 photocraft-plugins   shared Craft plugin adapter (schema 2)
 │  │  ── the façade every frontend talks to ──
 │  ├─ tools/                   photocraft-tools     tool state machines (move, marquee, lasso, brush, clone, gradient, crop, transform, pen, text…)
 │  ├─ engine/                  photocraft-engine    Session: open docs, command registry + dispatch, jobs, events, view-models, preferences
@@ -478,7 +478,7 @@ psd/src/
     access fail closed at the automation boundary.
 - **Actions:** recorded `Vec<CommandInvocation>`, replayable in batch (File → Automate → Batch).
 - **Scripting (later):** embed a scripting language over the same registry. Options are Rhai, or Lua via mlua (C). JS via QuickJS is possible if we want Photoshop-script familiarity.
-- **Plugins:** sandboxed WebAssembly filter plug-ins (`photocraft-plugins`, L4) run by `wasmi`, a pure-Rust interpreter, with fuel, memory, stack and wall-time limits and no host imports. They are driven by the `plugin.*` commands and listed under Filter › Plug-ins; the ABI is in [`plugins.md`](plugins.md). Native Photoshop `.8BF`/CEP/UXP hosting is out of scope (it needs unsafe FFI and can't run on the web). Panel plug-ins are later.
+- **Plugins:** `photocraft-plugins` adapts the shared Craft platform; see [plugins.md](plugins.md) for migration status and remaining integration work.
 
 ---
 

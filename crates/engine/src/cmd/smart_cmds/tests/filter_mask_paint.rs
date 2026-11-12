@@ -194,7 +194,7 @@ fn the_filter_mask_target_leaves_the_smart_object_commands_alone() {
     assert!(crate::channel_cmds::filter_mask_layer(&s, "paint.stroke", &p).is_some());
     // Every other routed command edits it and re-renders the object: Equalize too, though it
     // takes no layer mask target by default.
-    for cmd in ["image.adjustments.shadowsHighlights", "plugin.run", "filter.blur.average"] {
+    for cmd in ["image.adjustments.shadowsHighlights", "filter.blur.average"] {
         assert!(crate::channel_cmds::filter_mask_layer(&s, cmd, &p).is_some(), "{cmd}");
     }
     let steps = s.active().unwrap().history.past_len();

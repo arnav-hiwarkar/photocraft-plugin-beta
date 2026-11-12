@@ -13,7 +13,6 @@ pub mod menu_keys;
 pub mod menu_nav;
 pub mod native_menu;
 pub mod parity;
-pub mod plugin_ui;
 mod render;
 mod search;
 mod state;
