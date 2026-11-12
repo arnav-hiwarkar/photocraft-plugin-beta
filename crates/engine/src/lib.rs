@@ -20,6 +20,8 @@ pub mod display_color;
 pub mod doc_path;
 pub mod filters;
 pub mod plugin_filters;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod plugin_sessions;
 pub mod filters_ext;
 mod group_options;
 pub mod guide_layout;
@@ -201,6 +203,12 @@ pub(crate) fn active_layer_of(s: &Session) -> std::result::Result<&photocraft_do
 
 #[derive(Default)]
 pub struct Session {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub plugin_sessions: Option<photocraft_plugins::runtime::Runtime>,
+    #[cfg(not(target_arch = "wasm32"))]
+    plugin_opened: std::collections::BTreeSet<u64>,
+    #[cfg(not(target_arch = "wasm32"))]
+    plugin_seen: Option<(u64, u64, Vec<LayerId>, Option<photocraft_raster::Surface>)>,
     docs: Vec<DocState>,
     /// Override Open belongs only to one Batch scratch session, never to caller preferences.
     pub(crate) batch_open: Option<file_cmds::BatchOpen>,

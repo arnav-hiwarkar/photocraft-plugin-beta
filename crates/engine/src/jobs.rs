@@ -1061,6 +1061,10 @@ impl Session {
     /// Run a command, in the background when it supports it (see [`jobs`](crate::jobs)). Errors
     /// like [`Session::execute`] for unknown, disabled or failing commands.
     pub fn start(&mut self, id: &str, params: Value) -> Result<Started> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if id.starts_with("plugin.session.") || id == "plugin.uiEvent" {
+            return self.execute_plugin_session(id, params).map(Started::Done);
+        }
         let before = self.active_layer_stamp();
         let started = self.dispatch(id, params, true);
         self.note_layer_change(before);

@@ -12,6 +12,8 @@ workspace = true
 corpus = []
 
 [dependencies]
+craft-ext-core.workspace = true
+craft-ext-host.workspace = true
 photocraft-geom = { workspace = true }
 photocraft-color = { workspace = true }
 photocraft-cms = { workspace = true }

@@ -104,6 +104,10 @@ fn frame_convert_dialog(app: &mut PhotocraftApp, id: &str) -> Result<Value, Stri
 
 /// [`invoke`] without the unsaved-changes prompt, for once the user has already answered it.
 fn invoke_early_commands(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if id.starts_with("plugin.session.") {
+        return Some(app.session.execute(id, params.clone()).map_err(|e| e.to_string()));
+    }
     if id == "plugins.manage" || id == "edit.preferences.plugIns" {
         return Some(crate::plugin_manager::open().map(|()| json!({"window":"plugins"})));
     }

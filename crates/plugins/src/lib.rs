@@ -71,7 +71,7 @@ pub fn contract() -> Result<AppContract, IdError> {
             SlotSpec { kind: "preset", summary: "Plugin filter presets" },
             SlotSpec { kind: "lut", summary: "plugin.resources" },
         ],
-        notes: "RGB(A) 8/16/32-bit only, premultiplied RGBA f32 in the named document working space. Other modes: This filter works on RGB images. Destructive filters need no project record. TODO(PhotoCraft-plugin-projects): persist non-destructive plugin references and refuse export if missing. Effects run as Filter › Plugins commands. TODO(PhotoCraft-plugin-transactions): bind session operations and panels to the document thread before enabling them.",
+        notes: "RGB(A) 8/16/32-bit only, premultiplied RGBA f32 in the named document working space. Other modes: This filter works on RGB images. Destructive filters need no project record; plugin filters cannot be stored as smart filters. Effects run as Filter › Plugins commands. Sessions run on workers; document operations are authorized on the document thread and each event commits one history step. Commands appear under Plugins; panels and windows use revisioned host-drawn UI.",
     })
 }
 
@@ -197,3 +197,6 @@ impl store::FilterSource {
 pub mod document_thread;
 pub mod filter;
 pub mod resources;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod runtime;

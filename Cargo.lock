@@ -5775,6 +5775,8 @@ dependencies = [
  "base64 0.22.1",
  "blake3",
  "chrono",
+ "craft-ext-core",
+ "craft-ext-host",
  "craft-print",
  "craft-psd",
  "exr",
@@ -6014,6 +6016,8 @@ version = "0.23.1"
 dependencies = [
  "base64 0.23.1",
  "chrono",
+ "craft-ext-core",
+ "craft-ext-host",
  "craft-ext-store",
  "craft-ext-ui",
  "craft-i18n",

@@ -1108,3 +1108,6 @@ mod sponge_default_tip_tests;
 mod red_eye_context_menu_tests;
 
 mod plugin_manager;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod plugins_ui;

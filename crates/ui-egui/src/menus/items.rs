@@ -266,6 +266,18 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
         item.label = "Release Clipping Mask".into();
         item.enabled = is_enabled(app, &item.id);
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(rt) = &app.session.plugin_sessions {
+        for e in &rt.entries {
+            if matches!(e.contribution.kind, craft_ext_core::manifest::ContributionKind::Command | craft_ext_core::manifest::ContributionKind::Panel) {
+                items.push(MenuItem {
+                    id: e.id.clone(), label: e.contribution.label.clone(),
+                    path: vec!["Plugins".into(), e.plugin_name.clone()],
+                    shortcut: None, enabled: true, checked: None, color: None, tooltip: None,
+                });
+            }
+        }
+    }
     items
 }
 

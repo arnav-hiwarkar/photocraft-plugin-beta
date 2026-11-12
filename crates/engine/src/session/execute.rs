@@ -15,6 +15,10 @@ impl Session {
     /// Runs synchronously, including job-capable commands (see [`jobs`]; [`Session::start`] runs
     /// those in the background).
     pub fn execute(&mut self, id: &str, params: Value) -> Result<Value> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if id.starts_with("plugin.session.") || id == "plugin.uiEvent" {
+            return self.execute_plugin_session(id, params);
+        }
         let before = self.active_layer_stamp();
         let result = self.dispatch(id, params, false);
         self.note_layer_change(before);

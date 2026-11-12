@@ -1,0 +1,288 @@
+//! Document-thread half of the session bridge. No guest executes on this thread.
+use crate::{EngineError, LayerId, Session};
+use craft_ext_host::api::{Code, Invocation, OpError, authorize};
+use photocraft_plugins::{
+    document_thread::{Action, Capture, Request},
+    runtime::{LiveGrants, Runtime},
+};
+use serde_json::{Value, json};
+use std::{
+    sync::{Arc, atomic::Ordering},
+    time::{Duration, Instant},
+};
+fn error(e: impl std::fmt::Display) -> OpError {
+    OpError::new(Code::Invalid, e.to_string())
+}
+impl Session {
+    pub fn plugin_capture(&self) -> Capture {
+        Capture {
+            document: self.active().map(|d| d.doc.id.0),
+            epoch: self.active_generation(),
+            revision: self.active().map_or(0, |d| d.revision),
+            surface: None,
+        }
+    }
+    fn ensure_plugin_sessions(&mut self) {
+        let generation = photocraft_plugins::store::generation().ok();
+        if self.plugin_sessions.as_ref().is_some_and(|r| Some(r.generation) == generation) {
+            return;
+        }
+        self.plugin_sessions = Runtime::load().ok();
+        if let Some(rt) = &self.plugin_sessions {
+            for e in &rt.entries {
+                let _ = rt.dispatch(&e.id, self.plugin_capture(), json!({"event":"init","contribution":e.contribution.id}));
+            }
+        }
+    }
+    pub fn pump_plugins(&mut self) {
+        self.ensure_plugin_sessions();
+        let Some(mut rt) = self.plugin_sessions.take() else { return };
+        let now = self.active().map(|d| (d.doc.id.0, self.active_generation(), d.selected_layers.clone(), d.doc.selection.clone()));
+        let opened = self.docs.iter().filter(|d| !self.plugin_opened.contains(&d.doc.id.0)).map(|d| (d.doc.id.0, d.doc.name.clone())).collect::<Vec<_>>();
+        for (id, name) in opened {
+            self.plugin_opened.insert(id);
+            rt.app_event(self.plugin_capture(), "document.opened", json!({"document":id,"name":name}));
+        }
+        if now.as_ref().map(|s| (&s.2, &s.3)) != self.plugin_seen.as_ref().map(|s| (&s.2, &s.3)) {
+            rt.app_event(self.plugin_capture(), "selection.changed",json!({"layers":self.active().map(|d|d.selected_layers.iter().map(|l|l.0).collect::<Vec<_>>()),"has_selection":self.active().is_some_and(|d|d.doc.selection.is_some())}));
+        }
+        self.plugin_seen = now;
+        while let Some(request) = rt.pending.pop_front().or_else(|| rt.requests.try_recv().ok()) {
+            if matches!(request.action, Action::Begin) {
+                self.plugin_transaction(&mut rt, request);
+            } else {
+                request.reply(Err(OpError::new(Code::Stale, "Event is no longer active")));
+            }
+        }
+        self.plugin_sessions = Some(rt);
+    }
+    pub fn execute_plugin_session(&mut self, id: &str, params: Value) -> crate::Result<Value> {
+        self.ensure_plugin_sessions();
+        if let Some(rt) = self.plugin_sessions.as_mut() {
+            if let Some(e) = rt.entries.iter().find(|e| e.id == id && e.contribution.kind == craft_ext_core::manifest::ContributionKind::Panel) {
+                let key = format!("{}/{}", e.id.trim_start_matches("plugin.session.").split('/').next().unwrap_or(""), e.contribution.id);
+                if let Some(sf) = rt.surfaces.get_mut(&key) {
+                    sf.open = true;
+                    return Ok(Value::Null);
+                }
+            }
+        }
+        let rt = self.plugin_sessions.as_ref().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
+        let mut capture = self.plugin_capture();
+        let (owner, event) = if id == "plugin.uiEvent" {
+            let key = params["surface"].as_str().unwrap_or("");
+            let sf = rt
+                .surfaces
+                .get(key)
+                .filter(|s| s.open && Some(s.rev) == params["rev"].as_u64())
+                .ok_or_else(|| EngineError::Other("Stale plugin surface".into()))?;
+            capture.surface = Some((key.into(), sf.rev));
+            (sf.owner.as_str(), json!({"event":"ui","surface":sf.id,"rev":sf.rev,"widget":params["widget"],"value":params["value"]}))
+        } else {
+            (id, json!({"event":"command","id":rt.entries.iter().find(|e|e.id==id).map(|e|&e.contribution.id),"params":params}))
+        };
+        let done = rt.dispatch(owner, capture, event).map_err(|e| EngineError::Other(e.to_string()))?;
+        // Synchronous command callers (CLI/automation) also serve the worker.
+        let Some(mut rt) = self.plugin_sessions.take() else { return Err(EngineError::Other("Plugins unavailable".into())) };
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let result = loop {
+            match done.try_recv() {
+                Ok(result) => break result.map(|_| Value::Null).map_err(EngineError::Other),
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => break Err(EngineError::Other("Plugin worker stopped".into())),
+                Err(_) => {}
+            }
+            if Instant::now() >= deadline {
+                break Err(EngineError::Other("Plugin timed out".into()));
+            }
+            if let Some(r) = rt.pending.pop_front().or_else(|| rt.requests.recv_timeout(Duration::from_millis(10)).ok()) {
+                if matches!(r.action, Action::Begin) {
+                    self.plugin_transaction(&mut rt, r);
+                } else {
+                    r.reply(Err(OpError::new(Code::Stale, "Event ended")));
+                }
+            }
+        };
+        self.plugin_sessions = Some(rt);
+        result
+    }
+    fn plugin_valid(&self, rt: &Runtime, inv: &Invocation, c: &Capture, revision: u64) -> Result<(), OpError> {
+        rt.valid(inv)?;
+        let now = self.plugin_capture();
+        if now.document != c.document || now.epoch != c.epoch || now.revision != revision {
+            return Err(OpError::new(Code::Stale, "Document changed since dispatch"));
+        }
+        if let Some((key, rev)) = &c.surface {
+            if !rt.surfaces.get(key).is_some_and(|s| s.open && s.rev == *rev) {
+                return Err(OpError::new(Code::Stale, "Surface changed since dispatch"));
+            }
+        }
+        Ok(())
+    }
+    fn plugin_transaction(&mut self, rt: &mut Runtime, begin: Request) {
+        let inv = begin.invocation.clone();
+        let capture = begin.capture.clone();
+        if let Err(e) = self.plugin_valid(rt, &inv, &capture, capture.revision) {
+            begin.reply(Err(e));
+            return;
+        }
+        let before = self.active().cloned();
+        let journal = self.journal.len();
+        let active_layer = before.as_ref().and_then(|d| d.active_layer);
+        let selection = before.as_ref().map(|d| json!({"layers":d.selected_layers.iter().map(|l|l.0).collect::<Vec<_>>(),"active":d.active_layer.map(|l|l.0),"has_selection":d.doc.selection.is_some(),"bounds":d.doc.selection.as_ref().map(|s|s.content_bounds())})).unwrap_or(Value::Null);
+        let mut revision = capture.revision;
+        let mut ui: Option<(std::collections::BTreeMap<String, photocraft_plugins::runtime::Surface>, Vec<String>)> = None;
+        let mut failed = false;
+        let mut commit = false;
+        begin.reply(Ok(Value::Null));
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            let Ok(r) = rt.requests.recv_timeout(deadline.saturating_duration_since(Instant::now())) else { break };
+            if !Arc::ptr_eq(&inv.cancel, &r.invocation.cancel) {
+                // Other workers retry their queued events rather than interleave edits.
+                rt.pending.push_back(r);
+                continue;
+            }
+            let valid = self.plugin_valid(rt, &inv, &capture, revision);
+            match &r.action {
+                Action::Finish { commit: wanted } => {
+                    commit = *wanted && !failed && valid.is_ok();
+                    r.reply(if commit { Ok(Value::Null) } else { Err(valid.err().unwrap_or_else(|| OpError::new(Code::Cancelled, "Event rolled back"))) });
+                    break;
+                }
+                Action::Call { op, args } => {
+                    let out = valid.and_then(|_| authorize(&photocraft_plugins::contract().map_err(error)?, &LiveGrants, &inv, op, args)).and_then(|_| {
+                        if op.starts_with("ui.") {
+                            // Validate in a temporary surface map; publish only after commit.
+                            let surfaces = rt.surfaces.clone();
+                            let notifications = rt.notifications.clone();
+                            if let Some((pending, notices)) = ui.as_ref() {
+                                rt.surfaces = pending.clone();
+                                rt.notifications = notices.clone();
+                            }
+                            let out = rt.ui_change(&inv, op, args);
+                            let pending = rt.surfaces.clone();
+                            let notices = rt.notifications.clone();
+                            rt.surfaces = surfaces;
+                            rt.notifications = notifications;
+                            if out.is_ok() {
+                                ui = Some((pending, notices));
+                            }
+                            out
+                        } else {
+                            self.plugin_op(op, args.clone(), active_layer, &selection)
+                        }
+                    });
+                    failed |= out.is_err();
+                    revision = self.active().map_or(0, |d| d.revision);
+                    r.reply(out);
+                }
+                Action::Begin => {
+                    failed = true;
+                    r.reply(Err(OpError::new(Code::Stale, "Nested event")));
+                }
+            }
+        }
+        if !commit {
+            inv.cancel.store(true, Ordering::Relaxed);
+        }
+        self.finish_plugin_edits(before, journal, commit, &inv.label);
+        if commit {
+            if let Some((surfaces, notices)) = ui.take() {
+                rt.surfaces = surfaces;
+                rt.notifications = notices;
+            }
+        }
+    }
+    fn finish_plugin_edits(&mut self, before: Option<crate::DocState>, journal: usize, commit: bool, label: &str) {
+        if let Some(before) = before {
+            if let Some(d) = self.active_mut() {
+                if commit {
+                    let changed = d.doc != before.doc;
+                    d.history = before.history.clone();
+                    if changed {
+                        d.history.record(label, before.doc.clone(), before.layer_target());
+                        d.coalesce = None;
+                    }
+                } else {
+                    *d = before;
+                }
+            }
+        }
+        self.journal.truncate(journal);
+    }
+    fn plugin_op(&mut self, op: &str, args: Value, layer: Option<LayerId>, selection: &Value) -> Result<Value, OpError> {
+        if op == "plugin.resources" {
+            return photocraft_plugins::resources::query().map_err(error).and_then(|r| serde_json::to_value(r).map_err(error));
+        }
+        let d = self.active().ok_or_else(|| OpError::new(Code::NotFound, "No document"))?;
+        match op {
+            "document.info" => Ok(json!({"id":d.doc.id.0,"name":d.doc.name,"width":d.doc.size.width,"height":d.doc.size.height,"revision":d.revision})),
+            "layer.list" => {
+                fn layers(ls: &[photocraft_doc::Layer], out: &mut Vec<Value>, depth: usize) {
+                    if depth > 64 {
+                        return;
+                    }
+                    for l in ls {
+                        out.push(json!({"id":l.id.0,"name":l.name}));
+                        if let photocraft_doc::LayerContent::Group(g) = &l.content {
+                            layers(&g.children, out, depth + 1);
+                        }
+                    }
+                }
+                let mut out = vec![];
+                layers(&d.doc.layers, &mut out, 0);
+                Ok(json!(out))
+            }
+            "selection.get" => Ok(selection.clone()),
+            "layer.rename" => {
+                let target = args["layer"].as_u64().map(LayerId).or(layer).ok_or_else(|| OpError::invalid("No layer"))?;
+                let name = args["name"].as_str().filter(|s| s.len() <= 4096).ok_or_else(|| OpError::invalid("Invalid name"))?;
+                self.execute("layer.renameLayer", json!({"layer":target.0,"name":name})).map_err(error)
+            }
+            "filter.apply" => {
+                let filter = args["filter"]
+                    .as_str()
+                    .filter(|f| f.starts_with("filter.") || (f.starts_with("plugin.") && !f.starts_with("plugin.session.")))
+                    .ok_or_else(|| OpError::invalid("Invalid filter"))?;
+                self.execute(filter, args.get("params").cloned().unwrap_or(json!({}))).map_err(error)
+            }
+            _ => Err(OpError::new(Code::NotFound, "Unknown operation")),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn multiple_session_edits_fold_to_one_labelled_history_step() {
+        let mut s = Session::new();
+        s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+        let before = s.active().unwrap().clone();
+        let journal = s.journal.len();
+        let n = before.history.past_len();
+        let layer = before.active_layer;
+        s.plugin_op("layer.rename", json!({"name":"First"}), layer, &Value::Null).unwrap();
+        s.plugin_op("layer.rename", json!({"name":"Second"}), layer, &Value::Null).unwrap();
+        s.finish_plugin_edits(Some(before.clone()), journal, true, "Rename · Test");
+        assert_eq!(s.active().unwrap().history.past_len(), n + 1);
+        assert_eq!(s.active().unwrap().history.undo_label(), Some("Rename · Test"));
+        s.execute("edit.undo", json!({})).unwrap();
+        assert_eq!(s.active().unwrap().doc, before.doc);
+    }
+    #[test]
+    fn failed_event_restores_document_history_revision_and_journal() {
+        let mut s = Session::new();
+        s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+        let before = s.active().unwrap().clone();
+        let journal = s.journal.len();
+        s.plugin_op("layer.rename", json!({"name":"Transient"}), before.active_layer, &Value::Null).unwrap();
+        assert!(s.plugin_op("layer.rename", json!({"name":false}), before.active_layer, &Value::Null).is_err());
+        s.finish_plugin_edits(Some(before.clone()), journal, false, "Rename · Test");
+        let d = s.active().unwrap();
+        assert_eq!(d.doc, before.doc);
+        assert_eq!(d.revision, before.revision);
+        assert_eq!(d.history.entries(), before.history.entries());
+        assert_eq!(s.journal.len(), journal);
+    }
+}

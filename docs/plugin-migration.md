@@ -13,14 +13,29 @@ callers must supply the true document working-space name.
 
 The following named integration tasks remain; this migration is **incomplete**:
 
-- TODO(PhotoCraft-plugin-transactions): consume DocumentApi requests on the document
-  thread, capture scope/revision, rollback on timeout/revocation, and commit each
-  session event as one labelled history entry. Wire command/event workers and helpers.
-- TODO(PhotoCraft-plugin-panels): validate and render shared UI Nodes in egui and
-  route revision-carrying widget events.
-- TODO(PhotoCraft-plugin-projects): persist plugin references in native document
-  metadata, preserve missing non-destructive params and refuse final export with
-  the missing plugin's name. Destructive pixel edits need no project record.
+- PhotoCraft-plugin-transactions: done. Enabled `photocraft.session@1` command,
+  panel and event-hook contributions use ordered Wasm workers (one instance per
+  plugin/module) or a consented native helper. `DocumentApi` requests are served
+  only on the engine/document thread. Each event captures document id, activation
+  epoch and revision **at dispatch**; every operation rechecks contribution enablement,
+  live grants and `authorize()` immediately before execution. Begin → calls → finish
+  are served without interleaving user edits. Success folds edits into one history
+  entry `<label> · <plugin>`; errors (including ignored operation errors), timeout,
+  cancellation, revocation or stale document/surface roll back document and history.
+  Commands execute synchronously through `Session::execute` (also for CLI/automation).
+- PhotoCraft-plugin-panels: done. Shared Nodes are validated before publication and
+  drawn by ui-egui, including panels and `ui.window.open` floating windows. UI changes
+  publish only on event commit. Widget events retain surface revisions and are
+  checked again when serviced; sliders and text fields retain per-widget edit state.
+  Commands appear in Plugins ▸ <plugin> ▸ <label>. `selection.changed` (layer or
+  pixel selection) and `document.opened` go to event hooks declaring and holding
+  `app.events`. The desktop frame pumps requests; safe mode loads no workers.
+- PhotoCraft-plugin-projects: not needed for the current destructive plugin filters.
+  Plugin filters accept raster layers only (`plugin_filters::enabled` and the run
+  path both enforce this); PhotoCraft's existing smart filters store built-in filter
+  command ids, not plugin contributions. Destructive pixels are self-contained in
+  native documents and export needs no plugin. Revisit persistence/missing-plugin
+  export refusal only when non-destructive plugin smart filters are introduced.
 - TODO(PhotoCraft-plugin-examples): verify unchanged halftone and film-looks packages
   end to end in the running app (filter wiring exists; not yet exercised on real packages).
 - TODO(PhotoCraft-plugin-filter-gaps): Channels-panel colour subsets, layer/filter-mask
@@ -54,8 +69,7 @@ in `photocraft_plugins::filter` with unit tests.
 Both Color Lookup pickers also offer plugin LUTs, labelled "From plugins", using their
 existing asynchronous scan.
 
-The contract describes the intended operation surface, not an assertion that these
-operations are already dispatched by the engine. Shared source is read-only except
+The engine dispatches the adapter contract operations through the session bridge. Shared source is read-only except
 for the PhotoCraft contract page.
 
 `plugin.resources` returns an array of `{plugin, id, label, kind, files}` records;
@@ -63,3 +77,17 @@ for the PhotoCraft contract page.
 Safe mode and the web adapter return an empty array. Discovery re-reads the enabled
 store view, including kill-list and required-grant checks. LUT menus refresh on the
 existing two-second asynchronous scan cadence; failures leave that scan empty.
+
+## Validation
+
+Scoped crate checks and `cargo test -p photocraft-plugins` cover the adapter/bridge.
+The bridge regressions cover independent worker document captures, timeout cancellation
+with rollback delivery, commit rejection propagation, and panel validation/revisions.
+Engine regressions also cover multi-op history folding and complete rollback (added,
+not executed under the plugin-only test limit). Runtime package/UI exercise
+and broader engine/UI tests remain unrun under the task’s local validation limits.
+
+Validated locally: `cargo test -p photocraft-plugins` (9 passed),
+`cargo check -p photocraft-plugins`, `cargo check -p photocraft-engine`,
+and the final `cargo check -p photocraft-ui-egui` (including engine and plugin
+dependencies). No build/run, workspace tests or clippy were invoked.

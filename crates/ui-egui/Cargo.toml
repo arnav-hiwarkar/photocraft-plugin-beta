@@ -8,6 +8,8 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+craft-ext-core.workspace = true
+craft-ext-host.workspace = true
 chrono = { workspace = true }
 craft-print = { workspace = true }
 craft-ui = { workspace = true }
