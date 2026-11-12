@@ -19,6 +19,7 @@ mod crop_fill;
 pub mod display_color;
 pub mod doc_path;
 pub mod filters;
+pub mod plugin_filters;
 pub mod filters_ext;
 mod group_options;
 pub mod guide_layout;

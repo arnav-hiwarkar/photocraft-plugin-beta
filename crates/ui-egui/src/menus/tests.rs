@@ -69,6 +69,7 @@ fn submenu_header_is_disabled_when_every_item_is() {
         enabled,
         checked: None,
         color: None,
+        tooltip: None,
     };
     let (off, on, sep) = (item("Off", false), item("On", true), item("---", true));
     assert!(!submenu_enabled(&[]));

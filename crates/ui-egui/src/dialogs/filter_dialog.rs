@@ -333,6 +333,7 @@ pub fn has_dialog(command: &str) -> bool {
         return false;
     }
     (command.starts_with("filter.")
+        || command.starts_with(photocraft_engine::plugin_filters::PREFIX)
         || command.starts_with("select.modify.")
         || PREVIEWED.contains(&command)
         || matches!(
@@ -572,13 +573,21 @@ pub fn open(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
     fields.insert("__label".into(), json!(spec.label));
     fields.insert("__filter".into(), json!(true));
     // Select and Mask previews in its view modes (`select_mask_view`), not as the command's result.
-    if command.starts_with("filter.") || PREVIEWED.contains(&command) || command == crate::select_mask_view::COMMAND {
+    if command.starts_with("filter.")
+        || command.starts_with(photocraft_engine::plugin_filters::PREFIX)
+        || PREVIEWED.contains(&command)
+        || command == crate::select_mask_view::COMMAND
+    {
         fields.insert("__preview".into(), json!(true));
     }
     for p in parse_spec(spec.params) {
         if let Some(v) = default_value(app, command, &p) {
             fields.insert(p.key, v);
         }
+    }
+    // A plugin filter: its manifest's labels, angle and text defaults, and its presets.
+    if let Some(extra) = photocraft_engine::plugin_filters::dialog_fields(command) {
+        fields.extend(extra);
     }
     restore_remembered(app, command, spec.params, &mut fields);
     apply_command_defaults(app, command, &mut fields);
@@ -1144,6 +1153,12 @@ pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
     if crate::select_mask_view::owns(f) {
         crate::select_mask_view::controls(ui, f);
     }
+    // Plugin filters name their fields and options in their manifest, shown as written.
+    let names = f.get("__labels").and_then(Value::as_object).cloned();
+    let raw_choices = names.is_some();
+    let label = |key: &str| -> String { names.as_ref().and_then(|m| m.get(key)).and_then(Value::as_str).map_or_else(|| label(key), str::to_owned) };
+    let angles: Vec<String> = f.get("__angles").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).map(str::to_owned).collect();
+    plugin_presets(ui, &cmd, f);
     for p in parse_spec(&spec) {
         if cmd == "image.mode.indexedColor" && p.key == "matte" {
             indexed_matte_row(ui, f);
@@ -1191,7 +1206,7 @@ pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
                     if !enabled {
                         ui.disable();
                     }
-                    if uses_angle_dial(&cmd, &p.key) {
+                    if uses_angle_dial(&cmd, &p.key) || angles.contains(&p.key) {
                         crate::widgets::angle_dial_row(ui, &label(&p.key), &mut v, min..=max);
                         ui.add_space(4.0);
                     } else if uses_logarithmic_slider(min, max) {
@@ -1232,7 +1247,7 @@ pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
                     ui.label(egui::RichText::new(label(&p.key)).color(t.text_dim));
                     let initial = default.as_deref().or_else(|| options.first().map(String::as_str)).unwrap_or("");
                     let mut cur = f.get(&p.key).and_then(Value::as_str).unwrap_or(initial).to_string();
-                    let labels: Vec<String> = options.iter().map(|o| choice_label(o)).collect();
+                    let labels: Vec<String> = options.iter().map(|o| if raw_choices { o.clone() } else { choice_label(o) }).collect();
                     let mut opts: Vec<(String, &str)> = options.iter().cloned().zip(labels.iter().map(String::as_str)).collect();
                     // Lens Blur's Source: each alpha channel by its name, in place of `channel`.
                     let depth = cmd == LENS_BLUR && p.key == "depthMap";
@@ -1429,6 +1444,28 @@ pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
         crate::widgets::checkbox(ui, &mut preview, tl!("Preview"));
         f.insert("__preview".into(), json!(preview));
     }
+}
+
+/// A plugin filter's presets (`__presets`, from `plugin_filters::dialog_fields`): picking one
+/// sets the fields it carries; editing a field afterwards leaves the choice as it is.
+fn plugin_presets(ui: &mut egui::Ui, cmd: &str, f: &mut Map<String, Value>) {
+    let Some(presets) = f.get("__presets").and_then(Value::as_array).cloned() else { return };
+    let custom = tl!("Custom").to_string();
+    let mut opts: Vec<(String, &str)> = vec![(String::new(), custom.as_str())];
+    opts.extend(presets.iter().filter_map(|p| Some((p.get("id")?.as_str()?.to_string(), p.get("label")?.as_str()?))));
+    let before = f.get("__preset").and_then(Value::as_str).unwrap_or_default().to_string();
+    let mut cur = before.clone();
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(tl!("Preset")).color(Tokens::get(ui.ctx()).text_dim));
+        crate::widgets::dropdown_literal(ui, &format!("flt-{cmd}-__preset"), tl!("Preset"), &mut cur, &opts, 170.0);
+    });
+    if cur != before {
+        if let Some(fields) = presets.iter().find(|p| p.get("id").and_then(Value::as_str) == Some(cur.as_str())).and_then(|p| p.get("fields")).and_then(Value::as_object) {
+            f.extend(fields.clone());
+        }
+        f.insert("__preset".into(), json!(cur));
+    }
+    ui.add_space(4.0);
 }
 
 /// A new seed for a dialog's Random button: 0..=30000 (what the field takes), never `current`.

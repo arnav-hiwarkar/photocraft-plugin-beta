@@ -71,7 +71,7 @@ pub fn contract() -> Result<AppContract, IdError> {
             SlotSpec { kind: "preset", summary: "Plugin filter presets" },
             SlotSpec { kind: "lut", summary: "plugin.resources" },
         ],
-        notes: "RGB(A) 8/16/32-bit only, premultiplied RGBA f32 in the named document working space. Other modes: This filter works on RGB images. Destructive filters need no project record. TODO(PhotoCraft-plugin-projects): persist non-destructive plugin references and refuse export if missing. TODO(PhotoCraft-plugin-integration): bind session operations, menus, parameter dialogs and panels to the document thread before enabling execution.",
+        notes: "RGB(A) 8/16/32-bit only, premultiplied RGBA f32 in the named document working space. Other modes: This filter works on RGB images. Destructive filters need no project record. TODO(PhotoCraft-plugin-projects): persist non-destructive plugin references and refuse export if missing. Effects run as Filter › Plugins commands. TODO(PhotoCraft-plugin-transactions): bind session operations and panels to the document thread before enabling them.",
     })
 }
 
@@ -99,14 +99,23 @@ pub mod store {
         pub contribution: craft_ext_core::manifest::Contribution,
     }
     pub fn filters() -> Result<Vec<FilterSource>, Box<dyn std::error::Error>> {
+        Ok(named_filters()?.into_iter().map(|(filter, _)| filter).collect())
+    }
+    /// The store's generation: it changes with every install, enablement or grant change.
+    pub fn generation() -> Result<u64, Box<dyn std::error::Error>> {
+        Ok(Store::at(craft_ext_store::location::default_root()?).state()?.generation)
+    }
+    /// Enabled effects with the display name of the plugin that provides each.
+    pub fn named_filters() -> Result<Vec<(FilterSource, String)>, Box<dyn std::error::Error>> {
+        let provided = contract()?.provided;
         let mut filters = Vec::new();
         for (plugin, version, root, manifest, enabled) in enabled()? {
             for contribution in manifest.contributions {
                 if enabled.contains(&contribution.id)
                     && contribution.kind == craft_ext_core::manifest::ContributionKind::Effect
-                    && contribution.contract.check(&contract()?.provided).is_none()
+                    && contribution.contract.check(&provided).is_none()
                 {
-                    filters.push(FilterSource { plugin: plugin.clone(), version, root: root.clone(), contribution });
+                    filters.push((FilterSource { plugin: plugin.clone(), version, root: root.clone(), contribution }, manifest.name.clone()));
                 }
             }
         }
@@ -151,10 +160,22 @@ pub fn transform(
 
 #[cfg(not(target_arch = "wasm32"))]
 impl store::FilterSource {
-    /// Refresh enabled contributions before every run and every host fuel slice.
-    pub fn run(&self, pixels: &[f32], width: u32, height: u32, color: &str, params: Value) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+    /// Refresh enabled contributions before every run and every host fuel slice; `cancelled`
+    /// is asked at the same points so a cancelled job stops the guest.
+    pub fn run(
+        &self,
+        pixels: &[f32],
+        width: u32,
+        height: u32,
+        color: &str,
+        params: Value,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         use craft_ext_host::wasm::PluginError;
         let validate = || -> Result<(), PluginError> {
+            if cancelled() {
+                return Err(PluginError::Stopped("Cancelled".into()));
+            }
             let releases = store::enabled().map_err(|e| PluginError::Stopped(e.to_string()))?;
             if releases.iter().any(|(id, version, root, _, enabled)| {
                 id == &self.plugin && version == &self.version && root == &self.root && enabled.contains(&self.contribution.id)
@@ -174,4 +195,5 @@ impl store::FilterSource {
 }
 
 pub mod document_thread;
+pub mod filter;
 pub mod resources;

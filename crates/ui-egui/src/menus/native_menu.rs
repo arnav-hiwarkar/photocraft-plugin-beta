@@ -822,6 +822,8 @@ pub(crate) fn state_hash(app: &PhotocraftApp, input: Option<u64>) -> u64 {
     crate::guide_select::selected(app).hash(&mut h);
     serde_json::to_string(&(&ui.panels, &ui.extras, &ui.view, ui.theme, ui.tool)).unwrap_or_default().hash(&mut h);
     s.prefs().interface.language.hash(&mut h);
+    // Plugin filters come and go with the plugin store.
+    photocraft_engine::plugin_filters::revision().hash(&mut h);
     h.finish()
 }
 

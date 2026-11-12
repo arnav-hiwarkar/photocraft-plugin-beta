@@ -232,7 +232,7 @@ pub fn list_entry_matches(entry: &Value, needle: &str) -> bool {
 
 pub fn find(id: &str) -> Option<&'static CommandSpec> {
     let registry = registry();
-    registry.by_id.get(id).and_then(|&index| registry.specs.get(index))
+    registry.by_id.get(id).and_then(|&index| registry.specs.get(index)).or_else(|| crate::plugin_filters::find(id))
 }
 
 struct Registry {
@@ -1180,7 +1180,11 @@ fn build() -> Vec<CommandSpec> {
             shortcut: None,
             params: "{}",
             enabled: always,
-            run: |s, _| Ok(Value::Array(command_specs().iter().map(|c| list_entry(s, c, (c.enabled)(s).err())).collect())),
+            run: |s, _| {
+                // Enabled plugin filters are commands too, listed after the built-ins.
+                let specs = command_specs().iter().chain(crate::plugin_filters::specs());
+                Ok(Value::Array(specs.map(|c| list_entry(s, c, (c.enabled)(s).err())).collect()))
+            },
             journal: false,
         },
         CommandSpec {

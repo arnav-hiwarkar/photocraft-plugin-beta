@@ -114,6 +114,15 @@ pub(super) fn adjust_mode(s: &Session, p: &Value) -> ColorMode {
 
 /// Commands generated from a table share one `run` fn; the kind is recovered from the id.
 pub(crate) fn inject_kind(id: &str, params: Value) -> Value {
+    // A plugin filter's spec is shared by its run function, which reads the command id here.
+    if id.starts_with(crate::plugin_filters::PREFIX) {
+        let mut m = match params {
+            Value::Object(m) => m,
+            _ => serde_json::Map::new(),
+        };
+        m.insert(crate::plugin_filters::COMMAND_PARAM.into(), Value::String(id.into()));
+        return Value::Object(m);
+    }
     let kind = id.strip_prefix("layer.newAdjustmentLayer.").or_else(|| id.strip_prefix("image.adjustments."));
     match (kind, params) {
         (Some(k), Value::Object(mut m)) => {

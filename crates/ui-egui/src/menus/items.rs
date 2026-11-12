@@ -14,6 +14,9 @@ pub struct MenuItem {
     /// Edit › Menus colour (red, orange, …).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
+    /// Shown on hover while the item is disabled (plugin filters in non-RGB documents).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tooltip: Option<String>,
 }
 
 /// Is `id` implemented by the engine or the shell (a live menu item)? Shared by the menus and
@@ -61,6 +64,7 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             enabled: known(id) && is_enabled(app, id),
             checked: checked(app, id),
             color: None,
+            tooltip: None,
         })
         .collect();
     // 2) Our commands that Photoshop's tree doesn't list (or lists under another id).
@@ -74,6 +78,7 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             enabled: is_enabled(app, id),
             checked: checked(app, id),
             color: None,
+            tooltip: None,
         });
     }
     for c in photocraft_engine::command_specs().iter().filter(|c| !c.menu.is_empty()) {
@@ -85,9 +90,26 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             enabled: is_enabled(app, c.id),
             checked: None,
             color: None,
+            tooltip: None,
         });
     }
-    items.push(MenuItem { id: "plugins.manage".into(), label: "Plugins…".into(), path: vec!["Plugins".into()], shortcut: None, enabled: true, checked: None, color: None });
+    // Enabled plugin filters: Filter › Plugins › <category> › <label>, after the built-ins.
+    for c in photocraft_engine::plugin_filters::specs() {
+        let enabled = is_enabled(app, c.id);
+        let tooltip = (!enabled && photocraft_engine::plugin_filters::rgb_only(&app.session, c.id))
+            .then(|| crate::i18n::tr(crate::i18n::current(), photocraft_engine::plugin_filters::RGB_ONLY).to_string());
+        extra.push(MenuItem {
+            id: c.id.into(),
+            label: c.label.into(),
+            path: c.menu.iter().map(|s| s.to_string()).collect(),
+            shortcut: None,
+            enabled,
+            checked: None,
+            color: None,
+            tooltip,
+        });
+    }
+    items.push(MenuItem { id: "plugins.manage".into(), label: "Plugins…".into(), path: vec!["Plugins".into()], shortcut: None, enabled: true, checked: None, color: None, tooltip: None });
     for mut e in extra {
         let dup = items.iter().any(|i| i.id == e.id || (i.path == e.path && i.label.trim_end_matches('…') == e.label.trim_end_matches('…')));
         if !dup {
@@ -147,11 +169,11 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             .enumerate()
             .map(|(i, p)| {
                 let label = std::path::Path::new(p).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.clone());
-                MenuItem { id: format!("file.openRecent.{i}"), label, path: rp.clone(), shortcut: None, enabled: true, checked: None, color: None }
+                MenuItem { id: format!("file.openRecent.{i}"), label, path: rp.clone(), shortcut: None, enabled: true, checked: None, color: None, tooltip: None }
             })
             .collect();
         if !recent.is_empty() {
-            recent.push(MenuItem { id: "---".into(), label: "---".into(), path: rp.clone(), shortcut: None, enabled: false, checked: None, color: None });
+            recent.push(MenuItem { id: "---".into(), label: "---".into(), path: rp.clone(), shortcut: None, enabled: false, checked: None, color: None, tooltip: None });
         }
         recent.push(MenuItem {
             id: "file.clearRecent".into(),
@@ -161,6 +183,7 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             enabled: !app.ui.recent_files.is_empty(),
             checked: None,
             color: None,
+            tooltip: None,
         });
         for (k, it) in recent.into_iter().enumerate() {
             items.insert(after + 1 + k, it);
@@ -172,11 +195,11 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
         && let Some(after) = items.iter().position(|i| i.id == "window.workspace.motion")
     {
         let wp: Vec<String> = vec!["Window".into(), "Workspace".into()];
-        let separator = MenuItem { id: "---".into(), label: "---".into(), path: wp.clone(), shortcut: None, enabled: false, checked: None, color: None };
+        let separator = MenuItem { id: "---".into(), label: "---".into(), path: wp.clone(), shortcut: None, enabled: false, checked: None, color: None, tooltip: None };
         let entries = saved.into_iter().enumerate().map(|(i, name)| {
             let id = format!("{}{i}", crate::workspace_ui::SAVED);
             let checked = checked(app, &id);
-            MenuItem { id, label: name, path: wp.clone(), shortcut: None, enabled: true, checked, color: None }
+            MenuItem { id, label: name, path: wp.clone(), shortcut: None, enabled: true, checked, color: None, tooltip: None }
         });
         for (k, it) in std::iter::once(separator).chain(entries).enumerate() {
             items.insert(after + 1 + k, it);
@@ -192,7 +215,7 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
     if let Some(at) = items.iter().position(|i| i.id == "help.systemInfo" || i.id == "help.about") {
         items.insert(
             at,
-            MenuItem { id: "---".into(), label: "---".into(), path: vec!["Help".into()], shortcut: None, enabled: false, checked: None, color: None },
+            MenuItem { id: "---".into(), label: "---".into(), path: vec!["Help".into()], shortcut: None, enabled: false, checked: None, color: None, tooltip: None },
         );
     }
     // Window: the open documents in tab order, after a separator, the active one checked.
@@ -207,8 +230,9 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             enabled: true,
             checked: Some(active == Some(i)),
             color: None,
+            tooltip: None,
         });
-        let separator = MenuItem { id: "---".into(), label: "---".into(), path: window(), shortcut: None, enabled: false, checked: None, color: None };
+        let separator = MenuItem { id: "---".into(), label: "---".into(), path: window(), shortcut: None, enabled: false, checked: None, color: None, tooltip: None };
         let rows: Vec<MenuItem> = std::iter::once(separator).chain(docs).collect();
         if rows.len() > 1 {
             items.splice(last + 1..last + 1, rows);
