@@ -5935,6 +5935,7 @@ dependencies = [
  "craft-ext-core",
  "craft-ext-host",
  "craft-ext-store",
+ "serde",
  "serde_json",
 ]
 

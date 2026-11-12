@@ -54,6 +54,14 @@ impl AppApi for DocumentApi {
         self.request(invocation, Action::Begin).map(|_| ())
     }
     fn call(&self, invocation: &Invocation, op: &str, args: Value) -> Result<Value, OpError> {
+        if op == "plugin.resources" {
+            if invocation.cancelled() {
+                return Err(OpError::new(Code::Cancelled, "The request was cancelled"));
+            }
+            return super::resources::query()
+                .map_err(|e| OpError::new(Code::Stale, e.to_string()))
+                .and_then(|resources| serde_json::to_value(resources).map_err(|e| OpError::new(Code::Stale, e.to_string())));
+        }
         self.request(invocation, Action::Call { op: op.into(), args })
     }
     fn finish(&self, invocation: &Invocation, commit: bool) {

@@ -174,3 +174,4 @@ impl store::FilterSource {
 }
 
 pub mod document_thread;
+pub mod resources;

@@ -20,8 +20,12 @@ The following named integration tasks remain; this migration is **incomplete**:
   session event as one labelled history entry. Wire command/event workers and helpers.
 - TODO(PhotoCraft-plugin-panels): validate and render shared UI Nodes in egui and
   route revision-carrying widget events.
-- TODO(PhotoCraft-plugin-resources): implement the advertised plugin.resources query,
-  filter presets and LUT integration; discovery currently returns manifest resources.
+- TODO(PhotoCraft-plugin-resources): wire decoded filter presets into the future
+  plugin parameter dialog. `plugin.resources` now returns enabled, compatible presets
+  and LUTs with confined package file paths; both Color Lookup pickers offer plugin
+  LUTs labelled "From plugins" using their existing asynchronous scan pattern.
+  Single-effect preset decoding is available in `resources::presets`; recipes with
+  multiple effects are deliberately excluded from a single-filter dialog.
 - TODO(PhotoCraft-plugin-projects): persist plugin references in native document
   metadata, preserve missing non-destructive params and refuse final export with
   the missing plugin's name. Destructive pixel edits need no project record.
@@ -31,3 +35,9 @@ The following named integration tasks remain; this migration is **incomplete**:
 The contract describes the intended operation surface, not an assertion that these
 operations are already dispatched by the engine. Shared source is read-only except
 for the PhotoCraft contract page.
+
+`plugin.resources` returns an array of `{plugin, id, label, kind, files}` records;
+`kind` is `preset` or `lut`, and `files` contains canonical package-contained paths.
+Safe mode and the web adapter return an empty array. Discovery re-reads the enabled
+store view, including kill-list and required-grant checks. LUT menus refresh on the
+existing two-second asynchronous scan cadence; failures leave that scan empty.

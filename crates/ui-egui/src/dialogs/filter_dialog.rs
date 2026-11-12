@@ -1271,7 +1271,10 @@ pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
                     }
                     let folder_lut = cmd == COLOR_LOOKUP && p.key == "lut";
                     let lut_folder = f.get(LUT_FOLDER).and_then(Value::as_str).filter(|d| folder_lut && !d.is_empty());
-                    let luts = lut_folder.map(|d| crate::adjust_ui::folder_luts(d, ui.ctx())).unwrap_or_default();
+                    let mut luts = lut_folder.map(|d| crate::adjust_ui::folder_luts(d, ui.ctx())).unwrap_or_default();
+                    if folder_lut {
+                        luts.extend(crate::adjust_ui::plugin_luts(ui.ctx()));
+                    }
                     let lut_keys: Vec<String> = luts.iter().map(|(_, path)| format!("{}{path}", crate::adjust_ui::FOLDER_LUT)).collect();
                     opts.extend(lut_keys.iter().cloned().zip(luts.iter().map(|(name, _)| name.as_str())));
                     // A folder file is kept as `lut: none` + `file`: show it by its name, also once

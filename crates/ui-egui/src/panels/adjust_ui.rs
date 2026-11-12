@@ -45,9 +45,13 @@ struct FolderScan {
 /// slow; until a scan finishes the dropdown shows the previous one. Image › Adjustments › Color
 /// Lookup lists them too (#9754).
 pub(crate) fn folder_luts(folder: &str, ctx: &egui::Context) -> FolderLuts {
+    scanned_luts(folder, ctx, false)
+}
+
+fn scanned_luts(folder: &str, ctx: &egui::Context, plugins: bool) -> FolderLuts {
     let folder = folder.to_string();
     let now = ctx.input(|input| input.time);
-    let key = egui::Id::unique("color-lookup-folder");
+    let key = egui::Id::unique(("color-lookup-folder", plugins));
     let mut scan = ctx.data(|data| data.get_temp::<FolderScan>(key)).unwrap_or_default();
     if let Some(done) = scan.pending.as_ref().and_then(|p| p.lock().unwrap_or_else(PoisonError::into_inner).take()) {
         scan.luts = done;
@@ -59,20 +63,30 @@ pub(crate) fn folder_luts(folder: &str, ctx: &egui::Context) -> FolderLuts {
     }
     if scan.pending.is_none() && scan.started.is_none_or(|at| now - at >= 2.0) {
         scan.started = Some(now);
-        scan.pending = Some(start_folder_scan(folder, ctx.clone()));
+        scan.pending = Some(start_folder_scan(folder, ctx.clone(), plugins));
     }
     let luts = scan.luts.clone();
     ctx.data_mut(|data| data.insert_temp(key, scan));
     luts
 }
 
+/// Shared asynchronous plugin list for both destructive and adjustment-layer LUT pickers.
+pub(crate) fn plugin_luts(ctx: &egui::Context) -> FolderLuts {
+    scanned_luts("", ctx, true)
+}
+
 /// Scan `folder` on a worker thread (on the web, where there are none, right here: it lists
 /// nothing there anyway).
-fn start_folder_scan(folder: String, ctx: egui::Context) -> Arc<Mutex<Option<FolderLuts>>> {
+fn start_folder_scan(folder: String, ctx: egui::Context, plugins: bool) -> Arc<Mutex<Option<FolderLuts>>> {
     let result = Arc::new(Mutex::new(None));
     let shared = Arc::clone(&result);
     let work = move || {
-        let luts = photocraft_engine::adjust_cmds::folder_luts(&folder);
+        let luts = if plugins {
+            photocraft_plugins::resources::luts().unwrap_or_default().into_iter()
+                .map(|(label, path)| (format!("From plugins / {label}"), path)).collect()
+        } else {
+            photocraft_engine::adjust_cmds::folder_luts(&folder)
+        };
         *shared.lock().unwrap_or_else(PoisonError::into_inner) = Some(luts);
         ctx.request_repaint();
     };
@@ -113,6 +127,8 @@ pub fn color_lookup_editor(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: Layer
     };
     let builtins = photocraft_engine::adjust_cmds::LOOKS;
     let folder = folder_luts(&app.session.prefs().file_handling.lut_folder, ui.ctx());
+    let mut folder = folder;
+    folder.extend(plugin_luts(ui.ctx()));
     let current = current_lookup(name, lut.is_some(), &folder);
     let current = app
         .live_adjust
