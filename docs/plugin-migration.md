@@ -38,9 +38,10 @@ The following named integration tasks remain; this migration is **incomplete**:
   export refusal only when non-destructive plugin smart filters are introduced.
 - TODO(PhotoCraft-plugin-examples): verify unchanged halftone and film-looks packages
   end to end in the running app (filter wiring exists; not yet exercised on real packages).
-- TODO(PhotoCraft-plugin-filter-gaps): Channels-panel colour subsets, layer/filter-mask
-  targets and smart objects are not offered to plugin filters (the command is disabled or
-  edits the layer's composite colour); non-sRGB integer documents are labelled `srgb`.
+- PhotoCraft-plugin-filter-gaps: done. Channels-panel colour subsets, Quick Mask, layer and
+  vector masks, and non-pixel layers (smart objects included) disable plugin filters with a
+  reason in the tooltip. Document profiles convert through CMS, so the `color` a plugin
+  receives (`srgb` or `linear-srgb`) is the space its pixels are in.
 
 ## Plugin filters (done)
 
@@ -62,9 +63,48 @@ f32 (`linear-srgb` for 32-bit, otherwise `srgb`), `FilterSource::run` executes i
 enablement/grant and cancellation checks, the result is unpremultiplied (clamped only for
 integer depths), blended through the selection, locked transparency is kept, and the change is
 one history step "<label> · <plugin name>". Errors leave the document unchanged and report
-"<label> · <plugin> could not run: <reason>". In non-RGB documents the menu item is disabled
-with the tooltip "This filter works on RGB images". Conversion and parameter resolution live
-in `photocraft_plugins::filter` with unit tests.
+"<label> · <plugin> could not run: <reason>". Availability is checked when the menu is built and
+again on the document thread before a result is applied; a result that no longer qualifies is
+discarded with "<label> · <plugin> was discarded: <reason>". A disabled item's tooltip gives the
+reason: a non-RGB document ("This filter works on RGB images"); a layer mask as the target or
+shown in its mask view ("plugin filters can't edit a layer mask: target the layer's colour"); a
+channel, channel subset or Quick Mask target ("plugin filters can't edit a channel or Quick Mask:
+target the composite channel"); a profile that can't convert to sRGB ("This filter needs an sRGB
+document"); a non-pixel layer. An RGB profile is converted in and out through CMS (to sRGB, or
+linear sRGB for 32-bit documents). An explicit `target` argument is refused. Conversion and
+parameter resolution live in `photocraft_plugins::filter` with unit tests.
+
+## Plugin sessions: discovery and `filter.apply` (done)
+
+Enabled session commands and panels, `plugin.session.<plugin>/<contribution>`, are command specs
+(`photocraft_engine::plugin_sessions`) listed under Plugins › <plugin name> › <label> in menus,
+`command.list`, `engine.commands`, the headless server and the CLI. `is_enabled` answers for them,
+and they follow the store generation like plugin filters. Running one still goes through
+`Session::execute`, which routes it to the session bridge.
+
+`filter.apply`, a session's only way to change pixels, runs only the built-in pixel filters in
+`photocraft_plugins::session_filters::FILTERS`: blur, sharpen, noise, distort, pixelate, the
+render filters that take numbers only (clouds, fibers, lens flare, flame, tree), stylize, and the
+Other and Video filters. Refused: filters that read a file, another document or another channel
+(Displace, Lens Blur, Lighting Effects, Relight, Picture Frame); filters that run other commands
+(Last Filter, Filter Gallery); Convert for Smart Filters; filters that open their own tool (Camera
+Raw, Liquify, Vanishing Point, Lens Correction, Adaptive Wide Angle); the gallery and blur-gallery
+filters for now; and every plugin and session command. Params must be an object of at most 16 KiB
+with none of `target`, `layer`, `mapPath`, `mapDocument`, `mapLayer`, `depthChannel`, `depthMap`,
+`texture`, or a key starting with `__`. A filter that isn't allowed is denied; bad params are
+invalid.
+
+## Catalogue, kill list and revocation (done)
+
+The desktop app calls `photocraft_engine::plugin_sessions::start_catalogue_refresh` at startup.
+That starts one background thread which refreshes the catalogue and kill list at once and every
+six hours; a failed refresh is printed to stderr and tried again at the next interval. Sessions
+don't start it, so tests and the CLI never reach the network. Every store update (install,
+enable, grant, refresh, revocation) advances the store generation: the filter and session command
+lists rebuild within two seconds, and session workers reload on their next pump. Until then each
+run checks the store again (`FilterSource::validate`, `Runtime::valid`), so a kill-listed release
+does not start. A filter invocation captures its grant generation when it starts and is rejected
+if the generation changes at any host check (before the run, between fuel slices) or at commit.
 
 Both Color Lookup pickers also offer plugin LUTs, labelled "From plugins", using their
 existing asynchronous scan.
@@ -87,7 +127,12 @@ Engine regressions also cover multi-op history folding and complete rollback (ad
 not executed under the plugin-only test limit). Runtime package/UI exercise
 and broader engine/UI tests remain unrun under the task’s local validation limits.
 
-Validated locally: `cargo test -p photocraft-plugins` (9 passed),
-`cargo check -p photocraft-plugins`, `cargo check -p photocraft-engine`,
-and the final `cargo check -p photocraft-ui-egui` (including engine and plugin
-dependencies). No build/run, workspace tests or clippy were invoked.
+Validated locally: `cargo test -p photocraft-plugins` (14 passed, including the
+`session_filters` allowlist and argument tests); `cargo check` of `photocraft-plugins`,
+`photocraft-engine` (with `--tests`), `photocraft-automation`, `photocraft-ui-egui` and
+`photocraft`; and `cargo check -p photocraft-engine --target wasm32-unknown-unknown`.
+`cargo check -p photocraft-automation --target wasm32-unknown-unknown` fails in the `errno`
+dependency pulled in through `cap-std`, which this change does not touch. Added but not run
+(engine tests are outside the local limit): `plugin_sessions::tests::filter_apply_runs_only_allowlisted_filters_with_clean_params`
+and `plugin_filters::tests::plugin_filters_say_why_they_are_unavailable_on_masks_channels_and_profiles`.
+No build/run, workspace tests or clippy were invoked.

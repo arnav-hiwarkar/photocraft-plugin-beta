@@ -488,7 +488,7 @@ impl Headless {
     }
 
     pub fn command_list(&self) -> Value {
-        let specs = command_specs().iter().chain(photocraft_engine::plugin_filters::specs());
+        let specs = command_specs().iter().chain(photocraft_engine::plugin_filters::specs()).chain(photocraft_engine::commands::session_specs());
         Value::Array(specs.map(|c| photocraft_engine::commands::list_entry(&self.session, c, self.session.disabled_reason(c.id))).collect())
     }
 

@@ -19,9 +19,24 @@ pub const PREFIX: &str = "plugin.";
 /// The private run parameter naming the command a dynamic spec runs (see `inject_kind`).
 pub(crate) const COMMAND_PARAM: &str = "__plugin";
 
-/// Whether the menus' tooltip for disabled `id` is [`RGB_ONLY`].
-pub fn rgb_only(s: &Session, id: &str) -> bool {
-    id.starts_with(PREFIX) && s.active().is_some_and(|d| d.doc.mode != photocraft_color::ColorMode::Rgb)
+/// Why a plugin filter is unavailable while the edit target is a layer mask (also its tooltip).
+pub const MASK_ONLY: &str = "plugin filters can't edit a layer mask: target the layer's colour";
+/// Why a plugin filter is unavailable while the edit target is a channel subset or Quick Mask.
+pub const CHANNEL_ONLY: &str = "plugin filters can't edit a channel or Quick Mask: target the composite channel";
+/// Why a plugin filter is unavailable on a document whose profile can't convert to sRGB.
+pub const SRGB_ONLY: &str = "This filter needs an sRGB document";
+
+// Dead on wasm with the rest of the plugin filter run path, which only native builds reach.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+fn color_transforms(doc: &photocraft_doc::Document) -> Result<Option<(std::sync::Arc<photocraft_cms::Transform>, std::sync::Arc<photocraft_cms::Transform>)>> {
+    use photocraft_cms::{Builtin, Profile, transform::{cached, TransformOptions}};
+    let Some(bytes) = &doc.icc_profile else { return Ok(None) };
+    let bad = |_| EngineError::Other(SRGB_ONLY.into());
+    let source = Profile::parse(bytes).map_err(bad)?;
+    if source.color_space != photocraft_cms::ColorSpace::Rgb { return Err(EngineError::Other(SRGB_ONLY.into())); }
+    let target = if doc.depth == photocraft_color::SampleType::F32 { Builtin::LinearSrgb } else { Builtin::Srgb }.profile();
+    if source.to_bytes() == target.to_bytes() { return Ok(None); }
+    Ok(Some((cached(&source, target, TransformOptions::default()).map_err(bad)?, cached(target, &source, TransformOptions::default()).map_err(bad)?)))
 }
 
 fn enabled(s: &Session) -> std::result::Result<(), String> {
@@ -29,9 +44,22 @@ fn enabled(s: &Session) -> std::result::Result<(), String> {
     if d.doc.mode != photocraft_color::ColorMode::Rgb {
         return Err(RGB_ONLY.into());
     }
-    if crate::channel_cmds::edits_channel(s) {
-        return Err("plugin filters apply to a layer's colour: target the composite channel".into());
+    // A layer mask is edited when it is the target or its mask view is shown; channels and Quick
+    // Mask are edited when targeted. Either way the filter would change something other than the
+    // layer's colour, so it is unavailable with the reason in its tooltip.
+    let target = d.channel_view.target;
+    if matches!(target, crate::channel_cmds::ChannelTarget::LayerMask | crate::channel_cmds::ChannelTarget::VectorMask)
+        || d.channel_view.shown_layer_mask(&d.doc).is_some()
+    {
+        return Err(MASK_ONLY.into());
     }
+    if crate::channel_cmds::edits_channel(s)
+        || target != crate::channel_cmds::ChannelTarget::Composite
+        || crate::color_channels::selected(s).is_some()
+    {
+        return Err(CHANNEL_ONLY.into());
+    }
+    color_transforms(&d.doc).map_err(|_| SRGB_ONLY.to_string())?;
     let id = d.active_layer.ok_or("no active layer")?;
     match &d.doc.layer(id).ok_or("no active layer")?.content {
         photocraft_doc::LayerContent::Raster(_) => Ok(()),
@@ -246,8 +274,15 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
     use photocraft_doc::LayerContent;
     use photocraft_plugins::filter::{from_premultiplied, resolve_params, to_premultiplied};
 
+    enabled(s).map_err(|why| EngineError::Disabled(id.into(), why))?;
+    if p.get("target").is_some() {
+        return Err(EngineError::BadParams { cmd: id.into(), msg: "Plugin filters do not support explicit targets".into() });
+    }
     let entry = registry::with(|entries| entries.iter().find(|e| e.spec.id == id).map(|e| (e.source.clone(), e.plugin_name.clone())));
     let (source, plugin_name) = entry.ok_or_else(|| EngineError::UnknownCommand(id.to_string()))?;
+    let generation = source.grant_generation().map_err(|e| EngineError::Other(e.to_string()))?;
+    source.validate(generation).map_err(|e| EngineError::Other(e.to_string()))?;
+    let commit_source = source.clone();
     let mut given = p.clone();
     if let Value::Object(m) = &mut given {
         m.retain(|k, _| !k.starts_with("__") && !photocraft_plugins::filter::RESERVED_PARAMS.contains(&k.as_str()));
@@ -257,14 +292,20 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
     let label = format!("{} · {plugin_name}", source.contribution.label);
     let failed = label.clone();
     let id = id.to_string();
-    crate::jobs::edit_job(
+    let base = s.active().ok_or(EngineError::NoDocument)?.doc.clone();
+    let commit_label = label.clone();
+    crate::jobs::run(
         s,
         &label,
-        move |doc, _, ctx| {
+        true,
+        move |ctx| {
+            let mut document = (*base).clone();
+            let doc = &mut document;
             ctx.check()?;
             if doc.mode != ColorMode::Rgb {
                 return Err(EngineError::Other(RGB_ONLY.into()));
             }
+            let transforms = color_transforms(doc)?;
             // Plugins see a 32-bit document's linear light, as its pixels store it; integer
             // depths keep the document's encoded values.
             let color = if doc.depth == SampleType::F32 { "linear-srgb" } else { "srgb" };
@@ -288,13 +329,16 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
             let bytes = u64::from(w) * u64::from(h) * 4 * (4 + 4 + 4 + n as u64);
             let _working = photocraft_raster::memory::try_reserve_operation(bytes).map_err(EngineError::Other)?;
             let before = surf.read_region(area);
-            let px = to_premultiplied(&before, n).map_err(EngineError::Other)?;
+            let mut working = before.clone();
+            if let Some((to, _)) = &transforms { to.apply(&mut working, n); }
+            let px = to_premultiplied(&working, n).map_err(EngineError::Other)?;
             let cancelled = || ctx.cancelled();
-            let out = source.run(&px, w, h, color, params, &cancelled).map_err(|e| {
+            let out = source.run(&px, w, h, color, params, generation, &cancelled).map_err(|e| {
                 if ctx.cancelled() { EngineError::Cancelled } else { EngineError::Other(format!("{failed} could not run: {e}")) }
             })?;
             ctx.check()?;
             let mut after = from_premultiplied(&out, n, format.sample != SampleType::F32).map_err(EngineError::Other)?;
+            if let Some((_, back)) = &transforms { back.apply(&mut after, n); }
             if after.len() != before.len() {
                 return Err(EngineError::Other(format!("{failed} returned an image of the wrong size")));
             }
@@ -310,8 +354,52 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
             }
             surf.write_region(area, &after);
             surf.prune();
-            Ok(())
+            Ok(document)
         },
-        move |()| json!({ "layer": layer.0, "filter": id }),
+        move |s, document| {
+            // This runs on the document thread, against the job's document (made active again
+            // and checked unchanged by the job). The worker can finish after the filter was
+            // disabled or revoked, or after the target changed: check the filter's availability
+            // and its grants again, and discard the result with a message if either no longer holds.
+            let discard = |why: String| EngineError::Other(format!("{commit_label} was discarded: {why}"));
+            enabled(s).map_err(|why| discard(why))?;
+            commit_source.validate(generation).map_err(|e| discard(e.to_string()))?;
+            s.edit(&commit_label, |doc, _| { *doc = document; Ok(()) })?;
+            Ok(json!({ "layer": layer.0, "filter": id }))
+        },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    fn session() -> Session {
+        let mut s = Session::new();
+        s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+        s
+    }
+
+    #[test]
+    fn plugin_filters_say_why_they_are_unavailable_on_masks_channels_and_profiles() {
+        use crate::channel_cmds::ChannelTarget;
+        let mut s = session();
+        assert_eq!(enabled(&s), Ok(()));
+        s.active_mut().unwrap().channel_view.target = ChannelTarget::LayerMask;
+        assert_eq!(enabled(&s), Err(MASK_ONLY.to_string()));
+        s.active_mut().unwrap().channel_view.target = ChannelTarget::VectorMask;
+        assert_eq!(enabled(&s), Err(MASK_ONLY.to_string()));
+        s.active_mut().unwrap().channel_view.target = ChannelTarget::Color(0);
+        assert_eq!(enabled(&s), Err(CHANNEL_ONLY.to_string()));
+        s.active_mut().unwrap().channel_view.target = ChannelTarget::Composite;
+        assert_eq!(enabled(&s), Ok(()));
+        // A profile that is not a readable RGB profile can't be converted to sRGB: the filter
+        // says the document needs an sRGB one, and nothing runs on it.
+        if let Some(st) = s.active_mut() {
+            std::sync::Arc::make_mut(&mut st.doc).icc_profile = Some(std::sync::Arc::new(vec![0u8; 16]));
+        }
+        assert_eq!(enabled(&s), Err(SRGB_ONLY.to_string()));
+    }
 }

@@ -1,4 +1,5 @@
 //! Document-thread half of the session bridge. No guest executes on this thread.
+use crate::commands::CommandSpec;
 use crate::{EngineError, LayerId, Session};
 use craft_ext_host::api::{Code, Invocation, OpError, authorize};
 use photocraft_plugins::{
@@ -240,15 +241,153 @@ impl Session {
                 self.execute("layer.renameLayer", json!({"layer":target.0,"name":name})).map_err(error)
             }
             "filter.apply" => {
-                let filter = args["filter"]
-                    .as_str()
-                    .filter(|f| f.starts_with("filter.") || (f.starts_with("plugin.") && !f.starts_with("plugin.session.")))
-                    .ok_or_else(|| OpError::invalid("Invalid filter"))?;
-                self.execute(filter, args.get("params").cloned().unwrap_or(json!({}))).map_err(error)
+                // Only the allowlisted pixel filters run, with validated params (see session_filters).
+                let (filter, params) = photocraft_plugins::session_filters::check(&args).map_err(|refusal| match refusal {
+                    photocraft_plugins::session_filters::Refusal::NotAllowed(msg) => OpError::denied(msg),
+                    photocraft_plugins::session_filters::Refusal::Invalid(msg) => OpError::invalid(msg),
+                })?;
+                self.execute(filter, params).map_err(error)
             }
             _ => Err(OpError::new(Code::NotFound, "Unknown operation")),
         }
     }
+}
+
+/// The id prefix of session commands and panels: `plugin.session.<plugin>/<contribution>`.
+pub const PREFIX: &str = "plugin.session.";
+
+/// Command specs of the session contributions the store enables (commands and panels), listed as
+/// Plugins › <plugin name> › <label>. Like plugin filters, the list follows the store's generation,
+/// checked at most every two seconds, so disabled and kill-listed contributions drop out.
+mod registry {
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::{Mutex, OnceLock, PoisonError};
+    use std::time::{Duration, Instant};
+
+    use craft_ext_core::manifest::ContributionKind;
+
+    use super::*;
+
+    #[derive(Default)]
+    struct Registry {
+        checked: Option<Instant>,
+        generation: Option<u64>,
+        specs: Vec<&'static CommandSpec>,
+        /// Specs are `'static`: each distinct (id, label, plugin name) is leaked once and reused.
+        interned: HashMap<String, &'static CommandSpec>,
+    }
+
+    static REVISION: AtomicU64 = AtomicU64::new(0);
+
+    fn registry() -> &'static Mutex<Registry> {
+        static R: OnceLock<Mutex<Registry>> = OnceLock::new();
+        R.get_or_init(Mutex::default)
+    }
+
+    fn leak(s: String) -> &'static str {
+        Box::leak(s.into_boxed_str())
+    }
+
+    fn spec_for(r: &mut Registry, id: String, label: &str, plugin_name: &str) -> &'static CommandSpec {
+        let key = format!("{id}\u{0}{label}\u{0}{plugin_name}");
+        if let Some(spec) = r.interned.get(&key) {
+            return *spec;
+        }
+        let menu: &'static [&'static str] = Box::leak(vec!["Plugins", leak(plugin_name.to_string())].into_boxed_slice());
+        let spec: &'static CommandSpec = Box::leak(Box::new(CommandSpec {
+            id: leak(id),
+            label: leak(label.to_string()),
+            menu,
+            shortcut: None,
+            params: r##"{…plugin command parameters}"##,
+            enabled: session_enabled,
+            run: session_run,
+            journal: false,
+        }));
+        r.interned.insert(key, spec);
+        spec
+    }
+
+    /// Rebuild from the store when its generation changed. Store errors keep the last list.
+    fn refresh(r: &mut Registry) {
+        if r.checked.is_some_and(|t| t.elapsed() < Duration::from_secs(2)) {
+            return;
+        }
+        r.checked = Some(Instant::now());
+        let generation = if photocraft_plugins::safe_mode() { Some(0) } else { photocraft_plugins::store::generation().ok() };
+        if generation.is_none() || generation == r.generation {
+            return;
+        }
+        let (Ok(releases), Ok(contract)) = (photocraft_plugins::store::enabled(), photocraft_plugins::contract()) else { return };
+        let mut specs = Vec::new();
+        for (plugin, _version, _root, manifest, enabled) in releases {
+            for c in manifest.contributions {
+                // The same selection `Runtime::load` makes: only these kinds get a worker.
+                let listed = enabled.contains(&c.id)
+                    && matches!(c.kind, ContributionKind::Command | ContributionKind::Panel)
+                    && c.contract.check(&contract.provided).is_none();
+                if listed {
+                    specs.push(spec_for(r, format!("{PREFIX}{plugin}/{}", c.id), &c.label, &manifest.name));
+                }
+            }
+        }
+        r.generation = generation;
+        r.specs = specs;
+        REVISION.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub(super) fn with<T>(f: impl FnOnce(&[&'static CommandSpec]) -> T) -> T {
+        let mut r = registry().lock().unwrap_or_else(PoisonError::into_inner);
+        refresh(&mut r);
+        f(&r.specs)
+    }
+
+    pub(super) fn revision() -> u64 {
+        with(|_| ());
+        REVISION.load(Ordering::Relaxed)
+    }
+}
+
+/// The command specs of the enabled session contributions, for discovery and menus.
+pub fn specs() -> Vec<&'static CommandSpec> {
+    registry::with(|specs| specs.to_vec())
+}
+
+/// The spec of session command `id`, while its contribution is enabled.
+pub fn find(id: &str) -> Option<&'static CommandSpec> {
+    if !id.starts_with(PREFIX) {
+        return None;
+    }
+    registry::with(|specs| specs.iter().copied().find(|spec| spec.id == id))
+}
+
+/// Changes whenever the session command list does (for menu caches).
+pub fn revision() -> u64 {
+    registry::revision()
+}
+
+/// Starts the plugin catalogue refresh (once per process). The desktop app calls it at startup;
+/// it refreshes now, then every six hours, and each refresh that changes the store's generation
+/// reloads the plugins on their next use, so revoked contributions stop.
+pub fn start_catalogue_refresh() {
+    photocraft_plugins::store::start_catalogue_refresh();
+}
+
+/// The registry only lists enabled contributions, so a listed command is always enabled; a session
+/// event that cannot run reports its own error when it is run.
+fn session_enabled(_: &Session) -> std::result::Result<(), String> {
+    Ok(())
+}
+
+/// Run session command `__plugin` with the other params (the id is injected by `inject_kind`).
+fn session_run(s: &mut Session, p: &Value) -> crate::Result<Value> {
+    let id = p.get(crate::plugin_filters::COMMAND_PARAM).and_then(Value::as_str).unwrap_or_default().to_string();
+    let mut params = p.clone();
+    if let Value::Object(m) = &mut params {
+        m.remove(crate::plugin_filters::COMMAND_PARAM);
+    }
+    s.execute_plugin_session(&id, params)
 }
 
 #[cfg(test)]
@@ -284,5 +423,23 @@ mod tests {
         assert_eq!(d.revision, before.revision);
         assert_eq!(d.history.entries(), before.history.entries());
         assert_eq!(s.journal.len(), journal);
+    }
+    #[test]
+    fn filter_apply_runs_only_allowlisted_filters_with_clean_params() {
+        let mut s = Session::new();
+        s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+        let layer = s.active().unwrap().active_layer;
+        s.plugin_op("filter.apply", json!({"filter":"filter.blur.blur"}), layer, &Value::Null).unwrap();
+        // A filter that reads a file or another document, a built-in that runs other commands,
+        // and any plugin or session command are refused as not available to plugins.
+        for filter in ["filter.distort.displace", "filter.lastFilter", "plugin.someone/effect", "plugin.session.someone/panel"] {
+            let err = s.plugin_op("filter.apply", json!({"filter": filter}), layer, &Value::Null).unwrap_err();
+            assert!(matches!(err.code, Code::Denied), "{filter}: {}", err.message);
+        }
+        // Params may not name a file, another document, another layer or a target.
+        for params in [json!({"mapPath": "/etc/hosts"}), json!({"mapDocument": 0}), json!({"target": "mask"}), json!({"layer": 3})] {
+            let err = s.plugin_op("filter.apply", json!({"filter": "filter.blur.blur", "params": params}), layer, &Value::Null).unwrap_err();
+            assert!(matches!(err.code, Code::Invalid), "{params}: {}", err.message);
+        }
     }
 }

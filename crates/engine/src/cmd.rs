@@ -232,7 +232,40 @@ pub fn list_entry_matches(entry: &Value, needle: &str) -> bool {
 
 pub fn find(id: &str) -> Option<&'static CommandSpec> {
     let registry = registry();
-    registry.by_id.get(id).and_then(|&index| registry.specs.get(index)).or_else(|| crate::plugin_filters::find(id))
+    registry.by_id.get(id).and_then(|&index| registry.specs.get(index)).or_else(|| crate::plugin_filters::find(id)).or_else(|| session_find(id))
+}
+
+/// The enabled plugin session commands and panels (`plugin.session.*`), as command specs. Empty
+/// on wasm, where plugins don't run.
+pub fn session_specs() -> Vec<&'static CommandSpec> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        crate::plugin_sessions::specs()
+    }
+    #[cfg(target_arch = "wasm32")]
+    Vec::new()
+}
+
+/// Changes whenever [`session_specs`] does (for menu caches).
+pub fn session_revision() -> u64 {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        crate::plugin_sessions::revision()
+    }
+    #[cfg(target_arch = "wasm32")]
+    0
+}
+
+fn session_find(id: &str) -> Option<&'static CommandSpec> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        crate::plugin_sessions::find(id)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = id;
+        None
+    }
 }
 
 struct Registry {
@@ -1181,8 +1214,8 @@ fn build() -> Vec<CommandSpec> {
             params: "{}",
             enabled: always,
             run: |s, _| {
-                // Enabled plugin filters are commands too, listed after the built-ins.
-                let specs = command_specs().iter().chain(crate::plugin_filters::specs());
+                // Enabled plugin filters and plugin session commands are commands too, listed after the built-ins.
+                let specs = command_specs().iter().chain(crate::plugin_filters::specs()).chain(session_specs());
                 Ok(Value::Array(specs.map(|c| list_entry(s, c, (c.enabled)(s).err())).collect()))
             },
             journal: false,

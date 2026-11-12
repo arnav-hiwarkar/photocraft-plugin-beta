@@ -71,7 +71,7 @@ pub fn contract() -> Result<AppContract, IdError> {
             SlotSpec { kind: "preset", summary: "Plugin filter presets" },
             SlotSpec { kind: "lut", summary: "plugin.resources" },
         ],
-        notes: "RGB(A) 8/16/32-bit only, premultiplied RGBA f32 in the named document working space. Other modes: This filter works on RGB images. Destructive filters need no project record; plugin filters cannot be stored as smart filters. Effects run as Filter › Plugins commands. Sessions run on workers; document operations are authorized on the document thread and each event commits one history step. Commands appear under Plugins; panels and windows use revisioned host-drawn UI.",
+        notes: "RGB(A) 8/16/32-bit only, premultiplied RGBA f32 in sRGB (8/16-bit) or linear sRGB (32-bit), converted through CMS. Other modes: This filter works on RGB images. Destructive filters need no project record; plugin filters cannot be stored as smart filters. Effects run as Filter › Plugins commands. Sessions run on workers; document operations are authorized on the document thread and each event commits one history step. Commands appear under Plugins; panels and windows use revisioned host-drawn UI.",
     })
 }
 
@@ -90,6 +90,26 @@ pub mod store {
             c.provided,
             format!("{}-{}", if cfg!(target_os = "macos") { "macos" } else { std::env::consts::OS }, std::env::consts::ARCH),
         ))
+    }
+    /// Start one background refresher per process. Publishing the catalogue advances the
+    /// store generation, invalidating registries and session workers on their next pump.
+    pub fn start_catalogue_refresh() {
+        static START: std::sync::Once = std::sync::Once::new();
+        START.call_once(|| {
+            if let Err(e) = std::thread::Builder::new().name("plugin-catalogue".into()).spawn(|| loop {
+                let refresh = || -> Result<(), Box<dyn std::error::Error>> {
+                    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs();
+                    manager()?.refresh(now)?;
+                    Ok(())
+                };
+                if let Err(e) = refresh() {
+                    eprintln!("Plugin catalogue refresh failed: {e}");
+                }
+                std::thread::sleep(std::time::Duration::from_secs(6 * 60 * 60));
+            }) {
+                eprintln!("Could not start plugin catalogue refresh: {e}");
+            }
+        });
     }
     #[derive(Clone)]
     pub struct FilterSource {
@@ -160,6 +180,19 @@ pub fn transform(
 
 #[cfg(not(target_arch = "wasm32"))]
 impl store::FilterSource {
+    /// Capture and validate the invocation's permission epoch, including the kill list.
+    pub fn grant_generation(&self) -> Result<u64, Box<dyn std::error::Error>> {
+        let view = craft_ext_store::view::GrantView::open(craft_ext_store::location::default_root()?, contract()?.app)?;
+        Ok(view.generation(&self.plugin))
+    }
+    pub fn validate(&self, generation: u64) -> Result<(), Box<dyn std::error::Error>> {
+        if self.grant_generation()? != generation || !store::enabled()?.iter().any(|(id, version, root, _, enabled)| {
+            id == &self.plugin && version == &self.version && root == &self.root && enabled.contains(&self.contribution.id)
+        }) {
+            return Err("The plugin is disabled, revoked or its permissions changed".into());
+        }
+        Ok(())
+    }
     /// Refresh enabled contributions before every run and every host fuel slice; `cancelled`
     /// is asked at the same points so a cancelled job stops the guest.
     pub fn run(
@@ -169,6 +202,7 @@ impl store::FilterSource {
         height: u32,
         color: &str,
         params: Value,
+        generation: u64,
         cancelled: &dyn Fn() -> bool,
     ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         use craft_ext_host::wasm::PluginError;
@@ -176,14 +210,7 @@ impl store::FilterSource {
             if cancelled() {
                 return Err(PluginError::Stopped("Cancelled".into()));
             }
-            let releases = store::enabled().map_err(|e| PluginError::Stopped(e.to_string()))?;
-            if releases.iter().any(|(id, version, root, _, enabled)| {
-                id == &self.plugin && version == &self.version && root == &self.root && enabled.contains(&self.contribution.id)
-            }) {
-                Ok(())
-            } else {
-                Err(PluginError::Stopped("The plugin is disabled or its permissions changed".into()))
-            }
+            self.validate(generation).map_err(|e| PluginError::Stopped(e.to_string()))
         };
         validate()?;
         let module = self.contribution.module.as_ref().ok_or("The filter has no Wasm module")?;
@@ -197,6 +224,7 @@ impl store::FilterSource {
 pub mod document_thread;
 pub mod filter;
 pub mod resources;
+pub mod session_filters;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod runtime;

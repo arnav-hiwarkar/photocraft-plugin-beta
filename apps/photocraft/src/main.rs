@@ -514,6 +514,8 @@ fn main() -> eframe::Result {
                         services::xwayland_command(var("FLATPAK_ID").as_deref(), var("APPIMAGE").as_deref(), std::env::var_os("DISPLAY").is_some());
                 }
             }
+            // Plugins: refresh the catalogue and kill list now and every six hours (once per process).
+            photocraft_engine::plugin_sessions::start_catalogue_refresh();
             #[cfg(target_os = "linux")]
             let session = {
                 let mut session = Session::new();

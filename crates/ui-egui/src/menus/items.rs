@@ -93,11 +93,14 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             tooltip: None,
         });
     }
-    // Enabled plugin filters: Filter › Plugins › <category> › <label>, after the built-ins.
-    for c in photocraft_engine::plugin_filters::specs() {
+    // Enabled plugin filters (Filter › Plugins › <category> › <label>) and plugin session commands
+    // (Plugins › <plugin> › <label>), after the built-ins. A disabled one says why in its tooltip.
+    for c in photocraft_engine::plugin_filters::specs().into_iter().chain(photocraft_engine::commands::session_specs()) {
         let enabled = is_enabled(app, c.id);
-        let tooltip = (!enabled && photocraft_engine::plugin_filters::rgb_only(&app.session, c.id))
-            .then(|| crate::i18n::tr(crate::i18n::current(), photocraft_engine::plugin_filters::RGB_ONLY).to_string());
+        let tooltip = (!enabled)
+            .then(|| app.session.disabled_reason(c.id))
+            .flatten()
+            .map(|why| crate::i18n::tr(crate::i18n::current(), &why).to_string());
         extra.push(MenuItem {
             id: c.id.into(),
             label: c.label.into(),
@@ -265,18 +268,6 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
         item.id = "layer.releaseClippingMask".into();
         item.label = "Release Clipping Mask".into();
         item.enabled = is_enabled(app, &item.id);
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    if let Some(rt) = &app.session.plugin_sessions {
-        for e in &rt.entries {
-            if matches!(e.contribution.kind, craft_ext_core::manifest::ContributionKind::Command | craft_ext_core::manifest::ContributionKind::Panel) {
-                items.push(MenuItem {
-                    id: e.id.clone(), label: e.contribution.label.clone(),
-                    path: vec!["Plugins".into(), e.plugin_name.clone()],
-                    shortcut: None, enabled: true, checked: None, color: None, tooltip: None,
-                });
-            }
-        }
     }
     items
 }
