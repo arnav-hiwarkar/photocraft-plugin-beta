@@ -19,21 +19,13 @@ pub(crate) fn is_folder_field(key: &str) -> bool {
 }
 
 /// Browse… beside a path field of dialog `id`: a folder picker for folder fields
-/// ([`is_folder_field`]), a `.wasm` picker for Install Plug-in…'s `path`. The answer fills the field.
-fn browse_field(app: &mut PhotocraftApp, id: u64, fields: &serde_json::Map<String, Value>, key: &str) {
+/// ([`is_folder_field`]). The answer fills the field. (Plugins install from Plugins ▸ Manage Plugins.)
+fn browse_field(app: &mut PhotocraftApp, id: u64, key: &str) {
     let key = key.to_string();
-    let r = if is_folder_field(&key) {
-        app.ask_folder(move |app, path| fill_field(app, id, &key, path))
-    } else if fields.get("__command").and_then(Value::as_str) == Some("plugin.install") {
-        let initial_dir = crate::file_dialog::last_used_dir(&app.ui.recent_files);
-        let request = crate::file_dialog::FileDialogRequest::Open { multiple: false, initial_dir, extensions: Some(vec!["wasm".into()]) };
-        app.ask_file(request, move |app, answer| match answer {
-            crate::file_dialog::FileDialogAnswer::Paths(mut paths) if !paths.is_empty() => fill_field(app, id, &key, paths.remove(0)),
-            _ => Err("Install Plug-in reads a .wasm file from disk".into()),
-        })
-    } else {
+    if !is_folder_field(&key) {
         return;
-    };
+    }
+    let r = app.ask_folder(move |app, path| fill_field(app, id, &key, path));
     if let Err(e) = r.map(|_| ()).or_else(|e| if e == crate::file_dialog::CANCELLED { Ok(()) } else { Err(e) }) {
         app.ui.status = e;
     }
@@ -727,7 +719,7 @@ pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
             }
             crate::field_tab::end(ui.ctx(), tab);
             if let Some(Value::String(key)) = fields.remove(BROWSE_FIELD) {
-                browse_field(app, d.id, &fields, &key);
+                browse_field(app, d.id, &key);
             }
             if d.kind == DialogKind::LayerStyle || crate::guide_layout_ui::owns(&fields) || crate::brush_preset_dialog::owns(&fields) {
                 // These dialogs own their right-side actions and validate Enter themselves.

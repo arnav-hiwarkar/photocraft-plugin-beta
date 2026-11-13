@@ -1341,10 +1341,6 @@ pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
                 ui.horizontal(|ui| {
                     let lp = ui.label(egui::RichText::new(label(&p.key)).color(t.text_dim));
                     ui.add(egui::TextEdit::singleline(&mut v).desired_width(200.0)).labelled_by(lp.id);
-                    // Install Plug-in…: pick the .wasm file instead of typing its path (#7531).
-                    if cmd == "plugin.install" && p.key == "path" && crate::widgets::secondary_button(ui, tl!("Browse…"), 0.0).clicked() {
-                        f.insert(crate::dialogs::BROWSE_FIELD.into(), json!(p.key));
-                    }
                 });
                 if v.is_empty() {
                     f.remove(&p.key);

@@ -49,21 +49,6 @@ fn cancelling_browse_keeps_the_typed_folder() {
     assert_eq!(field(&h, "dir"), before);
 }
 
-#[test]
-fn install_plugin_path_is_chosen_with_browse() {
-    let (mut h, asked) = harness(vec![Some(FileDialogAnswer::Paths(vec!["/tmp/blur.wasm".into()]))]);
-    let ctx = h.ctx.clone();
-    crate::menus::invoke(h.state_mut(), &ctx, "plugin.install", json!({})).unwrap();
-    h.run_steps(4);
-    h.get_by_label("Browse…").click();
-    h.run_steps(4);
-    match asked.borrow().as_slice() {
-        [FileDialogRequest::Open { multiple: false, extensions: Some(e), .. }] => assert_eq!(e, &["wasm".to_string()]),
-        other => panic!("unexpected requests {other:?}"),
-    }
-    assert_eq!(field(&h, "path"), Some(json!("/tmp/blur.wasm")));
-}
-
 /// #9357: Image Processor's source and destination folders are chosen with Browse…, as
 /// Photoshop's Select Folder… buttons choose them, instead of being typed.
 #[test]
