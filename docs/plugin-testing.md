@@ -114,7 +114,9 @@ $CLI plugin rollback "$FILM" 1.0.0
 $CLI run /tmp/plugin-lut.pcraft --out /tmp/plugin-lut-rollback.png
 ```
 
-## Verified run (2026-11-13, Linux x86_64, debug)
+## Historical run record (2026-11-13, Linux x86_64, debug)
+
+This records a prior run only. It does not verify the current source or current example packages.
 
 At PhotoCraft base `3405cdf9c` plus the working changes, 17 adapter unit tests passed;
 the real-package acceptance test passed (one test, including the synthetic session command).

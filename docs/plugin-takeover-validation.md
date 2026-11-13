@@ -51,3 +51,18 @@ cancellation after the last publication. These tests have not executed.
 
 Checks executed: Rust parsing with standalone rustfmt emitting to stdout, and
 `git diff --check`. No Cargo, runtime, desktop, GPU or platform checks ran.
+
+## Delegated allocation follow-up
+
+A Sol medium source review found export encoding preceded the event's staged-byte
+check. Export now admits the canonical IO working-memory estimate against the
+remaining allowance before extracting layers or rendering. It uses canonical
+`encode_with`, checks exact encoded length, then materializes/stages the result.
+For PSD this avoids allocating the final whole-file buffer when it exceeds the
+remaining allowance. Exhausted-budget regression source was added and not run.
+The existing estimate is conservative and is not a hard allocator quota. Flat
+encoders still produce their internal output before its exact length is checked;
+this phase does not claim an interruptible or strictly capped encoder allocation.
+Canonical import already bounds reads and performs memory admission; it was not
+reimplemented in the adapter. No new picker defect was established in this review.
+Standalone rustfmt parsing and git diff checks ran; no Cargo or runtime checks ran.

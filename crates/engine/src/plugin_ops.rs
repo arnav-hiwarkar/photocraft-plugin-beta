@@ -710,6 +710,13 @@ impl Session {
                 if cx.staged.exports >= MAX_EXPORTS {
                     return Err(budget("At most 500 exports per event"));
                 }
+                let remaining = MAX_STAGED_BYTES.saturating_sub(cx.staged.bytes);
+                let name = path.to_string_lossy().into_owned();
+                // Admission precedes layer extraction/rendering. Use the canonical IO estimate;
+                // checking only Staged::write would allocate the export before refusing it.
+                if remaining == 0 || photocraft_io::estimate_export_bytes(&d.doc, &name) > remaining as u64 {
+                    return Err(budget("Export working-memory estimate exceeds this event's remaining file budget"));
+                }
                 let doc = match uint(&args, "layer")? {
                     Some(id) => {
                         let id = self.plugin_layer(&json!({"layer": id}))?;
@@ -717,11 +724,16 @@ impl Session {
                     }
                     None => (*d.doc).clone(),
                 };
-                let name = path.to_string_lossy().into_owned();
-                let out = photocraft_io::export(&doc, &name, &Default::default()).map_err(engine)?;
-                let n = out.bytes.len();
+                let out = photocraft_io::encode_with(&doc, &name, &Default::default(), &photocraft_raster::Interrupt::NONE).map_err(engine)?;
+                // PSD is still a model here. Check its exact length before allocating a second
+                // whole-file serialization buffer. Flat formats already own their encoded bytes.
+                if out.encoded.encoded_len().map_err(engine)? > remaining as u64 {
+                    return Err(budget("Encoded export exceeds this event's remaining file budget"));
+                }
+                let bytes = out.encoded.into_bytes().map_err(engine)?;
+                let n = bytes.len();
                 cx.staged.exports += 1;
-                cx.staged.write(path, out.bytes)?;
+                cx.staged.write(path, bytes)?;
                 Ok(json!({"bytes": n, "width": doc.size.width, "height": doc.size.height}))
             }
             "layer.import" => {
@@ -1149,6 +1161,19 @@ mod tests {
         staged.publish_files(|| Ok(())).unwrap();
         assert_eq!(std::fs::read(outside).unwrap(), b"keep");
         assert_eq!(std::fs::read(path).unwrap(), b"new");
+    }
+
+    #[test]
+    fn export_refuses_exhausted_budget_before_encoding() {
+        let mut session = Session::new();
+        session.execute("file.new", json!({"width": 4, "height": 4})).unwrap();
+        let handle = session.plugin_picks.grant("io.test.export", PathBuf::from("export.png"), PickMode::Save);
+        let mut staged = Staged { bytes: MAX_STAGED_BYTES, ..Default::default() };
+        let mut cx = OpCtx { plugin: "io.test.export", owner: "export", selection: &Value::Null, staged: &mut staged };
+        let err = session.plugin_op("document.export", json!({"handle":handle}), &mut cx).unwrap_err();
+        assert_eq!(err.code, Code::Budget);
+        assert_eq!(staged.exports, 0);
+        assert!(staged.writes.is_empty());
     }
 
     #[test]

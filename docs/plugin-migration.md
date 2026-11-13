@@ -40,8 +40,9 @@ Status of the named integration tasks (all done unless marked otherwise):
   command ids, not plugin contributions. Destructive pixels are self-contained in
   native documents and export needs no plugin. Revisit persistence/missing-plugin
   export refusal only when non-destructive plugin smart filters are introduced.
-- PhotoCraft-plugin-examples: done for the CLI and engine (halftone, film-looks and the three
-  PhotoCraft examples, see `plugin-testing.md`); the desktop clicks remain a manual check.
+- PhotoCraft-plugin-examples: source added for CLI and engine examples. Current
+  runtime behavior remains unverified; see `plugin-takeover-validation.md` and the
+  historical records in `plugin-testing.md`.
 - PhotoCraft-plugin-filter-gaps: done. Channels-panel colour subsets, Quick Mask, layer and
   vector masks, and non-pixel layers (smart objects included) disable plugin filters with a
   reason in the tooltip. Document profiles convert through CMS, so the `color` a plugin
