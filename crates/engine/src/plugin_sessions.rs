@@ -917,7 +917,9 @@ mod tests {
         let journal = s.journal.len();
         op(&mut s, "layer.rename", json!({"name":"Transient"})).unwrap();
         let mut staged = Staged::default();
-        let handle = s.plugin_picks.grant("io.test.ops", dir.path().join("missing/out.txt"), crate::plugin_ops::PickMode::Save);
+        // Publication creates missing folders, so make the parent a regular file to force a failure.
+        std::fs::write(dir.path().join("blocker"), b"").unwrap();
+        let handle = s.plugin_picks.grant("io.test.ops", dir.path().join("blocker/out.txt"), crate::plugin_ops::PickMode::Save);
         let mut cx = OpCtx { plugin: "io.test.ops", owner: "x", selection: &Value::Null, staged: &mut staged };
         s.plugin_op("files.write", json!({"handle":handle,"text":"data"}), &mut cx).unwrap();
         s.plugin_op("files.pick", json!({"mode":"folder"}), &mut cx).unwrap();

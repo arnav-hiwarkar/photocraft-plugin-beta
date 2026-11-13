@@ -1172,7 +1172,9 @@ mod tests {
         let last = dir.path().join("last.txt");
         let mut staged = Staged::default();
         staged.write(first.clone(), b"published".to_vec()).unwrap();
-        staged.write(dir.path().join("missing/fail.txt"), vec![]).unwrap();
+        // Publication creates missing folders, so make the parent a regular file to force a failure.
+        std::fs::write(dir.path().join("blocker"), b"").unwrap();
+        staged.write(dir.path().join("blocker/fail.txt"), vec![]).unwrap();
         staged.write(last.clone(), vec![]).unwrap();
         let error = staged.publish_files(|| Ok(())).unwrap_err();
         assert!(error.message.contains("1 file(s) already published"), "{}", error.message);
