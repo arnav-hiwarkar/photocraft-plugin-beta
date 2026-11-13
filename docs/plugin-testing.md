@@ -6,11 +6,11 @@ Commands below run from the PhotoCraft repository and use a disposable store.
 All builds are debug builds and share the resource lock with the other apps.
 
 ```sh
-flock /home/ash/projects/plugin-beta/.cargo.lock env CARGO_BUILD_JOBS=4 cargo build -p photocraft-cli
+flock $ROOT/.cargo.lock env CARGO_BUILD_JOBS=4 cargo build -p photocraft-cli
 export CRAFT_EXT_DIR="$(mktemp -d /tmp/photocraft-plugin-beta.XXXXXX)"
-export CRAFT_CATALOGUE_URL=file:///home/ash/projects/plugin-beta/test-catalogue/
+export CRAFT_CATALOGUE_URL=file://$ROOT/test-catalogue/
 export CRAFT_CATALOGUE_ALLOW_FILE=1
-export PHOTOCRAFT_CRAFT_EXT_BIN=/home/ash/projects/plugin-beta/craft-extensions/target/debug/craft-ext
+export PHOTOCRAFT_CRAFT_EXT_BIN=$ROOT/craft-extensions/target/debug/craft-ext
 CLI=./target/debug/photocraft-cli
 HALF=io.github.arnav-hiwarkar.halftone
 FILM=io.github.arnav-hiwarkar.film-looks
@@ -32,8 +32,8 @@ Install does not enable contributions. These two packages need no grants.
 Run the focused adapter and installed-package acceptance tests:
 
 ```sh
-flock /home/ash/projects/plugin-beta/.cargo.lock env CARGO_BUILD_JOBS=4 cargo test -p photocraft-plugins --lib
-flock /home/ash/projects/plugin-beta/.cargo.lock env CARGO_BUILD_JOBS=4 PHOTOCRAFT_PLUGIN_BETA_TEST=1 cargo test -p photocraft-engine --test plugin_beta -- --ignored --nocapture
+flock $ROOT/.cargo.lock env CARGO_BUILD_JOBS=4 cargo test -p photocraft-plugins --lib
+flock $ROOT/.cargo.lock env CARGO_BUILD_JOBS=4 PHOTOCRAFT_PLUGIN_BETA_TEST=1 cargo test -p photocraft-engine --test plugin_beta -- --ignored --nocapture
 ```
 
 The installed-package test requires the disposable store above. It checks 8/32-bit changed
@@ -75,7 +75,7 @@ test compares actual surface samples; visually compare the exported PNGs as well
 Build the desktop binary after completing headless checks:
 
 ```sh
-flock /home/ash/projects/plugin-beta/.cargo.lock env CARGO_BUILD_JOBS=4 cargo build -p photocraft
+flock $ROOT/.cargo.lock env CARGO_BUILD_JOBS=4 cargo build -p photocraft
 ```
 
 For manual GUI testing, launch `./target/debug/photocraft` from the same environment so it
@@ -131,8 +131,8 @@ Run artifacts and exact command output: `/tmp/photocraft-beta-b97td8xm/` (`comma
 `acceptance.log`, `session-cli.log`, input/output images and native documents).
 Build logs: `/tmp/photocraft-cli-build.log`, `/tmp/photocraft-plugin-tests.log`,
 `/tmp/photocraft-beta-test-build.log`, `/tmp/photocraft-desktop-build.log`.
-The CLI is `/home/ash/projects/plugin-beta/photocraft/target/debug/photocraft-cli`;
-the desktop output is `/home/ash/projects/plugin-beta/photocraft/target/debug/photocraft`.
+The CLI is `$ROOT/photocraft/target/debug/photocraft-cli`;
+the desktop output is `$ROOT/photocraft/target/debug/photocraft`.
 The single desktop debug build passed (12m 38s); the binary exists at the path above.
 No GUI was launched; manual clicks above remain to be checked by the beta tester.
 
@@ -140,6 +140,6 @@ To open the verified disposable store manually:
 
 ```sh
 CRAFT_EXT_DIR=/tmp/photocraft-beta-b97td8xm/store \
-CRAFT_CATALOGUE_URL=file:///home/ash/projects/plugin-beta/test-catalogue/ \
+CRAFT_CATALOGUE_URL=file://$ROOT/test-catalogue/ \
 CRAFT_CATALOGUE_ALLOW_FILE=1 ./target/debug/photocraft
 ```
