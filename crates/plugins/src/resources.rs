@@ -60,7 +60,7 @@ pub fn luts() -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
 pub struct Preset {
     pub id: String,
     pub label: String,
-    pub params: serde_json::Value,
+    pub values: serde_json::Value,
 }
 
 /// Return only single-filter presets; a multi-effect recipe cannot honestly be
@@ -92,22 +92,22 @@ pub fn presets(effect: &str) -> Result<Vec<Preset>, Box<dyn std::error::Error>> 
 
 #[cfg(any(not(target_arch = "wasm32"), test))]
 fn decode_presets(data: &serde_json::Value, effect: &str) -> Vec<Preset> {
-    data.get("presets").and_then(serde_json::Value::as_array).into_iter().flatten().filter_map(|preset| {
-        let effects = preset.get("effects")?.as_array()?;
-        if effects.len() != 1 {
-            return None;
-        }
-        let entry = effects.first()?;
-        if entry.get("effect")?.as_str()? != effect {
-            return None;
-        }
-        let params = entry.get("params")?.as_object()?;
-        Some(Preset {
-            id: preset.get("id")?.as_str()?.into(),
-            label: preset.get("label")?.as_str()?.into(),
-            params: serde_json::Value::Object(params.clone()),
+    data.get("presets")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|preset| {
+            if preset.get("effect")?.as_str()? != effect {
+                return None;
+            }
+            let values = preset.get("values")?.as_object()?;
+            Some(Preset {
+                id: preset.get("id")?.as_str()?.into(),
+                label: preset.get("label")?.as_str()?.into(),
+                values: serde_json::Value::Object(values.clone()),
+            })
         })
-    }).collect()
+        .collect()
 }
 
 #[cfg(test)]
@@ -117,12 +117,10 @@ mod tests {
 
     #[test]
     fn recipes_are_scoped_to_one_matching_filter() {
-        let item = json!({"id":"print", "label":"Print", "effects":[{"effect":"example/filter", "params":{"size":6}}]});
-        let data = json!({"presets":[item.clone(), {"id":"wrong", "label":"Other", "effects":[{"effect":"other/filter", "params":{}}]},
-            {"id":"chain", "label":"Chain", "effects":[{"effect":"example/filter", "params":{}}, {"effect":"other/filter", "params":{}}]}]});
+        let data = json!({"presets":[{"id":"print","label":"Print","effect":"example/filter","values":{"size":6}},
+            {"id":"other","label":"Other","effect":"other/filter","values":{}}]});
         let presets = decode_presets(&data, "example/filter");
         assert_eq!(presets.len(), 1);
-        assert_eq!(presets.first().map(|p| &p.params), Some(&json!({"size":6})));
-        assert!(decode_presets(&json!({"presets":[{"effects":[]}]}), "example/filter").is_empty());
+        assert_eq!(presets.first().map(|p| &p.values), Some(&json!({"size":6})));
     }
 }

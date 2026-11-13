@@ -49,18 +49,26 @@ The following named integration tasks remain; this migration is **incomplete**:
 ## Plugin filters (done)
 
 `photocraft_engine::plugin_filters` turns every enabled, contract-compatible effect into the
-command `plugin.<plugin-id>/<contribution>` (label ends in "…" when it has parameters), placed
-in Filter › Plugins › <category> (default "Other"). The list is rebuilt when the store
-generation changes, checked at most every two seconds; `command.list`, `engine.commands`, the
-CLI and automation run these ids with a params object like any built-in filter. Contributions
-declaring a parameter named `layer`, `target` or `coalesce` are not offered (the host reads
-those keys). Params: slider numbers within range (integer sliders round), angle degrees,
-checkbox bool, select option name or index, color `[r,g,b,a]`/`#rrggbb[aa]`, point `[x,y]`
-(or `<id>.x`/`<id>.y`), text ≤ 4096 bytes; every declared parameter reaches the guest, with
-defaults filled in and unknown keys refused.
+command `plugin.<plugin-id>/<contribution>` with a dialog, placed
+in Filter › Plugins › <category> (default "Other"). The list follows store generation.
+CLI and automation params JSON is the form Values object keyed by param key. Defaults are
+filled, unknown keys and invalid types/ranges are refused. Choice/radio values are option ids,
+colors are straight RGBA arrays (HDR RGB preserved), and points are `[x,y]` in the declared
+layer-pixel or image-percent space. Integer values must be integral. No index, hex-color or
+flattened-point aliases remain. Host command keys `layer`, `target`, `coalesce` and the `__` prefix are reserved.
 
-The generated filter dialog shows manifest labels, angle dials, raw option names, a Preview
-toggle and a Preset menu listing that filter's single-effect plugin presets. A run is a normal
+Dialogs render `contribution.form` schema 1, optionally replaced by `craft_describe`, including
+sections, ranges, integers, numbers, booleans, choice/radio, angle, color, point and multiline
+text, units, help and host-evaluated visible/enabled conditions. Guest describe/update calls
+run on workers in fresh sandboxes with event fuel, a 100 ms deadline and grant checks.
+Each value change requests `craft_update`; only a result matching the current Values is applied.
+Patches use the shared atomic revision validator and update values, hidden and disabled state.
+Plugin presets use `{"presets":[{"id":"print","label":"Print","effect":"plugin/effect","values":{}}]}`;
+the dialog lists only matching effects whose Values validate. Session `Node::Form` uses the
+same widgets, condition evaluation and local edit state, emitting param-key events; unknown
+`Node::Component` nodes recursively render their fallback.
+
+A run is a normal
 filter job: the active pixel layer's canvas area (RGB/RGBA 8/16/32) becomes premultiplied RGBA
 f32 (`linear-srgb` for 32-bit, otherwise `srgb`), `FilterSource::run` executes it with
 enablement/grant and cancellation checks, the result is unpremultiplied (clamped only for
@@ -153,3 +161,12 @@ Parity-fix validation: `cargo test -p photocraft-plugins` passed all 16 tests,
 including recoverable bridge errors followed by another call and commit, owner-thread
 opt-in and Tool unavailability. `cargo check -p photocraft-engine` passed.
 The idle native-helper cadence was inspected in code; no helper/app was launched.
+
+## Form schema v1 validation
+
+The form migration removes the previous parameter representation without compatibility aliases.
+Visual/runtime verification was not run under the no-build/no-run task limits.
+
+Form migration checks: `cargo check -p photocraft-plugins`, `cargo check -p photocraft-ui-egui`
+and `cargo test -p photocraft-plugins` (16 passed). Tests cover typed Values, rejected old aliases,
+HDR/point preservation and effect-scoped preset decoding.

@@ -364,6 +364,10 @@ fn rememberable(kind: &Kind, value: &Value) -> bool {
 
 fn restore_remembered(app: &PhotocraftApp, command: &str, spec: &str, fields: &mut Map<String, Value>) {
     let Some(Value::Object(saved)) = app.session.prefs().dialogs.get(command) else { return };
+    if let Some(form) = fields.get("__form").cloned().and_then(|v| serde_json::from_value::<craft_ext_core::form::Form>(v).ok()) {
+        if let Ok(Value::Object(values)) = photocraft_plugins::filter::resolve_params(&form, &Value::Object(saved.clone())) { fields.extend(values); }
+        return;
+    }
     // Select and Mask starts from its defaults unless Remember Settings was on, as in Photoshop
     // (#9423).
     if command == crate::select_mask_view::COMMAND {
@@ -383,6 +387,11 @@ fn restore_remembered(app: &PhotocraftApp, command: &str, spec: &str, fields: &m
 /// Remember successful built-in schema dialogs; failed or cancelled dialogs do not persist.
 pub(crate) fn remember(app: &mut PhotocraftApp, command: &str, fields: &Map<String, Value>) {
     if !fields.contains_key("__filter") || fields.contains_key("__spec") || fields.contains_key("__smartFilter") {
+        return;
+    }
+    if fields.contains_key("__form") {
+        let values = params_of(fields);
+        app.session.prefs.edit(|prefs| prefs.dialogs.insert(command.into(), values));
         return;
     }
     let Some(spec) = photocraft_engine::commands::find(command) else { return };
@@ -580,7 +589,7 @@ pub fn open(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
     {
         fields.insert("__preview".into(), json!(true));
     }
-    for p in parse_spec(spec.params) {
+    for p in if command.starts_with(photocraft_engine::plugin_filters::PREFIX) { vec![] } else { parse_spec(spec.params) } {
         if let Some(v) = default_value(app, command, &p) {
             fields.insert(p.key, v);
         }
@@ -1140,6 +1149,12 @@ fn indexed_matte_row(ui: &mut egui::Ui, fields: &mut Map<String, Value>) {
 
 /// Dialog body for filter commands.
 pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
+    if f.contains_key("__form") {
+        let cmd = f.get("__command").and_then(Value::as_str).unwrap_or_default().to_string();
+        plugin_presets(ui, &cmd, f);
+        crate::plugin_form::dialog(ui, &cmd, f);
+        return;
+    }
     let t = Tokens::get(ui.ctx());
     let cmd = f.get("__command").and_then(Value::as_str).unwrap_or_default().to_string();
     // Plug-in dialogs carry their own spec (from the plug-in's manifest).

@@ -50,7 +50,8 @@ pub fn contract() -> Result<AppContract, IdError> {
             ("resource.preset", 1, 0),
             ("resource.lut", 1, 0),
             ("craft-theme", 1, 0),
-        ]).without(craft_ext_core::manifest::ContributionKind::Tool, "Tools are not supported in PhotoCraft yet"),
+        ])
+        .without(craft_ext_core::manifest::ContributionKind::Tool, "Tools are not supported in PhotoCraft yet"),
         ops: definitions
             .into_iter()
             .map(|(id, kind, summary, requires, permission_rule)| OpSpec { id, kind, summary, requires, permission_rule, args: "{}", result: "{}" })
@@ -96,16 +97,18 @@ pub mod store {
     pub fn start_catalogue_refresh() {
         static START: std::sync::Once = std::sync::Once::new();
         START.call_once(|| {
-            if let Err(e) = std::thread::Builder::new().name("plugin-catalogue".into()).spawn(|| loop {
-                let refresh = || -> Result<(), Box<dyn std::error::Error>> {
-                    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs();
-                    manager()?.refresh(now)?;
-                    Ok(())
-                };
-                if let Err(e) = refresh() {
-                    eprintln!("Plugin catalogue refresh failed: {e}");
+            if let Err(e) = std::thread::Builder::new().name("plugin-catalogue".into()).spawn(|| {
+                loop {
+                    let refresh = || -> Result<(), Box<dyn std::error::Error>> {
+                        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs();
+                        manager()?.refresh(now)?;
+                        Ok(())
+                    };
+                    if let Err(e) = refresh() {
+                        eprintln!("Plugin catalogue refresh failed: {e}");
+                    }
+                    std::thread::sleep(std::time::Duration::from_secs(6 * 60 * 60));
                 }
-                std::thread::sleep(std::time::Duration::from_secs(6 * 60 * 60));
             }) {
                 eprintln!("Could not start plugin catalogue refresh: {e}");
             }
@@ -180,15 +183,55 @@ pub fn transform(
 
 #[cfg(not(target_arch = "wasm32"))]
 impl store::FilterSource {
+    fn form_plugin(&self) -> Result<craft_ext_host::wasm::Plugin, Box<dyn std::error::Error>> {
+        use std::io::Read as _;
+        self.validate(self.grant_generation()?)?;
+        let module = self.contribution.module.as_ref().ok_or("Filter has no module")?;
+        let mut bytes = Vec::new();
+        std::fs::File::open(self.root.join(module))?.take(craft_ext_host::wasm::MAX_MODULE_BYTES as u64 + 1).read_to_end(&mut bytes)?;
+        Ok(craft_ext_host::wasm::Plugin::load(self.plugin.as_str(), &bytes)?)
+    }
+    pub fn form(&self) -> Result<craft_ext_core::form::Form, Box<dyn std::error::Error>> {
+        let plugin = self.form_plugin()?;
+        let epoch = self.grant_generation()?;
+        let start = std::time::Instant::now();
+        let check = || {
+            if start.elapsed() > std::time::Duration::from_millis(100) {
+                return Err(craft_ext_host::wasm::PluginError::Stopped("Form deadline exceeded".into()));
+            }
+            self.validate(epoch).map_err(|e| craft_ext_host::wasm::PluginError::Stopped(e.to_string()))
+        };
+        let form = plugin
+            .describe(std::sync::Arc::new(|_, _, _| {}), &check)?
+            .or_else(|| self.contribution.form.clone())
+            .unwrap_or_else(|| filter::empty_form(&self.contribution.id, &self.contribution.label));
+        if form.params.iter().any(|p| p.key.starts_with("__") || filter::RESERVED_PARAMS.contains(&p.key.as_str())) {
+            return Err("The form uses a reserved command key".into());
+        }
+        Ok(form)
+    }
+    pub fn update(&self, values: &craft_ext_core::form::Values, rev: u64) -> Result<Option<craft_ext_core::form::Patch>, Box<dyn std::error::Error>> {
+        let plugin = self.form_plugin()?;
+        let epoch = self.grant_generation()?;
+        let start = std::time::Instant::now();
+        Ok(plugin.update(values, rev, std::sync::Arc::new(|_, _, _| {}), &|| {
+            if start.elapsed() > std::time::Duration::from_millis(100) {
+                return Err(craft_ext_host::wasm::PluginError::Stopped("Form deadline exceeded".into()));
+            }
+            self.validate(epoch).map_err(|e| craft_ext_host::wasm::PluginError::Stopped(e.to_string()))
+        })?)
+    }
     /// Capture and validate the invocation's permission epoch, including the kill list.
     pub fn grant_generation(&self) -> Result<u64, Box<dyn std::error::Error>> {
         let view = craft_ext_store::view::GrantView::open(craft_ext_store::location::default_root()?, contract()?.app)?;
         Ok(view.generation(&self.plugin))
     }
     pub fn validate(&self, generation: u64) -> Result<(), Box<dyn std::error::Error>> {
-        if self.grant_generation()? != generation || !store::enabled()?.iter().any(|(id, version, root, _, enabled)| {
-            id == &self.plugin && version == &self.version && root == &self.root && enabled.contains(&self.contribution.id)
-        }) {
+        if self.grant_generation()? != generation
+            || !store::enabled()?.iter().any(|(id, version, root, _, enabled)| {
+                id == &self.plugin && version == &self.version && root == &self.root && enabled.contains(&self.contribution.id)
+            })
+        {
             return Err("The plugin is disabled, revoked or its permissions changed".into());
         }
         Ok(())

@@ -29,13 +29,20 @@ pub const SRGB_ONLY: &str = "This filter needs an sRGB document";
 // Dead on wasm with the rest of the plugin filter run path, which only native builds reach.
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 fn color_transforms(doc: &photocraft_doc::Document) -> Result<Option<(std::sync::Arc<photocraft_cms::Transform>, std::sync::Arc<photocraft_cms::Transform>)>> {
-    use photocraft_cms::{Builtin, Profile, transform::{cached, TransformOptions}};
+    use photocraft_cms::{
+        Builtin, Profile,
+        transform::{TransformOptions, cached},
+    };
     let Some(bytes) = &doc.icc_profile else { return Ok(None) };
     let bad = |_| EngineError::Other(SRGB_ONLY.into());
     let source = Profile::parse(bytes).map_err(bad)?;
-    if source.color_space != photocraft_cms::ColorSpace::Rgb { return Err(EngineError::Other(SRGB_ONLY.into())); }
+    if source.color_space != photocraft_cms::ColorSpace::Rgb {
+        return Err(EngineError::Other(SRGB_ONLY.into()));
+    }
     let target = if doc.depth == photocraft_color::SampleType::F32 { Builtin::LinearSrgb } else { Builtin::Srgb }.profile();
-    if source.to_bytes() == target.to_bytes() { return Ok(None); }
+    if source.to_bytes() == target.to_bytes() {
+        return Ok(None);
+    }
     Ok(Some((cached(&source, target, TransformOptions::default()).map_err(bad)?, cached(target, &source, TransformOptions::default()).map_err(bad)?)))
 }
 
@@ -53,10 +60,7 @@ fn enabled(s: &Session) -> std::result::Result<(), String> {
     {
         return Err(MASK_ONLY.into());
     }
-    if crate::channel_cmds::edits_channel(s)
-        || target != crate::channel_cmds::ChannelTarget::Composite
-        || crate::color_channels::selected(s).is_some()
-    {
+    if crate::channel_cmds::edits_channel(s) || target != crate::channel_cmds::ChannelTarget::Composite || crate::color_channels::selected(s).is_some() {
         return Err(CHANNEL_ONLY.into());
     }
     color_transforms(&d.doc).map_err(|_| SRGB_ONLY.to_string())?;
@@ -108,13 +112,13 @@ mod registry {
     fn spec_for(r: &mut Registry, source: &FilterSource) -> Option<&'static CommandSpec> {
         let c = &source.contribution;
         // The host reads these keys itself; such a parameter could never reach the plugin.
-        if c.params.iter().any(|p| photocraft_plugins::filter::RESERVED_PARAMS.contains(&p.id.as_str())) {
+        if c.form.iter().flat_map(|f| &f.params).any(|p| p.key.starts_with("__") || photocraft_plugins::filter::RESERVED_PARAMS.contains(&p.key.as_str())) {
             return None;
         }
         let id = format!("{PREFIX}{}/{}", source.plugin, c.id);
-        let label = if c.params.is_empty() { c.label.clone() } else { format!("{}…", c.label) };
+        let label = format!("{}…", c.label);
         let category = c.category.clone().filter(|s| !s.trim().is_empty()).unwrap_or_else(|| "Other".into());
-        let params = photocraft_plugins::filter::params_doc(&c.params);
+        let params = c.form.as_ref().map(photocraft_plugins::filter::params_doc).unwrap_or_else(|| "{}".into());
         let key = format!("{id}\u{0}{label}\u{0}{category}\u{0}{params}");
         if let Some(spec) = r.interned.get(&key) {
             return Some(spec);
@@ -211,43 +215,21 @@ pub fn revision() -> u64 {
 pub fn dialog_fields(id: &str) -> Option<Map<String, Value>> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        use photocraft_plugins::filter::{ParamKind, dialog_fields, resolve_params};
-        let contribution = registry::with(|entries| entries.iter().find(|e| e.spec.id == id).map(|e| (e.source.contribution.clone(), e.source.plugin.to_string())))?;
-        let (c, plugin) = contribution;
-        let mut labels = Map::new();
-        let mut angles = Vec::new();
-        for p in &c.params {
-            match p.kind {
-                ParamKind::Point { .. } => {
-                    labels.insert(format!("{}.x", p.id), json!(format!("{} X", p.label)));
-                    labels.insert(format!("{}.y", p.id), json!(format!("{} Y", p.label)));
-                }
-                ParamKind::Angle { .. } => {
-                    angles.push(json!(p.id));
-                    labels.insert(p.id.clone(), json!(p.label));
-                }
-                _ => {
-                    labels.insert(p.id.clone(), json!(p.label));
-                }
-            }
-        }
-        let mut out = dialog_fields(&c.params, &resolve_params(&c.params, &Value::Null).unwrap_or(Value::Null));
-        out.insert("__labels".into(), Value::Object(labels));
-        out.insert("__angles".into(), Value::Array(angles));
-        // A preset names its effect as `<plugin>/<contribution>`; one that no longer fits the
-        // filter's parameters is left out rather than shown and then refused.
+        let (c, plugin) =
+            registry::with(|entries| entries.iter().find(|e| e.spec.id == id).map(|e| (e.source.contribution.clone(), e.source.plugin.to_string())))?;
+        let form = c.form.unwrap_or_else(|| photocraft_plugins::filter::empty_form(&c.id, &c.label));
+        let mut out = serde_json::to_value(form.defaults()).ok()?.as_object()?.clone();
+        out.insert("__form".into(), json!(form));
         let effect = format!("{plugin}/{}", c.id);
         let presets: Vec<Value> = photocraft_plugins::resources::presets(&effect)
             .unwrap_or_default()
             .into_iter()
             .filter_map(|p| {
-                let values = resolve_params(&c.params, &p.params).ok()?;
-                Some(json!({"id": p.id, "label": p.label, "fields": dialog_fields(&c.params, &values)}))
+                let values = photocraft_plugins::filter::resolve_params(&form, &p.values).ok()?;
+                Some(json!({"id":p.id,"label":p.label,"fields":values}))
             })
             .collect();
-        if !presets.is_empty() {
-            out.insert("__presets".into(), Value::Array(presets));
-        }
+        out.insert("__presets".into(), json!(presets));
         Some(out)
     }
     #[cfg(target_arch = "wasm32")]
@@ -255,6 +237,31 @@ pub fn dialog_fields(id: &str) -> Option<Map<String, Value>> {
         let _ = id;
         None
     }
+}
+
+/// Budgeted guest form work; callers run this on a worker.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn update_form(
+    id: &str,
+    values: craft_ext_core::form::Values,
+    rev: u64,
+) -> std::result::Result<(craft_ext_core::form::Form, Option<craft_ext_core::form::Patch>, Vec<Value>), String> {
+    let source = registry::with(|entries| entries.iter().find(|e| e.spec.id == id).map(|e| e.source.clone())).ok_or("Filter unavailable")?;
+    let form = source.form().map_err(|e| e.to_string())?;
+    form.validate_values(&values)?;
+    let mut all = form.defaults();
+    all.extend(values);
+    let patch = source.update(&all, rev).map_err(|e| e.to_string())?;
+    let effect = format!("{}/{}", source.plugin, source.contribution.id);
+    let presets = photocraft_plugins::resources::presets(&effect)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter_map(|p| {
+            let values = photocraft_plugins::filter::resolve_params(&form, &p.values).ok()?;
+            Some(json!({"id": p.id, "label": p.label, "fields": values}))
+        })
+        .collect();
+    Ok((form, patch, presets))
 }
 
 /// Run plugin filter `__plugin` on the active (or named) layer.
@@ -287,11 +294,12 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
     if let Value::Object(m) = &mut given {
         m.retain(|k, _| !k.starts_with("__") && !photocraft_plugins::filter::RESERVED_PARAMS.contains(&k.as_str()));
     }
-    let params = resolve_params(&source.contribution.params, &given).map_err(|msg| EngineError::BadParams { cmd: id.to_string(), msg })?;
+
     let layer = crate::commands::layer_param(s, p)?;
     let label = format!("{} · {plugin_name}", source.contribution.label);
     let failed = label.clone();
     let id = id.to_string();
+    let worker_id = id.clone();
     let base = s.active().ok_or(EngineError::NoDocument)?.doc.clone();
     let commit_label = label.clone();
     crate::jobs::run(
@@ -299,6 +307,8 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
         &label,
         true,
         move |ctx| {
+            let form = source.form().map_err(|e| EngineError::Other(e.to_string()))?;
+            let params = resolve_params(&form, &given).map_err(|msg| EngineError::BadParams { cmd: worker_id.clone(), msg })?;
             let mut document = (*base).clone();
             let doc = &mut document;
             ctx.check()?;
@@ -330,15 +340,19 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
             let _working = photocraft_raster::memory::try_reserve_operation(bytes).map_err(EngineError::Other)?;
             let before = surf.read_region(area);
             let mut working = before.clone();
-            if let Some((to, _)) = &transforms { to.apply(&mut working, n); }
+            if let Some((to, _)) = &transforms {
+                to.apply(&mut working, n);
+            }
             let px = to_premultiplied(&working, n).map_err(EngineError::Other)?;
             let cancelled = || ctx.cancelled();
-            let out = source.run(&px, w, h, color, params, generation, &cancelled).map_err(|e| {
-                if ctx.cancelled() { EngineError::Cancelled } else { EngineError::Other(format!("{failed} could not run: {e}")) }
-            })?;
+            let out = source
+                .run(&px, w, h, color, params, generation, &cancelled)
+                .map_err(|e| if ctx.cancelled() { EngineError::Cancelled } else { EngineError::Other(format!("{failed} could not run: {e}")) })?;
             ctx.check()?;
             let mut after = from_premultiplied(&out, n, format.sample != SampleType::F32).map_err(EngineError::Other)?;
-            if let Some((_, back)) = &transforms { back.apply(&mut after, n); }
+            if let Some((_, back)) = &transforms {
+                back.apply(&mut after, n);
+            }
             if after.len() != before.len() {
                 return Err(EngineError::Other(format!("{failed} returned an image of the wrong size")));
             }
@@ -364,7 +378,10 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
             let discard = |why: String| EngineError::Other(format!("{commit_label} was discarded: {why}"));
             enabled(s).map_err(|why| discard(why))?;
             commit_source.validate(generation).map_err(|e| discard(e.to_string()))?;
-            s.edit(&commit_label, |doc, _| { *doc = document; Ok(()) })?;
+            s.edit(&commit_label, |doc, _| {
+                *doc = document;
+                Ok(())
+            })?;
             Ok(json!({ "layer": layer.0, "filter": id }))
         },
     )

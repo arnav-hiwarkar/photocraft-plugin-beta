@@ -61,6 +61,14 @@ fn node_ui(ui: &mut egui::Ui, key: &str, rev: u64, n: &Node, out: &mut Vec<(Stri
 }
 fn node_ui_inner(ui: &mut egui::Ui, key: &str, rev: u64, n: &Node, out: &mut Vec<(String, Value)>) {
     match n {
+        Node::Component { fallback, .. } => node_ui(ui, key, rev, fallback, out),
+        Node::Form { form, values } => {
+            let edit_id = egui::Id::unique(("plugin-form", key, &form.key, rev));
+            let mut state = ui.ctx().data_mut(|d| d.get_temp::<craft_ext_core::form::FormState>(edit_id))
+                .unwrap_or_else(|| { let mut all = form.defaults(); all.extend(values.clone()); craft_ext_core::form::FormState { values: all, ..Default::default() } });
+            out.extend(crate::plugin_form::draw(ui, form, &mut state));
+            ui.ctx().data_mut(|d| d.insert_temp(edit_id, state));
+        }
         Node::Column { children } => {
             ui.vertical(|ui| children.iter().for_each(|c| node_ui(ui, key, rev, c, out)));
         }

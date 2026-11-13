@@ -1111,3 +1111,4 @@ mod plugin_manager;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod plugins_ui;
+mod plugin_form;
