@@ -1,87 +1,14 @@
 //! PhotoCraft's boundary to the shared Craft plugin platform.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
-use craft_ext_core::{
-    contract::Provided,
-    id::{AppId, IdError},
-    permission::Permission,
-};
-use craft_ext_host::api::{AppContract, EventSpec, OpKind, OpSpec, SlotSpec};
+use craft_ext_core::id::AppId;
 use serde_json::Value;
+
+pub mod contract;
+pub use contract::contract;
 
 pub fn safe_mode() -> bool {
     std::env::var_os("PHOTOCRAFT_SAFE_MODE").is_some_and(|v| v == "1")
-}
-fn read_document(_: &Value) -> Vec<Permission> {
-    permission("document.read:document")
-}
-fn read_selection(_: &Value) -> Vec<Permission> {
-    permission("document.read:selection")
-}
-fn edit_document(_: &Value) -> Vec<Permission> {
-    permission("document.edit:document")
-}
-fn window(_: &Value) -> Vec<Permission> {
-    permission("ui.window")
-}
-fn permission(s: &str) -> Vec<Permission> {
-    Permission::parse(s).into_iter().collect()
-}
-
-/// Fallible because the shared platform validates app identifiers at construction.
-pub fn contract() -> Result<AppContract, IdError> {
-    let definitions = [
-        ("document.info", OpKind::Query, "Read the active document", read_document as fn(&Value) -> Vec<Permission>, "document.read:document"),
-        ("layer.list", OpKind::Query, "List document layers", read_document, "document.read:document"),
-        ("selection.get", OpKind::Query, "Read the captured selection", read_selection, "document.read:selection"),
-        ("layer.rename", OpKind::Edit, "Rename a captured layer", edit_document, "document.edit:document"),
-        ("filter.apply", OpKind::Edit, "Apply {filter, params} on the active layer", edit_document, "document.edit:document"),
-        ("ui.panel.set", OpKind::Ui, "Set a declarative panel", craft_ext_host::api::none, "none"),
-        ("ui.window.open", OpKind::Ui, "Open a declarative window", window, "ui.window"),
-        ("ui.notify", OpKind::Ui, "Show a notification", craft_ext_host::api::none, "none"),
-        ("plugin.resources", OpKind::Query, "List enabled presets and LUTs", craft_ext_host::api::none, "none"),
-    ];
-    Ok(AppContract {
-        app: AppId::new("photocraft")?,
-        display_name: "PhotoCraft",
-        provided: Provided::new(&[
-            ("raster.filter", 1, 0),
-            ("photocraft.session", 1, 0),
-            ("resource.preset", 1, 0),
-            ("resource.lut", 1, 0),
-            ("craft-theme", 1, 0),
-        ])
-        .without(craft_ext_core::manifest::ContributionKind::Tool, "Tools are not supported in PhotoCraft yet"),
-        ops: definitions
-            .into_iter()
-            .map(|(id, kind, summary, requires, permission_rule)| OpSpec { id, kind, summary, requires, permission_rule, args: "{}", result: "{}" })
-            .collect(),
-        events: ["init", "command", "ui", "app", "dispose"]
-            .into_iter()
-            .map(|name| EventSpec {
-                name,
-                summary: if name == "app" { "document.opened, selection.changed" } else { name },
-                payload: "{}",
-                needs_app_events: name == "app",
-            })
-            .collect(),
-        slots: vec![
-            SlotSpec { kind: "effect", summary: "Filter → Plugins → category" },
-            SlotSpec { kind: "command", summary: "Plugins → plugin → label" },
-            SlotSpec { kind: "panel", summary: "Plugin panels" },
-            SlotSpec { kind: "preset", summary: "Plugin filter presets" },
-            SlotSpec { kind: "lut", summary: "plugin.resources" },
-        ],
-        notes: r#"Tools are not supported in PhotoCraft yet. Tool contributions are unavailable even when their declared contract matches.
-
-RGB(A) 8/16/32-bit only; premultiplied RGBA f32 in sRGB for integer depths or linear sRGB for float, with CMS conversion. Other modes are disabled with a reason. Filters apply destructively as one history step; plugin smart filters are unsupported.
-
-Effect dialogs use Form schema 1 (`contribution.form`, optional worker `craft_describe`). Filter context `params` and CLI/automation parameters are Values keyed by param key: choice/radio option ids, straight RGBA including HDR RGB, and `[x,y]` points in their declared space. Defaults are filled; unknown keys and invalid values are refused. `layer`, `target`, `coalesce` and the `__` prefix are host-reserved command keys.
-
-The host draws all form kinds, units, help and sections, evaluates visible/enabled conditions, and calls optional `craft_update` on workers after edits. Event fuel, grant checks and a 100 ms deadline bound form calls. Patches apply atomically at the current revision; stale edit results are discarded. Plugin presets accept `{id,label,effects:[{effect,values}]}` single-effect recipes and legacy direct `{id,label,effect,values}` records inside a `presets` array; the dialog offers matching, validated presets and omits multi-effect recipes.
-
-Session panels/windows render `Node::Form` with local edit state and param-key events. No framework component library is registered: every `Node::Component` renders its validated fallback. Sessions execute on workers; document operations are authorized and committed on the document thread."#,
-    })
 }
 
 #[cfg(not(target_arch = "wasm32"))]

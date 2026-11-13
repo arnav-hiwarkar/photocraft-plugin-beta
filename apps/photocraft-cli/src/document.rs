@@ -114,6 +114,8 @@ pub(crate) fn run_cmds(a: &RunArgs, out: &mut dyn Write, err: &mut dyn Write) ->
     let mut h = Headless::trusted_local();
     let policy = crate::gpu::GpuPolicy::from_args(&a.gpu).map_err(CliError::Other)?;
     policy.apply_to_headless(&mut h);
+    // Plugins never see paths: each --pick answers one `files.pick` with an opaque handle.
+    h.session.plugin_picks.answers.extend(a.pick.iter().cloned());
     // Opening, running commands and exporting can all notice the same missing font:
     // one `run` invocation reports each warning line at most once.
     let mut reported_fonts = std::collections::HashSet::<String>::new();

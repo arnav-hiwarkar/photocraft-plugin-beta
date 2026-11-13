@@ -82,7 +82,17 @@ impl PhotocraftApp {
         shape_stroke_ui::sync_editor(self, ctx);
         crate::dock::persist_pending(self, ctx);
         prefs_ui::tick(self, ctx);
-        crate::plugin_manager::show(ctx);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let paused = self.session.plugins_paused();
+            for plugin in crate::plugin_manager::show(ctx, &paused) {
+                if let Err(e) = self.session.resume_plugin(&plugin) {
+                    crate::notices::post(self, "Plugins", vec![e.to_string()], true, None);
+                }
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        crate::plugin_manager::show(ctx, &[]);
         updates_ui::tick(self, ctx);
         monitor_status::poll_frame(self, ctx, frame);
         // Control requests and persisted preferences can change the language in this frame.

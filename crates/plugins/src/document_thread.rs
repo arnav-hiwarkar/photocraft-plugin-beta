@@ -11,6 +11,8 @@ pub struct Capture {
     pub epoch: u64,
     pub revision: u64,
     pub surface: Option<(String, u64)>,
+    /// The tool gesture this event belongs to; events of an ended gesture are refused.
+    pub gesture: Option<u64>,
 }
 
 pub enum Action {
@@ -107,7 +109,7 @@ mod tests {
         }
     }
     fn capture(document: u64) -> Capture {
-        Capture { document: Some(document), epoch: 1, revision: 2, surface: None }
+        Capture { document: Some(document), epoch: 1, revision: 2, surface: None, gesture: None }
     }
     #[test]
     fn recoverable_operation_error_allows_following_call_and_commit() {
@@ -132,15 +134,29 @@ mod tests {
         worker.join().unwrap();
     }
     #[test]
-    fn tools_are_explicitly_unavailable() {
-        assert!(
-            crate::contract()
-                .unwrap()
-                .provided
-                .unsupported
-                .iter()
-                .any(|(kind, reason)| *kind == craft_ext_core::manifest::ContributionKind::Tool && reason == "Tools are not supported in PhotoCraft yet")
-        );
+    fn tools_are_available_at_session_1_1() {
+        let c = crate::contract().unwrap();
+        assert!(c.provided.unsupported.is_empty());
+        let tool: craft_ext_core::manifest::Contribution = serde_json::from_value(
+            serde_json::json!({"id":"t","kind":"tool","contract":"photocraft.session@1.1","label":"T","module":"m.wasm"}),
+        )
+        .unwrap();
+        assert!(tool.contract.check(&c.provided).is_none());
+    }
+    #[test]
+    fn every_operation_has_a_total_permission_rule() {
+        use craft_ext_core::permission::Permission;
+        let c = crate::contract().unwrap();
+        let free = ["ui.panel.set", "ui.notify", "canvas.overlay.set", "plugin.resources", "tool.state"];
+        for op in &c.ops {
+            let needs = (op.requires)(&serde_json::json!({}));
+            assert_eq!(needs.is_empty(), free.contains(&op.id), "{}", op.id);
+        }
+        let pick = c.op("files.pick").unwrap();
+        assert_eq!((pick.requires)(&serde_json::json!({"mode":"open"})), vec![Permission::FilesRead]);
+        assert_eq!((pick.requires)(&serde_json::json!({"mode":"folder"})), vec![Permission::FilesWrite]);
+        // An unknown mode never asks for less.
+        assert_eq!((pick.requires)(&serde_json::json!({"mode":"x"})).len(), 2);
     }
     #[test]
     fn workers_keep_independent_dispatch_identity() {

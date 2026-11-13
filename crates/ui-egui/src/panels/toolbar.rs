@@ -257,6 +257,10 @@ pub fn toolbar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                             for (slot_index, slot) in row.iter() {
                                 let key = egui::Id::unique(("tool-slot", *slot_index));
                                 let tool = slot_tool(app.ui.tool, &app.ui.group_tools, slot);
+                                // A selected plugin tool is the current tool: no built-in one is.
+                                #[cfg(not(target_arch = "wasm32"))]
+                                let sel = slot.contains(&app.ui.tool) && !crate::plugins_ui::tool_selected(app);
+                                #[cfg(target_arch = "wasm32")]
                                 let sel = slot.contains(&app.ui.tool);
                                 let tip = match crate::tool_shortcuts::shortcut(app, tool) {
                                     Some(sc) => format!("{}  ({})", tl!(tool.label()), crate::shortcuts::pretty(&sc)),
@@ -295,6 +299,9 @@ pub fn toolbar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                                 let prev_modified = ui.data(|d| d.get_temp::<bool>(prev_mod_id)).unwrap_or(false);
                                 let slot_click = resp.clicked() && ui.data(|d| d.get_temp::<egui::Id>(held_id)) != Some(key);
                                 if slot_click {
+                                    // Any tool button puts a plugin tool down, the current tool's too.
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    crate::plugins_ui::deselect(app);
                                     let pick = if slot.len() > 1 && alt {
                                         let from = if slot.contains(&app.ui.tool) { app.ui.tool } else { tool };
                                         next_slot_tool(slot, from)

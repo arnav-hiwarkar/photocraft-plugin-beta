@@ -2441,7 +2441,13 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
     // (Space) and a middle-button drag still pan, and a secondary window's Hand never stops, as the
     // box is only drawn and driven on the primary canvas.
     let transform_owns_pointer = primary && app.ui.transform.is_some() && temporary.is_none() && !middle;
-    let hand_pan = tool == Tool::Hand && !transform_owns_pointer;
+    // A selected plugin tool takes the primary canvas's gestures; Space, the middle button and the
+    // held zoom keys still navigate, and an open Free Transform box keeps the pointer.
+    #[cfg(not(target_arch = "wasm32"))]
+    let plugin_owned = primary && !under_dialog && temporary.is_none() && !middle && app.ui.transform.is_none() && crate::plugins_ui::tool_selected(app);
+    #[cfg(target_arch = "wasm32")]
+    let plugin_owned = false;
+    let hand_pan = tool == Tool::Hand && !transform_owns_pointer && !plugin_owned;
     // A press outside an open canvas tool menu dismisses it (`canvas_tool_menu::show`, after this
     // input pass) and the whole gesture is consumed until its release, as in Photoshop: no tool
     // press, stroke, drag, pan or zoom step. The menu closes mid-frame (after this input pass), so
@@ -2508,6 +2514,9 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
         crate::scroll_all_windows::follow_step(app, scroll_all, scroll_source, before, &view, geometry);
         // The tool cursors below are skipped while panning: the fist is set here (#2196).
         ctx.set_cursor_icon(crate::tool_cursor::hand(&ctx, true));
+    } else if plugin_owned {
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::plugins_ui::canvas_pointer(app, &ctx, &response, &xf);
     } else if primary && !stroke_dismissal && temporary.is_none() && !middle && crate::layer_picker::armed(app).is_some() {
         layer_picker_eyedropper(app, ui, &ctx, &response, &xf);
     } else if primary && !stroke_dismissal {
@@ -2580,6 +2589,10 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
         paint_primary_overlays(app, ui, &mut view, &input, ants);
     } else {
         painter.extend(ants);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    if primary {
+        crate::plugins_ui::paint_overlay(app, &painter, &xf, rect);
     }
     let tail = CanvasTailInput {
         ctx: &ctx,

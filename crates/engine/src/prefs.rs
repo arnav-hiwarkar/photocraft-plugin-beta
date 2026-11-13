@@ -110,6 +110,9 @@ choice!(CheckerSize { None = "none", Small = "small", Medium = "medium", Large =
 choice!(CheckerColors { Light = "light", Medium = "medium", Dark = "dark", Red = "red", Orange = "orange", Green = "green", Blue = "blue", Purple = "purple", Custom = "custom" } default Light);
 choice!(LineStyle { Lines = "lines", Dashed = "dashedLines", Dots = "dots" } default Lines);
 choice!(TextEngine { Modern = "modern", EastAsian = "eastAsian", WorldReady = "worldReady" } default WorldReady);
+// Which engine draws plugin panels, windows and filter dialogs. Plugins can't choose or detect it;
+// `framework` (the craft-framework renderer) draws with egui until that engine lands.
+choice!(PluginUiEngine { Egui = "egui", Framework = "framework" } default Egui);
 choice!(FontPreview { Off = "off", Small = "small", Medium = "medium", Large = "large", ExtraLarge = "extraLarge", Huge = "huge" } default Medium);
 choice!(RawColorSpace { Srgb = "srgb", AdobeRgb = "adobeRgb", ProPhoto = "proPhoto", DisplayP3 = "displayP3" } default AdobeRgb);
 choice!(RawDepth { Eight = "8", Sixteen = "16" } default Sixteen);
@@ -1023,6 +1026,8 @@ pub struct PlugIns {
     pub show_extension_panels: bool,
     pub allow_scripts_to_connect: bool,
     pub generator_enabled: bool,
+    /// The engine that draws plugin UI (`craft_ext_ui::plugin_ui::EngineChoice`).
+    pub plugin_ui_engine: PluginUiEngine,
 }
 
 impl Default for PlugIns {
@@ -1031,6 +1036,7 @@ impl Default for PlugIns {
             show_extension_panels: true,
             allow_scripts_to_connect: false,
             generator_enabled: false,
+            plugin_ui_engine: PluginUiEngine::Egui,
         }
     }
 }

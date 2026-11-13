@@ -22,6 +22,8 @@ pub mod filters;
 pub mod plugin_filters;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod plugin_sessions;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod plugin_ops;
 pub mod filters_ext;
 mod group_options;
 pub mod guide_layout;
@@ -209,6 +211,18 @@ pub struct Session {
     plugin_opened: std::collections::BTreeSet<u64>,
     #[cfg(not(target_arch = "wasm32"))]
     plugin_seen: Option<(u64, u64, Vec<LayerId>, Option<photocraft_raster::Surface>)>,
+    /// The plugin tool selected on the canvas (`plugin.session.<plugin>/<tool>`).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub plugin_tool: Option<String>,
+    /// The plugin tool gesture under way: one history step from begin to commit.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) plugin_gesture: Option<plugin_sessions::Gesture>,
+    /// Files and folders plugins picked, and file questions waiting for an answer.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub plugin_picks: plugin_ops::Picks,
+    /// Events to send once the current one finished: (session entry, event).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) plugin_followups: std::collections::VecDeque<(String, serde_json::Value)>,
     docs: Vec<DocState>,
     /// Override Open belongs only to one Batch scratch session, never to caller preferences.
     pub(crate) batch_open: Option<file_cmds::BatchOpen>,

@@ -11,7 +11,7 @@ live enabled/grant checks and a bounded worker/document request/reply channel.
 It returns transformed pixels only on success. Its input is premultiplied RGBA f32;
 callers must supply the true document working-space name.
 
-The following named integration tasks remain; this migration is **incomplete**:
+Status of the named integration tasks (all done unless marked otherwise):
 
 - PhotoCraft-plugin-transactions: done. Enabled `photocraft.session@1` command,
   panel and event-hook contributions use ordered Wasm workers (one instance per
@@ -26,8 +26,9 @@ The following named integration tasks remain; this migration is **incomplete**:
   back document and history. The adapter declares owner-thread authorization so
   state-dependent permission requirements are never evaluated on the worker.
   Commands execute synchronously through `Session::execute` (also for CLI/automation).
-- PhotoCraft-plugin-panels: done. Shared Nodes are validated before publication and
-  drawn by ui-egui, including panels and `ui.window.open` floating windows. UI changes
+- PhotoCraft-plugin-panels: done. Trees are `craft_ext_core::ui::tree::Node` (UI level 1.1),
+  validated before publication at the level the contribution's session contract carries, and
+  drawn by the shared renderer (see below), including panels and `ui.window.open` windows. UI changes
   publish only on event commit. Widget events retain surface revisions and are
   checked again when serviced; sliders and text fields retain per-widget edit state.
   Commands appear in Plugins ▸ <plugin> ▸ <label>. `selection.changed` (layer or
@@ -39,8 +40,8 @@ The following named integration tasks remain; this migration is **incomplete**:
   command ids, not plugin contributions. Destructive pixels are self-contained in
   native documents and export needs no plugin. Revisit persistence/missing-plugin
   export refusal only when non-destructive plugin smart filters are introduced.
-- TODO(PhotoCraft-plugin-examples): verify unchanged halftone and film-looks packages
-  end to end in the running app (filter wiring exists; not yet exercised on real packages).
+- PhotoCraft-plugin-examples: done for the CLI and engine (halftone, film-looks and the three
+  PhotoCraft examples, see `plugin-testing.md`); the desktop clicks remain a manual check.
 - PhotoCraft-plugin-filter-gaps: done. Channels-panel colour subsets, Quick Mask, layer and
   vector masks, and non-pixel layers (smart objects included) disable plugin filters with a
   reason in the tooltip. Document profiles convert through CMS, so the `color` a plugin
@@ -66,9 +67,10 @@ Patches use the shared atomic revision validator and update values, hidden and d
 Plugin presets accept single-effect recipes
 `{"presets":[{"id":"print","label":"Print","effects":[{"effect":"plugin/effect","values":{}}]}]}`
 and legacy direct `effect`/`values` records. The dialog lists only matching effects whose
-Values validate; multi-effect recipes are omitted. Session `Node::Form` uses the
-same widgets, condition evaluation and local edit state, emitting param-key events; unknown
-`Node::Component` nodes recursively render their fallback.
+Values validate; multi-effect recipes are omitted. Dialogs draw through the shared
+renderer's `FormView` (a host patch carries preset changes into it, keeping the plugin's hidden
+and disabled rows); session `form` nodes use the same rows, emitting param-key events; unknown
+`component` nodes draw their fallback.
 
 A run is a normal
 filter job: the active pixel layer's canvas area (RGB/RGBA 8/16/32) becomes premultiplied RGBA
@@ -152,8 +154,6 @@ No build/run, workspace tests or clippy were invoked.
 
 ## Suite-review parity
 
-Tools are not supported in PhotoCraft yet. The provided contract marks Tool
-contributions unavailable with that reason, even when their session contract matches.
 Native helpers are supervised on startup and at least once per second while idle;
 revocation, lost consent, safe mode or an unreadable grant store stops them.
 Live grants open a fresh store snapshot for every check: read errors deny permissions,
@@ -172,3 +172,73 @@ Visual/runtime verification was not run under the no-build/no-run task limits.
 Form migration checks: `cargo check -p photocraft-plugins`, `cargo check -p photocraft-ui-egui`
 and `cargo test -p photocraft-plugins` (16 passed). Tests cover typed Values, rejected old aliases,
 HDR/point preservation and effect-scoped preset decoding.
+
+## Shared renderer and session 1.1 (done)
+
+`photocraft.session@1.1` is provided. Panels and windows are drawn by
+`craft_ext_ui::plugin_ui::PluginUi::draw` (the per-app `node_ui` renderer is gone) and filter
+dialogs by `FormView` (`plugin_form.rs` keeps only the dialog's field sync and the worker
+`craft_update` call). The engine is an app setting, Preferences ▸ Plugins ▸ Plugin UI Engine
+(`plugIns.pluginUiEngine`: `egui`, the default, or `framework`, which draws with egui until the
+craft-framework engine lands); plugins cannot choose or detect it. Runtime surfaces store
+`tree::Node`; `ui.panel.set` / `ui.window.open` validate with
+`validate_at(ui_level_for_session(declared))`, so a `@1.0` contribution may only send level-1.0
+trees. Widget events come back as `UiEvent`s and stale revisions are dropped before routing.
+
+## Tools (done)
+
+Tool contributions are no longer marked unavailable. The model follows FigCraft's: a gesture is
+`begin` → `update`… → `commit`, or `cancel`. Code: `photocraft_engine::plugin_sessions`
+(`Gesture`, `plugin_tool_event`, `plugin_tool_escape`, `plugin_check_gesture`) and
+`ui-egui/src/plugins_ui.rs` (`canvas_pointer`, `paint_overlay`).
+
+- **Choosing a tool**: Plugins ▸ <plugin> ▸ <tool> (the command `plugin.session.<id>/<tool>` with
+  no params) selects it; the toolbar then shows no built-in tool as current and the canvas shows
+  "<tool> · <plugin> — Esc puts it down". Any built-in tool (toolbar click or shortcut) puts it down.
+- **Coordinates** are image pixels (fractional), the event also carries `start`, `modifiers`
+  (`shift`, `alt`, `ctrl`, `cmd`), `button`, `pressure` and `zoom` (screen points per image
+  pixel); `tool.state` returns the latest payload (the SDK's `Event::Tool` carries only phase and
+  position). Each event runs on the document thread with the active layer and selection.
+- **One history step**: edits inside a gesture commit per event but record no history; commit
+  folds the whole gesture into one step "<label> · <plugin>". Escape (cancel), a failed event, a
+  document switch, a store reload, or revocation/disable mid-gesture (checked every frame) roll the
+  document back to the gesture's start and clear the overlay.
+- **Navigation**: wheel and pinch zoom/pan are untouched; Space, the middle button and the held
+  zoom keys navigate as usual because the plugin tool only takes the primary canvas's gestures
+  when no temporary tool is held and no Free Transform box is open.
+- **Overlay**: `canvas.overlay.set` takes a UI draw list (no images) in image pixels, validated
+  with `validate_draw_list` and 1 MiB / 20 000 ops; it is published on commit, mapped through the
+  view (rotation, flip and pixel aspect included; rotated rectangles become polygons) and painted
+  with `paint_ops`. It is cleared when the gesture ends.
+- **CLI/automation**: the tool command with `{"points": [[x,y],…]}` runs a whole gesture
+  (`"cancel": true` cancels at the end; optional `modifiers`, `zoom`).
+
+## Pause and resume (done)
+
+Three failed events in a row (cancelled tool events excepted) pause a plugin for the process.
+The Plugins window lists paused plugins with their last error and a **Resume** button; the engine
+commands `plugin.paused` and `plugin.resume {"plugin": id}` do the same for `serve`/`mcp`
+sessions. Resume clears the count and sends `init` again. `photocraft-cli plugin resume <id>`
+resumes a plugin paused in its own process and otherwise explains that pauses are per process.
+
+## Capability audit (done)
+
+| PhotoCraft feature | Contract operations and events |
+|---|---|
+| Documents | `document.info`, `documents.list` (read:all), `document.opened` event |
+| Layers | `layer.list`, `layer.get`, `layer.create` (pixel, group, fill), `layer.delete`, `layer.set` (name, visibility, opacity, fill opacity, blend), `layer.rename`, `layer.select` |
+| Pixels | `pixels.get` (layer or composite, rgba8/16/32f, ≤ 4 MiB), `pixels.set` (≤ 1 MiB args, selection blend, locks honoured) |
+| Selections | `selection.get`, `selection.mask.get`, `selection.set` (all, none, rect, ellipse, gray8 mask; replace/add/subtract/intersect), `selection.save`; `selection.changed` event |
+| Masks | `mask.add` (reveal all, hide all, from selection) |
+| Adjustments | `adjustment.apply` (17 allowlisted adjustments, destructive or as adjustment layers), `histogram.get` |
+| Filters | `filter.apply` (allowlist), plugin effects as filters |
+| Channels | `channels.list`, `selection.save` |
+| History | `history.list`; every event is one step, plugins cannot undo |
+| Guides | `guides.list`, `guide.add`, `guides.clear` |
+| Import and export | `files.pick` → `files.picked`, `files.read`, `files.write`, `document.export` (png, jpg, tif, webp, psd), `layer.import` |
+| Canvas and tools | tool events, `tool.state`, `canvas.overlay.set` |
+
+Not offered on purpose: undo/redo and history editing, preferences, plugin management, opening
+or closing documents, actions/scripts, and raw paths, shell or processes (native plugins only).
+Picked files are opaque per-plugin handles; writes are staged and land only when the event
+commits; hidden and executable file names are refused; links at the target are refused.

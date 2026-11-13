@@ -2,7 +2,7 @@ use super::shortcuts::normalize_shortcut;
 use super::{
     AppearanceMode, Ask, CanvasBorder, CanvasColor, CheckerColors, CheckerSize, ColorPicker, DarkTheme, ExportLocation, ExportMetadata, FontPreview,
     GpuBackend, Interpolation, LightTheme, LineStyle, LinuxDisplayServer, LogDestination, LogDetail, OtherCursor, PaintingCursor, PlaybackPerformance,
-    PointSize, PressureCurve, QuickExportFormat, RawColorSpace, RawDemosaic, RawDepth, RawSharpen, RenderingMode, RightClickPaint, TabletInput, TextEngine,
+    PluginUiEngine, PointSize, PressureCurve, QuickExportFormat, RawColorSpace, RawDemosaic, RawDepth, RawSharpen, RenderingMode, RightClickPaint, TabletInput, TextEngine,
     Theme, TypeUnit, UiFontSize, UiScale, Unit, Value,
 };
 
@@ -94,6 +94,7 @@ pub fn choices(path: &str) -> Option<&'static [&'static str]> {
         "unitsAndRulers.pointSize" => PointSize::NAMES,
         "guidesGridAndSlices.guideStyle" | "guidesGridAndSlices.gridStyle" => LineStyle::NAMES,
         "type.textEngine" => TextEngine::NAMES,
+        "plugIns.pluginUiEngine" => PluginUiEngine::NAMES,
         "type.fontPreview" => FontPreview::NAMES,
         "rawDefaults.colorSpace" => RawColorSpace::NAMES,
         "rawDefaults.bitDepth" => RawDepth::NAMES,

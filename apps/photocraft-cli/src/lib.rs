@@ -51,6 +51,11 @@ where
         }
     };
     if let Command::Plugin { args } = &cli.command {
+        if let [verb, id] = args.as_slice() {
+            if verb == "resume" {
+                return resume(id, out, err);
+            }
+        }
         if args.as_slice() == ["contract"] {
             return match photocraft_plugins::contract() {
                 Ok(c) => if write!(out, "{}", c.to_markdown()).is_ok() { 0 } else { 1 },
@@ -75,6 +80,37 @@ where
     };
     match result {
         Ok(()) => 0,
+        Err(e) => {
+            let _ = writeln!(err, "error: {e}");
+            1
+        }
+    }
+}
+
+/// `plugin resume <id>`: plugins pause after three failed events in a row, for the life of the
+/// process that ran them. A new CLI process starts with nothing paused, so this checks the plugin
+/// and says where pauses live: the desktop Plugins window, or `plugin.resume` in a long-lived
+/// `serve` / `mcp` session.
+fn resume(id: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let mut session = photocraft_engine::Session::new();
+    match session.execute("plugin.paused", serde_json::json!({})) {
+        Ok(paused) if paused.as_array().is_some_and(|p| p.iter().any(|p| p["plugin"] == id)) => match session.execute("plugin.resume", serde_json::json!({"plugin": id})) {
+            Ok(_) => {
+                let _ = writeln!(out, "Resumed {id}.");
+                0
+            }
+            Err(e) => {
+                let _ = writeln!(err, "error: {e}");
+                1
+            }
+        },
+        Ok(_) => {
+            let _ = writeln!(
+                out,
+                "{id} is not paused. Pauses last for one PhotoCraft process: use Resume in the desktop app's Plugins window, or the `plugin.resume` command (params {{\"plugin\":\"{id}\"}}) in a `photocraft-cli serve` or `mcp` session."
+            );
+            0
+        }
         Err(e) => {
             let _ = writeln!(err, "error: {e}");
             1

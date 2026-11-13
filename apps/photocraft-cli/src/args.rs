@@ -178,6 +178,10 @@ pub(crate) struct RunArgs {
     /// Allow an --out that is the <FILE>, replacing the original
     #[arg(long)]
     pub(crate) in_place: bool,
+    /// Answer a plugin's file question (`files.pick`) with this file or folder; repeat for several,
+    /// used in order. Without it, plugins asking for a file get "cancelled"
+    #[arg(long, value_name = "PATH", action = ArgAction::Append)]
+    pub(crate) pick: Vec<PathBuf>,
     /// Explicitly approve high-memory PSD/PSB imports within the hard memory budget
     #[arg(long)]
     pub(crate) approve_high_memory: bool,
