@@ -97,10 +97,21 @@ fn decode_presets(data: &serde_json::Value, effect: &str) -> Vec<Preset> {
         .into_iter()
         .flatten()
         .filter_map(|preset| {
-            if preset.get("effect")?.as_str()? != effect {
+            // Data packs share EffectCraft's recipe format. A single-filter dialog can
+            // represent exactly one effect; never silently discard the rest of a recipe.
+            let entry = if let Some(effects) = preset.get("effects") {
+                let effects = effects.as_array()?;
+                if effects.len() != 1 {
+                    return None;
+                }
+                effects.first()?
+            } else {
+                preset
+            };
+            if entry.get("effect")?.as_str()? != effect {
                 return None;
             }
-            let values = preset.get("values")?.as_object()?;
+            let values = entry.get("values")?.as_object()?;
             Some(Preset {
                 id: preset.get("id")?.as_str()?.into(),
                 label: preset.get("label")?.as_str()?.into(),
@@ -122,5 +133,24 @@ mod tests {
         let presets = decode_presets(&data, "example/filter");
         assert_eq!(presets.len(), 1);
         assert_eq!(presets.first().map(|p| &p.values), Some(&json!({"size":6})));
+    }
+    #[test]
+    fn film_looks_recipes_are_available_without_flattening_multi_effect_recipes() {
+        let data = json!({"presets":[
+            {"id":"halftone-print","label":"Halftone print","effects":[
+                {"effect":"io.github.arnav-hiwarkar.halftone/halftone","values":{"size":6,"angle":45,"mono":true}}
+            ]},
+            {"id":"halftone-colour","label":"Colour halftone","effects":[
+                {"effect":"io.github.arnav-hiwarkar.halftone/halftone","values":{"size":10,"angle":15,"mono":false}}
+            ]}
+        ]});
+        let effect = "io.github.arnav-hiwarkar.halftone/halftone";
+        let presets = decode_presets(&data, effect);
+        assert_eq!(presets.len(), 2);
+        assert_eq!(presets[0].values, json!({"size":6,"angle":45,"mono":true}));
+        let multiple = json!({"presets":[{"id":"multi","label":"Multi","effects":[
+            {"effect":effect,"values":{}}, {"effect":effect,"values":{}}
+        ]}]});
+        assert!(decode_presets(&multiple, effect).is_empty());
     }
 }

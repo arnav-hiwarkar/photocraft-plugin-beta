@@ -63,8 +63,10 @@ text, units, help and host-evaluated visible/enabled conditions. Guest describe/
 run on workers in fresh sandboxes with event fuel, a 100 ms deadline and grant checks.
 Each value change requests `craft_update`; only a result matching the current Values is applied.
 Patches use the shared atomic revision validator and update values, hidden and disabled state.
-Plugin presets use `{"presets":[{"id":"print","label":"Print","effect":"plugin/effect","values":{}}]}`;
-the dialog lists only matching effects whose Values validate. Session `Node::Form` uses the
+Plugin presets accept single-effect recipes
+`{"presets":[{"id":"print","label":"Print","effects":[{"effect":"plugin/effect","values":{}}]}]}`
+and legacy direct `effect`/`values` records. The dialog lists only matching effects whose
+Values validate; multi-effect recipes are omitted. Session `Node::Form` uses the
 same widgets, condition evaluation and local edit state, emitting param-key events; unknown
 `Node::Component` nodes recursively render their fallback.
 

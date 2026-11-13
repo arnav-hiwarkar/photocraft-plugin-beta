@@ -72,7 +72,15 @@ pub fn contract() -> Result<AppContract, IdError> {
             SlotSpec { kind: "preset", summary: "Plugin filter presets" },
             SlotSpec { kind: "lut", summary: "plugin.resources" },
         ],
-        notes: "RGB(A) 8/16/32-bit only, premultiplied RGBA f32 in sRGB (8/16-bit) or linear sRGB (32-bit), converted through CMS. Other modes: This filter works on RGB images. Destructive filters need no project record; plugin filters cannot be stored as smart filters. Effects run as Filter › Plugins commands. Sessions run on workers; document operations are authorized on the document thread and each event commits one history step. Commands appear under Plugins; panels and windows use revisioned host-drawn UI.",
+        notes: r#"Tools are not supported in PhotoCraft yet. Tool contributions are unavailable even when their declared contract matches.
+
+RGB(A) 8/16/32-bit only; premultiplied RGBA f32 in sRGB for integer depths or linear sRGB for float, with CMS conversion. Other modes are disabled with a reason. Filters apply destructively as one history step; plugin smart filters are unsupported.
+
+Effect dialogs use Form schema 1 (`contribution.form`, optional worker `craft_describe`). Filter context `params` and CLI/automation parameters are Values keyed by param key: choice/radio option ids, straight RGBA including HDR RGB, and `[x,y]` points in their declared space. Defaults are filled; unknown keys and invalid values are refused. `layer`, `target`, `coalesce` and the `__` prefix are host-reserved command keys.
+
+The host draws all form kinds, units, help and sections, evaluates visible/enabled conditions, and calls optional `craft_update` on workers after edits. Event fuel, grant checks and a 100 ms deadline bound form calls. Patches apply atomically at the current revision; stale edit results are discarded. Plugin presets accept `{id,label,effects:[{effect,values}]}` single-effect recipes and legacy direct `{id,label,effect,values}` records inside a `presets` array; the dialog offers matching, validated presets and omits multi-effect recipes.
+
+Session panels/windows render `Node::Form` with local edit state and param-key events. No framework component library is registered: every `Node::Component` renders its validated fallback. Sessions execute on workers; document operations are authorized and committed on the document thread."#,
     })
 }
 
