@@ -121,7 +121,9 @@ impl PickBinding {
         let id = craft_ext_core::id::ExtensionId::new(plugin).ok()?;
         let manager = photocraft_plugins::store::manager().ok()?;
         let store = &manager.store;
-        let generation = store.state().ok()?.generation;
+        // PhotoCraft's plugin fingerprint: a catalogue refresh or another app's change must not
+        // discard the user's answer to a pending file question.
+        let generation = photocraft_plugins::store::generation().ok()?;
         let (_, version, _, manifest, enabled) = photocraft_plugins::store::enabled().ok()?.into_iter().find(|r| r.0 == id)?;
         let contribution = manifest.contributions.iter().find(|c| owner == format!("plugin.session.{plugin}/{}", c.id) && enabled.contains(&c.id))?;
         if contribution.contract.check(&photocraft_plugins::contract().ok()?.provided).is_some() {
@@ -130,7 +132,7 @@ impl PickBinding {
         use craft_ext_host::api::Grants as _;
         let grants = photocraft_plugins::runtime::LiveGrants;
         let grant_generation = grants.generation(&id);
-        if grant_generation == u64::MAX || grants.stopped(&id, version) || store.state().ok()?.generation != generation {
+        if grant_generation == u64::MAX || grants.stopped(&id, version) || photocraft_plugins::store::generation().ok()? != generation {
             return None;
         }
         Some(Self { root: store.root().to_path_buf(), version, generation, grant_generation })
@@ -506,6 +508,13 @@ impl Session {
 
     /// Runs one contract operation. `ui.*` and `canvas.overlay.set` are handled by the caller.
     pub(crate) fn plugin_op(&mut self, op: &str, args: Value, cx: &mut OpCtx<'_>) -> Result<Value, OpError> {
+        self.plugin_serving = self.plugin_serving.saturating_add(1);
+        let out = self.plugin_op_inner(op, args, cx);
+        self.plugin_serving = self.plugin_serving.saturating_sub(1);
+        out
+    }
+
+    fn plugin_op_inner(&mut self, op: &str, args: Value, cx: &mut OpCtx<'_>) -> Result<Value, OpError> {
         // Gesture cancellation can restore the document, but cannot undo external I/O.
         if self.plugin_gesture.is_some() && (op.starts_with("files.") || matches!(op, "document.export" | "layer.import")) {
             return Err(OpError::denied("File operations are unavailable during a tool gesture"));

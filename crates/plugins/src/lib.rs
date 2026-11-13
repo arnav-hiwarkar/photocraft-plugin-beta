@@ -59,9 +59,11 @@ pub mod store {
     pub fn filters() -> Result<Vec<FilterSource>, Box<dyn std::error::Error>> {
         Ok(named_filters()?.into_iter().map(|(filter, _)| filter).collect())
     }
-    /// The store's generation: it changes with every install, enablement or grant change.
+    /// Changes when PhotoCraft's loaded plugins must reload: its own setups, active release bytes
+    /// or a kill-list hit. Catalogue refreshes and other apps' changes leave it unchanged.
     pub fn generation() -> Result<u64, Box<dyn std::error::Error>> {
-        Ok(Store::at(craft_ext_store::location::default_root()?).state()?.generation)
+        let app = AppId::new("photocraft")?;
+        Ok(Store::at(craft_ext_store::location::default_root()?).state()?.app_fingerprint(&app))
     }
     /// Enabled effects with the display name of the plugin that provides each.
     pub fn named_filters() -> Result<Vec<(FilterSource, String)>, Box<dyn std::error::Error>> {

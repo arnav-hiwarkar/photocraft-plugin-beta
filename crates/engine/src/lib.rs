@@ -217,6 +217,9 @@ pub struct Session {
     /// The plugin tool gesture under way: one history step from begin to commit.
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) plugin_gesture: Option<plugin_sessions::Gesture>,
+    /// Depth of plugin operations running now: their engine commands are the gesture's own edits.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) plugin_serving: u32,
     /// Files and folders plugins picked, and file questions waiting for an answer.
     #[cfg(not(target_arch = "wasm32"))]
     pub plugin_picks: plugin_ops::Picks,

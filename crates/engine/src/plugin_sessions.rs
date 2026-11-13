@@ -964,6 +964,36 @@ mod tests {
     }
 
     #[test]
+    fn outside_edits_wait_while_a_tool_gesture_is_open() {
+        let mut s = Session::new();
+        s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+        s.execute("layer.new.layer", json!({})).unwrap();
+        let before = s.active().unwrap().clone();
+        s.plugin_gesture = Some(Gesture {
+            id: 1,
+            entry: "test".into(),
+            plugin: "io.test.ops".into(),
+            contribution: "tool".into(),
+            label: "Tool".into(),
+            before: Some(before),
+            doc: s.active().map(|d| d.doc.id.0),
+            epoch: s.active_generation(),
+            journal: s.journal.len(),
+            grant_generation: 0,
+            start: [0.0, 0.0],
+            payload: Value::Null,
+        });
+        // Undo would be folded into the gesture's single step on commit, or lost on cancel.
+        assert!(s.execute("edit.undo", json!({})).unwrap_err().to_string().contains("gesture"));
+        // The plugin's own operations still reach the engine.
+        let mut staged = Staged::default();
+        let mut cx = OpCtx { plugin: "io.test.ops", owner: "x", selection: &Value::Null, staged: &mut staged };
+        assert!(s.plugin_op("layer.rename", json!({"name":"Mine"}), &mut cx).is_ok());
+        s.plugin_gesture_end(false);
+        assert!(s.execute("edit.undo", json!({})).is_ok());
+    }
+
+    #[test]
     fn gesture_events_record_nothing_until_the_gesture_commits() {
         let mut s = Session::new();
         s.execute("file.new", json!({"width":4,"height":4})).unwrap();

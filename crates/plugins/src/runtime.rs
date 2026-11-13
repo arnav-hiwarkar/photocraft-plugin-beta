@@ -339,6 +339,9 @@ impl Runtime {
             .ok_or_else(|| OpError::denied("Unknown owner"))?
             .id
             .clone();
+        // Updating a tree never reopens what the user closed. New panels start closed and open from
+        // their menu entry; a window opens because the plugin asked for it (`ui.window.open`).
+        let open = op != "ui.panel.set" || self.surfaces.get(&key).is_some_and(|s| s.open);
         self.surfaces.insert(
             key.clone(),
             Surface {
@@ -347,7 +350,7 @@ impl Runtime {
                 title: format!("{} · {}", args["title"].as_str().unwrap_or(id), inv.plugin),
                 tree,
                 rev: self.next_rev,
-                open: true,
+                open,
                 owner,
             },
         );
@@ -398,6 +401,20 @@ mod tests {
         assert!(b["rev"].as_u64() > a["rev"].as_u64());
         assert_eq!(rt.surfaces.len(), 1);
         assert_eq!(rt.surfaces.values().next().unwrap().owner, "panel-command");
+    }
+    #[test]
+    fn panel_updates_never_reopen_a_closed_panel() {
+        let (mut rt, inv) = fixture();
+        let args = json!({"panel":"panel","tree":{"type":"label","text":"x"}});
+        rt.ui_change(&inv, "ui.panel.set", &args).unwrap();
+        // New panels start closed (their menu entry opens them).
+        assert!(!rt.surfaces.values().next().unwrap().open);
+        rt.surfaces.values_mut().next().unwrap().open = true;
+        rt.ui_change(&inv, "ui.panel.set", &args).unwrap();
+        assert!(rt.surfaces.values().next().unwrap().open, "an open panel stays open");
+        rt.surfaces.values_mut().next().unwrap().open = false;
+        rt.ui_change(&inv, "ui.panel.set", &args).unwrap();
+        assert!(!rt.surfaces.values().next().unwrap().open, "a panel the user closed stays closed");
     }
     #[test]
     fn ui_level_follows_the_declared_session_contract() {

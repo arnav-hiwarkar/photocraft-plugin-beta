@@ -19,6 +19,18 @@ impl Session {
         if id.starts_with("plugin.session.") || id == "plugin.uiEvent" {
             return self.execute_plugin_session(id, params);
         }
+        // A plugin tool gesture owns one open history step until it commits or cancels. Another
+        // edit (Undo, a menu command, an agent) would be folded into it or lost on cancel, so only
+        // queries, view commands and the plugin's own operations run meanwhile.
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.plugin_gesture.is_some()
+            && self.plugin_serving == 0
+            && !id.starts_with("view.")
+            && !id.starts_with("plugin")
+            && crate::cmd::find(id).is_some_and(|c| c.journal)
+        {
+            return Err(EngineError::Other("a plugin tool gesture is in progress; finish or cancel it first".into()));
+        }
         let before = self.active_layer_stamp();
         let result = self.dispatch(id, params, false);
         self.note_layer_change(before);

@@ -120,8 +120,11 @@ fn levels_scope() {
     assert!(matches!(top.content, LayerContent::Adjustment(_)), "a Levels layer: {:?}", top.content.kind_name());
     // The panel: a level-1.1 tree with tabs and the histogram canvas, drawn by the shared renderer.
     s.pump_plugins();
+    // Panels start closed; open it from its menu entry as a user does.
+    s.execute(&format!("plugin.session.{LEVELS}/levels-scope"), json!({})).unwrap();
     let rt = s.plugin_sessions.as_ref().unwrap();
     let panel = rt.surfaces.get(&format!("{LEVELS}/levels-scope")).expect("the Levels Scope panel");
+    assert!(panel.open);
     let tree = serde_json::to_string(&panel.tree).unwrap();
     assert!(tree.contains("\"tabs\"") && tree.contains("\"canvas\""), "{tree}");
     // Its button through the UI event route: another Levels layer, one more step.
@@ -167,6 +170,7 @@ fn pause_and_resume() {
     let auto = format!("plugin.session.{LEVELS}/auto-levels-layer");
     s.execute(&auto, json!({})).unwrap();
     let key = format!("{LEVELS}/levels-scope");
+    s.execute(&format!("plugin.session.{key}"), json!({})).unwrap();
     let send = |s: &mut Session, value: Value| {
         let rev = s.plugin_sessions.as_ref().unwrap().surfaces[&key].rev;
         s.execute("plugin.uiEvent", json!({"surface": key, "rev": rev, "widget": "black", "value": value}))
