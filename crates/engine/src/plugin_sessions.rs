@@ -850,6 +850,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires a disposable CRAFT_EXT_DIR"]
     fn picked_files_are_plugin_scoped_staged_and_never_paths() {
         let dir = std::env::temp_dir().join(format!("pc-plugin-picks-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -860,11 +861,12 @@ mod tests {
         let r = s.plugin_op("files.pick", json!({"mode":"folder","title":"Where"}), &mut cx).unwrap();
         assert!(r["request"].as_u64().is_some());
         assert!(s.plugin_op("files.pick", json!({"mode":"desktop"}), &mut cx).is_err());
+        crate::plugin_ops::bind_test_picks(&mut staged.picks);
         s.plugin_picks.answers.push_back(dir.clone());
         let errors = s.plugin_commit_picks(staged.picks);
         assert!(errors.is_empty(), "{errors:?}");
         let (owner, event) = s.plugin_followups.pop_front().unwrap();
-        assert_eq!(owner, "plugin.session.io.test.ops/cmd");
+        assert_eq!(owner, "plugin.session.io.test.ops/export");
         let handle = event["handle"].as_str().unwrap().to_string();
         assert!(!event.to_string().contains(&*dir.to_string_lossy()), "the plugin never sees the path");
         let mut staged = Staged::default();
@@ -885,7 +887,7 @@ mod tests {
         assert_eq!(std::fs::read_to_string(dir.join("notes.txt")).unwrap(), "hello");
         // Headless without an answer: the plugin hears "cancelled".
         let mut staged = Staged::default();
-        let mut cx = OpCtx { plugin: "io.test.ops", owner: "z", selection: &Value::Null, staged: &mut staged };
+        let mut cx = OpCtx { plugin: "io.test.ops", owner: "plugin.session.io.test.ops/export", selection: &Value::Null, staged: &mut staged };
         s.plugin_op("files.pick", json!({"mode":"save","name":"out.png"}), &mut cx).unwrap();
         assert_eq!(s.plugin_commit_picks(staged.picks).len(), 1);
         assert_eq!(s.plugin_followups.pop_front().unwrap().1["cancelled"], true);

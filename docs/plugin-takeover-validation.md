@@ -66,3 +66,25 @@ this phase does not claim an interruptible or strictly capped encoder allocation
 Canonical import already bounds reads and performs memory admission; it was not
 reimplemented in the adapter. No new picker defect was established in this review.
 Standalone rustfmt parsing and git diff checks ran; no Cargo or runtime checks ran.
+
+## Picker provenance follow-up (source only)
+
+Picker questions capture private store-root, enabled contribution, release version,
+store generation and grant generation provenance. Publication and replies reopen the
+canonical enabled-contribution view and live grants, reject safe mode, stopped
+releases and unreadable state, and compare the captured binding. This works while
+headless transactions have temporarily taken the runtime. Invalid live bindings
+clear pending questions through the production invalidation method. Replies consume
+the question before checking provenance, so replay creates no handle or event.
+The store generation conservatively expires questions after unrelated store changes.
+
+Regression source exercises actual store revoke/grant/re-enable with no attached
+runtime, replay and document replacement. The picker and picked-file operation
+fixtures now install valid manifest/setup metadata in an explicitly disposable
+`CRAFT_EXT_DIR`; both are ignored unless explicitly selected for that environment.
+They have not run. Their fixture uses the sibling example manifest and no guest.
+No production test bypass, raw-path operation or guest API was added. File ordering,
+publication, captured scopes, rollback and Finish finalization remain unchanged.
+
+Standalone rustfmt parsing with stdout discarded and `git diff --check` ran.
+No Cargo, build, test, app, guest, benchmark, CI or release command ran.

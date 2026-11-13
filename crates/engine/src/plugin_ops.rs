@@ -93,6 +93,7 @@ impl PickMode {
 /// A `files.pick` the person has to answer.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PickRequest {
+    binding: Option<PickBinding>,
     pub request: u64,
     pub document: Option<u64>,
     pub epoch: u64,
@@ -102,6 +103,41 @@ pub struct PickRequest {
     pub mode: PickMode,
     pub title: String,
     pub name: String,
+}
+
+// Private host provenance, retained while the runtime is taken by a transaction.
+#[derive(Clone, Debug, PartialEq)]
+struct PickBinding {
+    root: PathBuf,
+    version: craft_ext_core::version::Version,
+    generation: u64,
+    grant_generation: u64,
+}
+impl PickBinding {
+    fn read(plugin: &str, owner: &str) -> Option<Self> {
+        if photocraft_plugins::safe_mode() {
+            return None;
+        }
+        let id = craft_ext_core::id::ExtensionId::new(plugin).ok()?;
+        let manager = photocraft_plugins::store::manager().ok()?;
+        let store = &manager.store;
+        let generation = store.state().ok()?.generation;
+        let (_, version, _, manifest, enabled) = photocraft_plugins::store::enabled().ok()?.into_iter().find(|r| r.0 == id)?;
+        let contribution = manifest.contributions.iter().find(|c| owner == format!("plugin.session.{plugin}/{}", c.id) && enabled.contains(&c.id))?;
+        if contribution.contract.check(&photocraft_plugins::contract().ok()?.provided).is_some() {
+            return None;
+        }
+        use craft_ext_host::api::Grants as _;
+        let grants = photocraft_plugins::runtime::LiveGrants;
+        let grant_generation = grants.generation(&id);
+        if grant_generation == u64::MAX || grants.stopped(&id, version) || store.state().ok()?.generation != generation {
+            return None;
+        }
+        Some(Self { root: store.root().to_path_buf(), version, generation, grant_generation })
+    }
+    fn live(&self, req: &PickRequest) -> bool {
+        Self::read(&req.plugin, &req.owner).as_ref() == Some(self)
+    }
 }
 
 /// Picked-file state of a session: handles, questions for the person and headless answers.
@@ -962,7 +998,7 @@ impl Session {
             return Err(budget("At most four file questions per event"));
         }
         let request = self.plugin_picks.request_id();
-        cx.staged.picks.push(PickRequest { request, document: self.active().map(|d| d.doc.id.0), epoch: self.active_generation(), owner: cx.owner.to_string(), plugin: cx.plugin.to_string(), mode, title, name });
+        cx.staged.picks.push(PickRequest { binding: PickBinding::read(cx.plugin, cx.owner), request, document: self.active().map(|d| d.doc.id.0), epoch: self.active_generation(), owner: cx.owner.to_string(), plugin: cx.plugin.to_string(), mode, title, name });
         Ok(json!({"request": request}))
     }
 
@@ -973,15 +1009,16 @@ impl Session {
 
     /// Answers a file question: `None` is Cancel. The plugin gets a `files.picked` event.
     pub fn answer_plugin_pick(&mut self, req: &PickRequest, path: Option<PathBuf>) {
-        // Desktop replies can arrive after a store change while the dialog was open.
-        // Headless answers inside the owner transaction already use that transaction's runtime.
-        if self.plugin_sessions.is_some() {
-            self.ensure_plugin_sessions();
-        }
+        // Consume first, including malformed or stale replies. Reconciliation cannot be
+        // the authority here: headless publication temporarily takes the runtime.
         if self.plugin_picks.pending.remove(&req.request).as_ref() != Some(req)
             || req.document != self.active().map(|d| d.doc.id.0)
             || req.epoch != self.active_generation()
         {
+            return;
+        }
+        if !req.binding.as_ref().is_some_and(|binding| binding.live(req)) {
+            self.plugin_picks.invalidate_pending();
             return;
         }
         let event = match path {
@@ -999,6 +1036,10 @@ impl Session {
     pub(crate) fn plugin_commit_picks(&mut self, picks: Vec<PickRequest>) -> Vec<String> {
         let mut errors = vec![];
         for req in picks {
+            if !req.binding.as_ref().is_some_and(|binding| binding.live(&req)) {
+                errors.push("File question expired after plugin access changed".to_string());
+                continue;
+            }
             self.plugin_picks.pending.insert(req.request, req.clone());
             if let Some(path) = self.plugin_picks.answers.pop_front() {
                 let ok = match req.mode {
@@ -1079,6 +1120,27 @@ impl Histogram {
             "mean": {"red": round(mean(&bins[0])), "green": round(mean(&bins[1])), "blue": round(mean(&bins[2])), "luminosity": round(mean(&bins[4]))},
         })
     }
+}
+
+#[cfg(test)]
+pub(crate) fn bind_test_picks(picks: &mut [PickRequest]) {
+    assert!(std::env::var_os("CRAFT_EXT_DIR").is_some(), "requires a disposable CRAFT_EXT_DIR");
+    let manager = photocraft_plugins::store::manager().unwrap();
+    let app = manager.app.as_ref().unwrap();
+    let manifest = include_str!("../../../../craft-extensions/examples/photocraft-layer-export/craft-plugin.toml");
+    let mut state = serde_json::to_value(manager.store.state().unwrap()).unwrap();
+    for req in picks.iter_mut() {
+        req.owner = format!("plugin.session.{}/export", req.plugin);
+        let text = manifest.replace("io.github.arnav-hiwarkar.photocraft-layer-export", &req.plugin);
+        let m = craft_ext_core::manifest::Manifest::parse(text.as_bytes()).unwrap();
+        let release = manager.store.release_dir(&m.id, m.version, "fixture");
+        std::fs::create_dir_all(&release).unwrap();
+        std::fs::write(release.join("craft-plugin.toml"), text).unwrap();
+        state["packages"][&req.plugin] = json!({"origin":"Dev","releases":{"1.0.0":{"sha256":"fixture","tier":"dev","installed":0}}});
+        state["apps"][app.as_str()][&req.plugin] = json!({"active":"1.0.0","pending":null,"pin":null,"enabled":["export"],"grants":["document.read:document","files.write:picked"],"full_access":false,"grant_generation":0});
+    }
+    std::fs::write(manager.store.root().join("store-v2.json"), serde_json::to_vec(&state).unwrap()).unwrap();
+    for req in picks { req.binding = PickBinding::read(&req.plugin, &req.owner); assert!(req.binding.is_some()); }
 }
 
 #[cfg(test)]
@@ -1177,6 +1239,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires a disposable CRAFT_EXT_DIR"]
     fn picker_replies_are_single_use_and_bound_to_document() {
         let mut session = Session::new();
         session.execute("file.new", json!({"width": 1, "height": 1})).unwrap();
@@ -1184,6 +1247,7 @@ mod tests {
         let mut staged = Staged::default();
         let mut cx = OpCtx { plugin: "io.test.pick", owner: "pick", selection: &Value::Null, staged: &mut staged };
         session.plugin_op("files.pick", json!({"mode":"save"}), &mut cx).unwrap();
+        bind_test_picks(&mut staged.picks);
         session.plugin_commit_picks(staged.picks);
         let req = session.take_plugin_pick().unwrap();
         session.answer_plugin_pick(&req, None);
@@ -1191,11 +1255,20 @@ mod tests {
         assert_eq!(session.plugin_followups.len(), 1);
         assert!(session.plugin_picks.handles.is_empty());
         session.plugin_followups.clear();
+        let manager = photocraft_plugins::store::manager().unwrap();
+        let id = craft_ext_core::id::ExtensionId::new(&req.plugin).unwrap();
+        let app = manager.app.as_ref().unwrap();
+        let permission = craft_ext_core::permission::Permission::parse("files.write:picked").unwrap();
         session.plugin_picks.pending.insert(req.request, req.clone());
-        session.plugin_picks.invalidate_pending();
+        // Exercise the production store transition while no runtime is attached.
+        manager.store.revoke(app, &id, &permission).unwrap();
+        manager.store.grant(app, &id, permission).unwrap();
+        manager.store.set_enabled(app, &id, "export", true).unwrap();
         session.answer_plugin_pick(&req, Some(PathBuf::from("revoked.txt")));
         assert!(session.plugin_followups.is_empty());
         assert!(session.plugin_picks.handles.is_empty());
+        let mut req = req.clone();
+        req.binding = PickBinding::read(&req.plugin, &req.owner);
         session.plugin_picks.pending.insert(req.request, req.clone());
         session.execute("file.new", json!({"width": 1, "height": 1})).unwrap();
         session.answer_plugin_pick(&req, Some(PathBuf::from("stale.txt")));
