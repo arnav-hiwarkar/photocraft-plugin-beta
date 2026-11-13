@@ -50,13 +50,14 @@ impl Session {
             gesture: None,
         }
     }
-    fn ensure_plugin_sessions(&mut self) {
+    pub(crate) fn ensure_plugin_sessions(&mut self) {
         let generation = photocraft_plugins::store::generation().ok();
         if self.plugin_sessions.as_ref().is_some_and(|r| Some(r.generation) == generation) {
             return;
         }
         // Reloading (an install, a grant or a revocation changed the store) ends any gesture.
         self.plugin_gesture_end(false);
+        self.plugin_picks.invalidate_pending();
         self.plugin_sessions = Runtime::load().ok();
         if let Some(rt) = &self.plugin_sessions {
             if self.plugin_tool.as_ref().is_some_and(|t| !rt.entries.iter().any(|e| &e.id == t)) {
@@ -442,7 +443,13 @@ impl Session {
                         if !*wanted || failed {
                             return Err(OpError::new(Code::Cancelled, "Event rolled back"));
                         }
-                        staged.publish_files()
+                        staged.publish_files(|| {
+                            self.plugin_valid(rt, &inv, &capture, revision)?;
+                            if Instant::now() >= deadline {
+                                return Err(OpError::new(Code::Cancelled, "Event timed out during publication"));
+                            }
+                            Ok(())
+                        })
                     });
                     commit = result.is_ok();
                     // Finish errors reach the worker and synchronous callers. File publication is
@@ -872,7 +879,7 @@ mod tests {
         let mut other = Staged::default();
         let mut cx2 = OpCtx { plugin: "io.test.other", owner: "y", selection: &Value::Null, staged: &mut other };
         assert_eq!(s.plugin_op("files.write", json!({"handle":handle,"name":"a.txt","text":"x"}), &mut cx2).unwrap_err().code, Code::NotFound);
-        staged.publish_files().unwrap();
+        staged.publish_files(|| Ok(())).unwrap();
         assert!(s.plugin_commit_picks(staged.picks).is_empty());
         assert!(std::fs::read(dir.join("image.png")).unwrap().starts_with(b"\x89PNG"));
         assert_eq!(std::fs::read_to_string(dir.join("notes.txt")).unwrap(), "hello");
@@ -912,7 +919,7 @@ mod tests {
         let mut cx = OpCtx { plugin: "io.test.ops", owner: "x", selection: &Value::Null, staged: &mut staged };
         s.plugin_op("files.write", json!({"handle":handle,"text":"data"}), &mut cx).unwrap();
         s.plugin_op("files.pick", json!({"mode":"folder"}), &mut cx).unwrap();
-        let result = staged.publish_files();
+        let result = staged.publish_files(|| Ok(()));
         assert!(result.is_err());
         s.finish_plugin_edits(Some(before.clone()), journal, result.is_ok(), "Files", false);
         assert_eq!(s.active().unwrap().doc, before.doc);

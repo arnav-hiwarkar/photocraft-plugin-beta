@@ -94,6 +94,8 @@ impl PickMode {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PickRequest {
     pub request: u64,
+    pub document: Option<u64>,
+    pub epoch: u64,
     /// The session entry (`plugin.session.<plugin>/<contribution>`) that receives `files.picked`.
     pub owner: String,
     pub plugin: String,
@@ -107,6 +109,7 @@ pub struct PickRequest {
 pub struct Picks {
     next_request: u64,
     next_handle: u64,
+    pending: std::collections::BTreeMap<u64, PickRequest>,
     handles: std::collections::BTreeMap<String, Picked>,
     /// Questions waiting for the desktop's dialog ([`Session::take_plugin_pick`]).
     pub requests: std::collections::VecDeque<PickRequest>,
@@ -342,6 +345,11 @@ pub fn safe_file_name(name: &str) -> Result<&str, OpError> {
 }
 
 impl Picks {
+    pub(crate) fn invalidate_pending(&mut self) {
+        self.pending.clear();
+        self.requests.clear();
+    }
+
     /// Registers a picked path for `plugin` and returns its opaque handle.
     pub fn grant(&mut self, plugin: &str, path: PathBuf, mode: PickMode) -> String {
         self.next_handle = self.next_handle.saturating_add(1);
@@ -379,12 +387,19 @@ fn target(p: &Picked, args: &Value) -> Result<PathBuf, OpError> {
     Ok(path)
 }
 
+fn publication_stopped(mut error: OpError, published: usize) -> OpError {
+    error.message = format!("{}; {published} file(s) already published and remain on disk; document and UI changes rolled back", error.message);
+    error
+}
+
 impl Staged {
     /// Publish in order, stopping at the first failure. Already published files remain; this is
     /// deliberately not a multi-file transaction. The event must reject commit and roll back its
     /// document/UI on an error, and tell the caller how much was published.
-    pub(crate) fn publish_files(&mut self) -> Result<(), OpError> {
+    pub(crate) fn publish_files(&mut self, mut valid: impl FnMut() -> Result<(), OpError>) -> Result<(), OpError> {
+        let mut count = 0;
         for (published, (path, bytes)) in std::mem::take(&mut self.writes).into_iter().enumerate() {
+            valid().map_err(|e| publication_stopped(e, published))?;
             #[cfg(not(target_arch = "wasm32"))]
             let result = photocraft_format::atomic_write_no_follow(&path, &bytes);
             #[cfg(target_arch = "wasm32")]
@@ -401,8 +416,9 @@ impl Staged {
                     ),
                 ));
             }
+            count = published + 1;
         }
-        Ok(())
+        valid().map_err(|e| publication_stopped(e, count))
     }
 
     fn write(&mut self, path: PathBuf, bytes: Vec<u8>) -> Result<(), OpError> {
@@ -927,11 +943,14 @@ impl Session {
         if !name.is_empty() {
             safe_file_name(&name)?;
         }
+        if self.plugin_picks.pending.len().saturating_add(cx.staged.picks.len()) >= 32 {
+            return Err(budget("At most 32 pending file questions per session"));
+        }
         if cx.staged.picks.len() >= 4 {
             return Err(budget("At most four file questions per event"));
         }
         let request = self.plugin_picks.request_id();
-        cx.staged.picks.push(PickRequest { request, owner: cx.owner.to_string(), plugin: cx.plugin.to_string(), mode, title, name });
+        cx.staged.picks.push(PickRequest { request, document: self.active().map(|d| d.doc.id.0), epoch: self.active_generation(), owner: cx.owner.to_string(), plugin: cx.plugin.to_string(), mode, title, name });
         Ok(json!({"request": request}))
     }
 
@@ -942,6 +961,17 @@ impl Session {
 
     /// Answers a file question: `None` is Cancel. The plugin gets a `files.picked` event.
     pub fn answer_plugin_pick(&mut self, req: &PickRequest, path: Option<PathBuf>) {
+        // Desktop replies can arrive after a store change while the dialog was open.
+        // Headless answers inside the owner transaction already use that transaction's runtime.
+        if self.plugin_sessions.is_some() {
+            self.ensure_plugin_sessions();
+        }
+        if self.plugin_picks.pending.remove(&req.request).as_ref() != Some(req)
+            || req.document != self.active().map(|d| d.doc.id.0)
+            || req.epoch != self.active_generation()
+        {
+            return;
+        }
         let event = match path {
             Some(path) => {
                 let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -957,6 +987,7 @@ impl Session {
     pub(crate) fn plugin_commit_picks(&mut self, picks: Vec<PickRequest>) -> Vec<String> {
         let mut errors = vec![];
         for req in picks {
+            self.plugin_picks.pending.insert(req.request, req.clone());
             if let Some(path) = self.plugin_picks.answers.pop_front() {
                 let ok = match req.mode {
                     PickMode::Folder => path.is_dir(),
@@ -1069,10 +1100,37 @@ mod tests {
         staged.write(first.clone(), b"published".to_vec()).unwrap();
         staged.write(dir.path().join("missing/fail.txt"), vec![]).unwrap();
         staged.write(last.clone(), vec![]).unwrap();
-        let error = staged.publish_files().unwrap_err();
+        let error = staged.publish_files(|| Ok(())).unwrap_err();
         assert!(error.message.contains("1 file(s) already published"), "{}", error.message);
         assert_eq!(std::fs::read(first).unwrap(), b"published");
         assert!(!last.exists());
+    }
+
+    #[test]
+    fn cancellation_after_publication_reports_files_and_stops() {
+        let dir = tempfile::tempdir().unwrap();
+        let first = dir.path().join("first.txt");
+        let last = dir.path().join("last.txt");
+        for final_check in [false, true] {
+            let mut staged = Staged::default();
+            staged.write(first.clone(), b"published".to_vec()).unwrap();
+            if !final_check {
+                staged.write(last.clone(), vec![]).unwrap();
+            }
+            let mut checks = 0;
+            let error = staged.publish_files(|| {
+                checks += 1;
+                if checks > 1 {
+                    Err(OpError::new(Code::Cancelled, "Cancelled during publication"))
+                } else {
+                    Ok(())
+                }
+            }).unwrap_err();
+            assert_eq!(error.code, Code::Cancelled);
+            assert!(error.message.contains("1 file(s) already published"));
+            assert_eq!(std::fs::read(&first).unwrap(), b"published");
+            assert!(!last.exists());
+        }
     }
 
     #[cfg(unix)]
@@ -1088,9 +1146,36 @@ mod tests {
         let mut staged = Staged::default();
         staged.write(path.clone(), b"new".to_vec()).unwrap();
         std::os::unix::fs::symlink(&outside, &path).unwrap();
-        staged.publish_files().unwrap();
+        staged.publish_files(|| Ok(())).unwrap();
         assert_eq!(std::fs::read(outside).unwrap(), b"keep");
         assert_eq!(std::fs::read(path).unwrap(), b"new");
+    }
+
+    #[test]
+    fn picker_replies_are_single_use_and_bound_to_document() {
+        let mut session = Session::new();
+        session.execute("file.new", json!({"width": 1, "height": 1})).unwrap();
+        session.plugin_picks.interactive = true;
+        let mut staged = Staged::default();
+        let mut cx = OpCtx { plugin: "io.test.pick", owner: "pick", selection: &Value::Null, staged: &mut staged };
+        session.plugin_op("files.pick", json!({"mode":"save"}), &mut cx).unwrap();
+        session.plugin_commit_picks(staged.picks);
+        let req = session.take_plugin_pick().unwrap();
+        session.answer_plugin_pick(&req, None);
+        session.answer_plugin_pick(&req, Some(PathBuf::from("replayed.txt")));
+        assert_eq!(session.plugin_followups.len(), 1);
+        assert!(session.plugin_picks.handles.is_empty());
+        session.plugin_followups.clear();
+        session.plugin_picks.pending.insert(req.request, req.clone());
+        session.plugin_picks.invalidate_pending();
+        session.answer_plugin_pick(&req, Some(PathBuf::from("revoked.txt")));
+        assert!(session.plugin_followups.is_empty());
+        assert!(session.plugin_picks.handles.is_empty());
+        session.plugin_picks.pending.insert(req.request, req.clone());
+        session.execute("file.new", json!({"width": 1, "height": 1})).unwrap();
+        session.answer_plugin_pick(&req, Some(PathBuf::from("stale.txt")));
+        assert!(session.plugin_followups.is_empty());
+        assert!(session.plugin_picks.handles.is_empty());
     }
 
     #[test]

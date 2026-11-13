@@ -33,3 +33,21 @@ New engine tests cover save-name validation, a symlink planted after staging, fa
 The ignored integration test requires actual release-built guest packages and a disposable `CRAFT_EXT_DIR`. It exercises Gradient Ramp gesture commit/undo/Escape/revocation, Levels Scope panel/command, Layer Export and failed publication, and pause/resume. Merely compiling that test or observing its default ignored result is not counted as a pass.
 
 UI screenshots, wasm app gates, performance benchmarks, full corpus runs, Windows/macOS execution and remote CI must be reported separately; unit or headless integration results do not prove those behaviors.
+
+## Mac source follow-up (2026-11-13)
+
+Publication now validates the live invocation, captured scope and five-second event
+budget before each file and after the last file, including events with no files.
+A failed check rejects document/UI commit. Errors retain the cancellation/denial
+code and report files already published. A synchronous write cannot be interrupted;
+its external effect can survive cancellation and is not undone by document rollback.
+Finish is still acknowledged after document/history/UI finalization.
+
+Picker replies are single-use, bound to the document identity and active-document
+generation, and discarded before creating handles or follow-up events when stale.
+Store reconciliation clears pending questions before desktop replies are accepted, including revocation/re-enable. Pending questions are capped at 32 per session and four per event. Regression
+source covers replay, document replacement, stopping between publications and
+cancellation after the last publication. These tests have not executed.
+
+Checks executed: Rust parsing with standalone rustfmt emitting to stdout, and
+`git diff --check`. No Cargo, runtime, desktop, GPU or platform checks ran.
