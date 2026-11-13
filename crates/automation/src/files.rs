@@ -25,10 +25,10 @@ pub fn open_bytes(name: &str, bytes: &[u8]) -> Result<Opened, AutomationError> {
 pub fn open_bytes_with_options(name: &str, bytes: &[u8], opts: &photocraft_io::ImportOptions) -> Result<Opened, AutomationError> {
     if Path::new(name).extension().is_some_and(|extension| extension.eq_ignore_ascii_case(photocraft_format::EXTENSION)) {
         let document = photocraft_format::load_from_bytes(bytes)?;
-        return Ok(Opened { warnings: photocraft_io::open_warnings(&document), document, source_read_only: false });
+        return Ok(resolve_plugin_luts(Opened { warnings: photocraft_io::open_warnings(&document), document, source_read_only: false }));
     }
     let r = photocraft_io::import_with_options(name, bytes, opts)?;
-    Ok(Opened { document: r.document, warnings: r.warnings, source_read_only: r.source_read_only })
+    Ok(resolve_plugin_luts(Opened { document: r.document, warnings: r.warnings, source_read_only: r.source_read_only }))
 }
 
 /// Open a document from disk. Directory bundles and `.pcraft` ZIPs load
@@ -41,7 +41,7 @@ pub fn open(path: &Path) -> Result<Opened, AutomationError> {
 pub fn open_with_options(path: &Path, opts: &photocraft_io::ImportOptions) -> Result<Opened, AutomationError> {
     if path.is_dir() {
         let document = photocraft_format::load_path(path)?;
-        return Ok(Opened { warnings: photocraft_io::open_warnings(&document), document, source_read_only: false });
+        return Ok(resolve_plugin_luts(Opened { warnings: photocraft_io::open_warnings(&document), document, source_read_only: false }));
     }
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     // A PSD/PSB is parsed from the open file (channel data read as it is decoded), so a CLI
@@ -52,7 +52,7 @@ pub fn open_with_options(path: &Path, opts: &photocraft_io::ImportOptions) -> Re
             photocraft_io::IoError::Read(msg) => AutomationError::Io(msg),
             e => e.into(),
         })?;
-        Ok(Opened { document: r.document, warnings: r.warnings, source_read_only: r.source_read_only })
+        Ok(resolve_plugin_luts(Opened { document: r.document, warnings: r.warnings, source_read_only: r.source_read_only }))
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -254,4 +254,9 @@ pub fn render_png_with_warnings(doc: &Document, max_side: u32, mut renderer: Opt
         .map_err(|e| AutomationError::Other(e.to_string()))?;
     let png = photocraft_codecs::encode(&image, photocraft_codecs::Format::Png, &Default::default()).map_err(|e| AutomationError::Other(e.to_string()))?;
     Ok((png, warnings))
+}
+
+fn resolve_plugin_luts(mut opened: Opened) -> Opened {
+    opened.warnings.extend(photocraft_engine::adjust_cmds::refresh_plugin_luts(&mut opened.document));
+    opened
 }

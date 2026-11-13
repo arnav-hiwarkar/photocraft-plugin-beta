@@ -152,10 +152,11 @@ pub fn lookup_from_params(p: &Value, base: Option<&Adjustment>) -> Result<Adjust
         loaded = Some((f, base_name(file_name), Some(lut_source(format, bytes))));
     }
     if let Some(path) = opt_str(CMD, p, "file")?.filter(|s| !s.is_empty()) {
-        let bytes = read_file(path).ok_or_else(|| bad(CMD, format!("can't read {path}")))?;
+        let resolved = photocraft_plugins::resources::resolve(path).map_err(|e| bad(CMD, e.to_string()))?;
+        let bytes = read_file(&resolved.to_string_lossy()).ok_or_else(|| bad(CMD, format!("can't read {path}")))?;
         let format = format.unwrap_or_else(|| photocraft_cms::lutfile::Format::detect(path, &bytes));
         let f = photocraft_cms::lutfile::parse_as(format, &bytes).map_err(|e| bad(CMD, format!("{path}: {}", e.0)))?;
-        loaded = Some((f, base_name(path), Some(lut_source(format, bytes))));
+        loaded = Some((f, if path.starts_with("plugin://") { path.into() } else { base_name(path) }, Some(lut_source(format, bytes))));
     }
     if let Some((f, label, src)) = loaded {
         if !f.domain_is_default() {
@@ -790,3 +791,31 @@ fn black_white_auto(s: &mut Session, p: &Value) -> Result<Value> {
 
 #[cfg(test)]
 mod tests;
+
+/// Refresh durable plugin lookups without losing the original reference when unavailable.
+pub fn refresh_plugin_luts(doc: &mut photocraft_doc::Document) -> Vec<String> {
+    let mut warnings = Vec::new();
+    let mut stack = vec![&mut doc.layers];
+    while let Some(layers) = stack.pop() {
+        for layer in layers {
+            match &mut layer.content {
+                photocraft_doc::LayerContent::Group(group) => stack.push(&mut group.children),
+                photocraft_doc::LayerContent::Adjustment(adj @ Adjustment::ColorLookup { .. }) => {
+                    let Adjustment::ColorLookup { name, .. } = adj else {
+                        continue;
+                    };
+                    if !name.starts_with("plugin://") {
+                        continue;
+                    }
+                    let reference = name.clone();
+                    match lookup_from_params(&serde_json::json!({"file":reference}), Some(adj)) {
+                        Ok(updated) => *adj = updated,
+                        Err(e) => warnings.push(e.to_string()),
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    warnings
+}

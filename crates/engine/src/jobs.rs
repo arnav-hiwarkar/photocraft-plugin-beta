@@ -1302,7 +1302,10 @@ impl Session {
                         ctx.progress(0.02, "Decoding");
                         let res = ctx.stage(0.02, 0.95, "Decoding", |ctl| photocraft_io::import_for_open_with(&name_w, &bytes, &opts, ctl));
                         match res {
-                            Ok(imported) => WorkResult::Decoded(Box::new(imported)),
+                            Ok((mut imported, damaged)) => {
+                                imported.warnings.extend(crate::adjust_cmds::refresh_plugin_luts(&mut imported.document));
+                                WorkResult::Decoded(Box::new((imported, damaged)))
+                            }
                             Err(photocraft_io::IoError::PsdApprovalRequired { required, soft_limit, hard_limit, available_ram }) if confirm_damage => {
                                 // The buffer cannot change while it is decoded, so the identity
                                 // captured before reading is still exact.
@@ -1320,7 +1323,10 @@ impl Session {
                         let mut opened = None;
                         let res = ctx.stage(0.0, 0.95, "Decoding", |ctl| import_path(&name_w, &p, &opts, expected_fingerprint.as_ref(), ctl, &mut opened));
                         match res {
-                            Ok(imported) => WorkResult::Decoded(Box::new(imported)),
+                            Ok((mut imported, damaged)) => {
+                                imported.warnings.extend(crate::adjust_cmds::refresh_plugin_luts(&mut imported.document));
+                                WorkResult::Decoded(Box::new((imported, damaged)))
+                            }
                             Err(photocraft_io::IoError::PsdApprovalRequired { required, soft_limit, hard_limit, available_ram }) if confirm_damage => {
                                 // This identity is the one read from the handle that was
                                 // estimated, and the verified import refused a handle that is

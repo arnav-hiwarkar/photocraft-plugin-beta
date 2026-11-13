@@ -126,7 +126,7 @@ permissions = ["document.edit:document"]
     let result = Command::new(bin).arg("pack").arg(dir.path()).arg("--out").arg(&package).output().unwrap();
     assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
     let m = photocraft_plugins::store::manager().unwrap();
-    let (installed, _, _) = m.install_file(&package).unwrap();
+    let (installed, _, _, _) = m.install_file(&package).unwrap();
     let id = craft_ext_core::id::ExtensionId::new("io.test.photocraft-session").unwrap();
     m.store.set_active(&m.app.clone().unwrap(), &id, installed.version).unwrap();
     m.grant(&id, craft_ext_core::permission::Permission::parse("document.edit:document").unwrap()).unwrap();

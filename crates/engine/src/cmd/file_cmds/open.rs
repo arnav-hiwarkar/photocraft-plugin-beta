@@ -61,7 +61,8 @@ pub(super) fn import_at_raw_ppi(raw_ppi: f64, name: &str, bytes: &[u8]) -> Resul
 /// [`import_at_raw_ppi`], also telling whether the source must not be replaced by a save
 /// (`ImportResult::source_read_only`: Affinity, Krita, XCF, PDN, whatever its extension says).
 pub(super) fn import_source_at_raw_ppi(raw_ppi: f64, name: &str, bytes: &[u8]) -> Result<(Document, bool)> {
-    let r = import_result(name, bytes)?;
+    let mut r = import_result(name, bytes)?;
+    r.warnings.extend(crate::adjust_cmds::refresh_plugin_luts(&mut r.document));
     let mut doc = r.document;
     raw_resolution(raw_ppi, &r.warnings, &mut doc);
     Ok((doc, r.source_read_only))
@@ -82,7 +83,8 @@ pub(super) fn import_result_with(name: &str, bytes: &[u8], opts: &photocraft_io:
 /// File › Open's job learns it (`photocraft_io::import_for_open`), so an interactive caller can ask.
 pub(super) fn import_result_for_open(name: &str, bytes: &[u8], opts: &photocraft_io::ImportOptions) -> Result<(photocraft_io::ImportResult, bool)> {
     crate::allocation::checkpoint("importing document")?;
-    let (r, damaged) = photocraft_io::import_for_open(name, bytes, opts).map_err(|e| crate::error::io_open_error(name, e))?;
+    let (mut r, damaged) = photocraft_io::import_for_open(name, bytes, opts).map_err(|e| crate::error::io_open_error(name, e))?;
+    r.warnings.extend(crate::adjust_cmds::refresh_plugin_luts(&mut r.document));
     // Auxiliary imports return only a document and cannot surface the preview's fidelity warning.
     // Open has its own warning-preserving path; never silently place or process a thumbnail.
     if r.preview_only {
@@ -197,7 +199,7 @@ pub fn open_bytes_as_with_options(
     opts.psd_high_memory_approved = approve_high_memory;
     opts.psd_approved_estimate = None;
     let raw = super::raw_open::prepare(s, &decode_name, path.as_deref(), bytes)?;
-    let (r, raw_settings) = if let Some((imported, settings)) = raw {
+    let (mut r, raw_settings) = if let Some((imported, settings)) = raw {
         (imported, Some(settings))
     } else {
         let r = photocraft_io::import_with_options(&decode_name, bytes, &opts).map_err(|e| crate::error::io_open_error(&decode_name, e))?;
@@ -206,6 +208,7 @@ pub fn open_bytes_as_with_options(
     if (s.batch_open.is_some() || s.batch_open_notices.is_some()) && r.preview_only {
         return Err(EngineError::Other(format!("{name}: only an embedded preview could be read; Batch cannot process it as the source")));
     }
+    r.warnings.extend(crate::adjust_cmds::refresh_plugin_luts(&mut r.document));
     let mut doc = r.document;
     tag_exr_colorspace(s, &decode_name, &mut doc);
     raw_defaults(s, &r.warnings, &mut doc);

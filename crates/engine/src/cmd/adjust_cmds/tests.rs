@@ -1193,3 +1193,23 @@ fn black_white_auto_reads_the_whole_input() {
     let id = s.execute("layer.newAdjustmentLayer.blackWhite", json!({})).unwrap()["layer"].as_u64().unwrap();
     assert!(s.execute("image.adjustments.blackWhite.auto", json!({"layer": id})).is_err());
 }
+
+#[test]
+fn missing_plugin_lookup_preserves_reference_and_embedded_table() {
+    let mut s = session(8, "rgb");
+    let r = s.execute("layer.newAdjustmentLayer.colorLookup", json!({"lut":"dayForNight"})).unwrap();
+    let id = photocraft_doc::LayerId(r["layer"].as_u64().unwrap());
+    let reference = "plugin://org.example.absent/look/luts/test.cube";
+    if let LayerContent::Adjustment(Adjustment::ColorLookup { name, .. }) =
+        &mut std::sync::Arc::make_mut(&mut s.active_mut().unwrap().doc).layer_mut(id).unwrap().content
+    {
+        *name = reference.into();
+    }
+    let original = s.active().unwrap().doc.clone();
+    let warnings = refresh_plugin_luts(std::sync::Arc::make_mut(&mut s.active_mut().unwrap().doc));
+    assert!(warnings.iter().any(|w| w.contains("needs plugin org.example.absent")), "{warnings:?}");
+    assert_eq!(s.active().unwrap().doc, original);
+    let saved = photocraft_format::save_to_bytes(&original, &Default::default()).unwrap();
+    let reopened = crate::file_cmds::import("missing.pcraft", &saved).unwrap();
+    assert_eq!(reopened.layer(id).unwrap().content, original.layer(id).unwrap().content);
+}

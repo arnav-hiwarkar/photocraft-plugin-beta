@@ -29,12 +29,11 @@ pub fn query() -> Result<Vec<Resource>, Box<dyn std::error::Error>> {
                 }
                 let mut files = Vec::new();
                 for file in c.files {
-                    let path = root.join(file).canonicalize()?;
+                    let path = root.join(&file).canonicalize()?;
                     if !path.starts_with(&root) || !path.is_file() {
                         return Err("The plugin resource is outside its package".into());
                     }
-                    let path = path.to_str().ok_or("The plugin resource path is not UTF-8")?;
-                    files.push(path.to_owned());
+                    files.push(format!("plugin://{plugin}/{}/{file}", c.id));
                 }
                 out.push(Resource { plugin: plugin.to_string(), id: c.id, label: c.label, kind: kind.into(), files });
             }
@@ -73,7 +72,7 @@ pub fn presets(effect: &str) -> Result<Vec<Preset>, Box<dyn std::error::Error>> 
         for resource in query()?.into_iter().filter(|r| r.kind == "preset") {
             for path in resource.files {
                 let mut bytes = Vec::new();
-                std::fs::File::open(path)?.take(1_048_577).read_to_end(&mut bytes)?;
+                std::fs::File::open(resolve(&path)?)?.take(1_048_577).read_to_end(&mut bytes)?;
                 if bytes.len() > 1_048_576 {
                     return Err("The plugin preset file is too large".into());
                 }
@@ -153,4 +152,13 @@ mod tests {
         ]}]});
         assert!(decode_presets(&multiple, effect).is_empty());
     }
+}
+
+/// Translate a durable reference only at the point of reading.
+pub fn resolve(reference: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if reference.starts_with("plugin://") {
+        return Ok(super::store::manager()?.resolve_resource(reference)?);
+    }
+    Ok(reference.into())
 }

@@ -95,6 +95,25 @@ pixel layer, check the layer name “Plugin renamed”, and Undo.
 The renderer remains egui; `plugin_form::draw` is the form widget seam for a future renderer.
 No craft-framework integration is required for this beta.
 
+## Durable LUT references
+
+Plugin LUT pickers return `plugin://<id>/<contribution>/<file>` references. Color Lookup
+adjustment layers keep that reference in their name alongside the embedded table. Reopening
+resolves the active plugin release; update and rollback do not require choosing the file again.
+If the plugin is missing or disabled, opening reports “needs plugin …” and retains both the
+reference and embedded table for a later save. Preset recipes store their applied values inline.
+
+```sh
+LUT="plugin://$FILM/film-warm/luts/film-warm.cube"
+$CLI run --new '{"width":16,"height":16,"background":"#806040"}' \
+  --cmd layer.newAdjustmentLayer.colorLookup --params "{\"file\":\"$LUT\"}" --out /tmp/plugin-lut.pcraft
+$CLI run /tmp/plugin-lut.pcraft --out /tmp/plugin-lut-before.png
+$CLI plugin update "$FILM"
+$CLI run /tmp/plugin-lut.pcraft --out /tmp/plugin-lut-updated.png
+$CLI plugin rollback "$FILM" 1.0.0
+$CLI run /tmp/plugin-lut.pcraft --out /tmp/plugin-lut-rollback.png
+```
+
 ## Verified run (2026-11-13, Linux x86_64, debug)
 
 At PhotoCraft base `3405cdf9c` plus the working changes, 17 adapter unit tests passed;
