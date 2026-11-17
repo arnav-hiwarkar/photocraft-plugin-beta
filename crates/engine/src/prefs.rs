@@ -110,8 +110,8 @@ choice!(CheckerColors { Light = "light", Medium = "medium", Dark = "dark", Red =
 choice!(LineStyle { Lines = "lines", Dashed = "dashedLines", Dots = "dots" } default Lines);
 choice!(TextEngine { Modern = "modern", EastAsian = "eastAsian", WorldReady = "worldReady" } default WorldReady);
 // Which engine draws plugin panels, windows and filter dialogs. Plugins can't choose or detect it;
-// `framework` (the craft-framework renderer) draws with egui until that engine lands.
-choice!(PluginUiEngine { Egui = "egui", Framework = "framework" } default Egui);
+// `framework` draws with craft framework components (`craft_ext_ui_fw::FrameworkEngine`).
+choice!(PluginUiEngine { Egui = "egui", Framework = "framework" } default Framework);
 choice!(FontPreview { Off = "off", Small = "small", Medium = "medium", Large = "large", ExtraLarge = "extraLarge", Huge = "huge" } default Medium);
 choice!(RawColorSpace { Srgb = "srgb", AdobeRgb = "adobeRgb", ProPhoto = "proPhoto", DisplayP3 = "displayP3" } default AdobeRgb);
 choice!(RawDepth { Eight = "8", Sixteen = "16" } default Sixteen);
@@ -1094,7 +1094,7 @@ impl Default for PlugIns {
             show_extension_panels: true,
             allow_scripts_to_connect: false,
             generator_enabled: false,
-            plugin_ui_engine: PluginUiEngine::Egui,
+            plugin_ui_engine: PluginUiEngine::Framework,
         }
     }
 }

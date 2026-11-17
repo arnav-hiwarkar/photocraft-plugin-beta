@@ -1695,6 +1695,7 @@ dependencies = [
  "craft",
  "craft-ext-core",
  "craft-ext-manager",
+ "craft-ext-ui",
  "egui",
 ]
 

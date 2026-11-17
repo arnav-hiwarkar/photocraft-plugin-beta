@@ -196,8 +196,10 @@ HDR/point preservation and effect-scoped preset decoding.
 `craft_ext_ui::plugin_ui::PluginUi::draw` (the per-app `node_ui` renderer is gone) and filter
 dialogs by `FormView` (`plugin_form.rs` keeps only the dialog's field sync and the worker
 `craft_update` call). The engine is an app setting, Preferences ▸ Plugins ▸ Plugin UI Engine
-(`plugIns.pluginUiEngine`: `egui`, the default, or `framework`, which draws with egui until the
-craft-framework engine lands); plugins cannot choose or detect it. Runtime surfaces store
+(`plugIns.pluginUiEngine`: `framework`, the default, which draws panels and windows with
+craft framework components through `craft_ext_ui_fw::FrameworkEngine`, or `egui`, the generic
+renderer); plugins cannot choose or detect it. Canvases and colour inputs draw with the egui
+engine inside the framework layout. Runtime surfaces store
 `tree::Node`; `ui.panel.set` / `ui.window.open` validate with
 `validate_at(ui_level_for_session(declared))`, so a `@1.0` contribution may only send level-1.0
 trees. Widget events come back as `UiEvent`s and stale revisions are dropped before routing.

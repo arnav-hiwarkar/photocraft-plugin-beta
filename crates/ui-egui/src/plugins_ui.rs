@@ -18,6 +18,7 @@ use craft::ui::runtime::memory::SaveKey;
 use craft::ui::shell::ViewportWindow;
 use craft_ext_core::ui::tree::{DrawOp, Gradient, Paint, PathCmd, UiEvent};
 use craft_ext_ui::plugin_ui::{EngineChoice, Host, PluginUi, Surface, Xf, paint_ops};
+use craft_ext_ui_fw::FrameworkEngine;
 use egui::{Pos2, Rect, pos2};
 use photocraft_engine::plugin_ops::{PickMode, PickRequest};
 use photocraft_engine::plugin_sessions::PREFIX;
@@ -54,12 +55,18 @@ fn engine_choice(app: &PhotocraftApp) -> EngineChoice {
     }
 }
 
+fn renderer(choice: EngineChoice) -> PluginUi {
+    let mut renderer = PluginUi::new(choice);
+    renderer.set_framework_engine(Some(Box::new(FrameworkEngine::default())));
+    renderer
+}
+
 fn with_renderer<R>(choice: EngineChoice, f: impl FnOnce(&mut PluginUi) -> R) -> R {
     STATE.with(|st| {
         let mut st = st.borrow_mut();
         let renderer = match st.renderer.take() {
             Some(renderer) if renderer.choice() == choice => renderer,
-            _ => PluginUi::new(choice),
+            _ => renderer(choice),
         };
         f(st.renderer.insert(renderer))
     })
