@@ -232,6 +232,7 @@ fn layer_m(l: &Layer, sink: &mut dyn Sink) -> LayerM {
         advanced: l.advanced,
         video: l.video.as_ref().map(|v| video_m(v, sink)),
         xmp: l.xmp.as_deref().map(str::to_string),
+        plugin_data: l.plugin_data.clone(),
     }
 }
 
@@ -282,6 +283,8 @@ pub(crate) fn doc_m(d: &Document, sink: &mut dyn Sink) -> Result<DocM> {
         variables: d.variables.clone(),
         timeline: d.timeline.clone(),
         file_encoding: d.file_encoding,
+        plugins: d.plugins.clone(),
+        plugin_data: d.plugin_data.clone(),
         layer_comps: d.layer_comps.iter().map(|c| comp_m(c, sink)).collect(),
         last_applied_comp: d.last_applied_comp,
         last_document_state: d.last_document_state.as_ref().map(|c| comp_m(c, sink)),
@@ -603,6 +606,7 @@ impl Loader<'_> {
             advanced: m.advanced,
             video: m.video.as_ref().map(|v| self.video(v)).transpose()?,
             xmp: m.xmp.as_deref().map(Arc::from),
+            plugin_data: m.plugin_data.clone(),
         })
     }
 
@@ -716,6 +720,8 @@ impl Loader<'_> {
             variables,
             timeline: m.timeline.clone(),
             file_encoding: m.file_encoding,
+            plugins: m.plugins.clone(),
+            plugin_data: m.plugin_data.clone(),
             layer_comps,
             last_applied_comp: m.last_applied_comp,
             last_document_state,

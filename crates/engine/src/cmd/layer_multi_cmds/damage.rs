@@ -170,6 +170,7 @@ fn layer_pixels_cmp(a: &Layer, b: &Layer, surf: SurfaceCmp) -> bool {
         advanced,
         video: _,
         xmp: _,
+        plugin_data: _,
     } = a;
     *id == b.id
         && *visible == b.visible
@@ -252,6 +253,8 @@ fn doc_pixels_equal(a: &Document, b: &Document) -> bool {
         variables: _,
         timeline: _,
         file_encoding: _,
+        plugins: _,
+        plugin_data: _,
     } = a;
     *size == b.size
         && resolution_dpi.to_bits() == b.resolution_dpi.to_bits()
@@ -400,6 +403,8 @@ pub fn selection_only_change(a: &Document, b: &Document) -> bool {
         variables,
         timeline,
         file_encoding,
+        plugins,
+        plugin_data,
     } = a;
     // The ignored fields above are the pixel ones `pixels_equal_with` already compares.
     pixels_equal_with(a, b, video_frames_equal)
@@ -423,6 +428,8 @@ pub fn selection_only_change(a: &Document, b: &Document) -> bool {
         && *variables == b.variables
         && *timeline == b.timeline
         && *file_encoding == b.file_encoding
+        && *plugins == b.plugins
+        && *plugin_data == b.plugin_data
 }
 
 /// Pixels a single history step can have changed between `a` and `b` (the documents on either

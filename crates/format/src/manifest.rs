@@ -91,6 +91,12 @@ pub struct DocM {
     /// Web slices (user and layer-based; layer ids are remapped on load).
     #[serde(default, skip_serializing_if = "photocraft_doc::Slices::is_empty")]
     pub slices: photocraft_doc::Slices,
+    /// Craft plugins the document depends on (missing in older files = none).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plugins: Vec<photocraft_doc::PluginRef>,
+    /// Document-level plugin data by plugin id, kept verbatim (missing in older files = none).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub plugin_data: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -229,6 +235,9 @@ pub struct LayerM {
     /// The layer's own XMP packet (missing in older files = none).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub xmp: Option<String>,
+    /// Plugin data on this layer by plugin id, kept verbatim (missing in older files = none).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub plugin_data: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

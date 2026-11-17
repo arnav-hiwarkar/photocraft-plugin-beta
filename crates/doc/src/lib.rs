@@ -690,6 +690,9 @@ pub struct Layer {
     /// embedding apps keep data about the layer under their own namespaces. Copied by
     /// [`Layer::duplicate`], as in Photoshop. PSD `shmd` › `cust` › `layerXMP`.
     pub xmp: Option<Arc<str>>,
+    /// Data Craft plugins keep on this layer, by plugin id: one JSON object each, opaque here and
+    /// saved unchanged in `.pcraft` when the plugin is missing. Copied by [`Layer::duplicate`].
+    pub plugin_data: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 impl Layer {
@@ -725,6 +728,7 @@ impl Layer {
             advanced: AdvancedBlending::default(),
             video: None,
             xmp: None,
+            plugin_data: std::collections::BTreeMap::new(),
         }
     }
     pub fn raster(name: impl Into<String>, format: PixelFormat) -> Self {
@@ -954,7 +958,14 @@ pub struct Document {
     /// How the document's lossy file was encoded (its JPEG quality, WebP lossy or lossless,
     /// PNG stereo pairing), so a save writes it back the same way rather than at fixed defaults.
     pub file_encoding: FileEncoding,
+    /// The Craft plugins this document's content depends on (their data, plugin LUT layers), so
+    /// opening it where they are missing names them. Kept when a plugin is missing.
+    pub plugins: Vec<PluginRef>,
+    /// Data Craft plugins keep with the whole document, by plugin id (see [`Layer::plugin_data`]).
+    pub plugin_data: std::collections::BTreeMap<String, serde_json::Value>,
 }
+
+pub use craft_ext_core::project::PluginRef;
 
 /// The encoder settings a document's file was opened or saved with: what File › Save and the
 /// Save As defaults reuse for that format. Empty for a new document or a file without lossy
@@ -1029,6 +1040,8 @@ impl Document {
             variables: Variables::default(),
             timeline: None,
             file_encoding: FileEncoding::default(),
+            plugins: Vec::new(),
+            plugin_data: std::collections::BTreeMap::new(),
         }
     }
 
