@@ -300,11 +300,17 @@ impl Runtime {
                 }),
             }
         }
-        let running = rt.running();
-        let previous = store.begin_run(&crate::store::app()?, &running).unwrap_or_default();
-        rt.unclean = previous.into_iter().filter(|p| running.contains(p)).collect();
         rt.cancel_unloaded_jobs();
         Ok(rt)
+    }
+
+    pub fn begin_run(&self) -> Vec<ExtensionId> {
+        let running = self.running();
+        let previous = match (crate::store::open(), crate::store::app()) {
+            (Ok(store), Ok(app)) => store.begin_run(&app, &running).unwrap_or_default(),
+            _ => vec![],
+        };
+        previous.into_iter().filter(|p| running.contains(p)).collect()
     }
 
     #[allow(clippy::too_many_arguments)]

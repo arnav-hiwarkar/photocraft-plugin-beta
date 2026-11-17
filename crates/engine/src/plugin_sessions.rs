@@ -58,11 +58,10 @@ impl Session {
         self.plugin_gesture_end(false);
         self.plugin_picks.invalidate_pending();
         self.plugin_sessions = Runtime::load(self.plugin_jobs.clone()).ok();
-        if let Some(rt) = self.plugin_sessions.as_mut() {
-            if self.plugin_run_begun {
-                rt.unclean.clear();
-            }
-            self.plugin_run_begun = true;
+        if self.plugin_run_begun
+            && let Some(rt) = &self.plugin_sessions
+        {
+            rt.begin_run();
         }
         if let Some(rt) = &self.plugin_sessions {
             if self.plugin_tool.as_ref().is_some_and(|t| !rt.entries.iter().any(|e| &e.id == t)) {
@@ -79,6 +78,10 @@ impl Session {
         self.ensure_plugin_sessions();
         self.plugin_check_gesture();
         let Some(mut rt) = self.plugin_sessions.take() else { return };
+        if self.plugin_picks.interactive && !self.plugin_run_begun {
+            self.plugin_run_begun = true;
+            rt.unclean = rt.begin_run();
+        }
         let now = self.active().map(|d| (d.doc.id.0, self.active_generation(), d.selected_layers.clone(), d.doc.selection.clone()));
         let opened = self.docs.iter().filter(|d| !self.plugin_opened.contains(&d.doc.id.0)).map(|d| (d.doc.id.0, d.doc.name.clone())).collect::<Vec<_>>();
         for (id, name) in opened {
