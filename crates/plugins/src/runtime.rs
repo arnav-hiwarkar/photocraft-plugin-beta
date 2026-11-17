@@ -1,7 +1,7 @@
 use crate::document_thread::{Capture, DocumentApi, Request};
 use craft_ext_core::{
     id::{AppId, ExtensionId},
-    manifest::{Contribution, ContributionKind, Manifest, NativeMode, Runtime as Execution},
+    manifest::{Contribution, ContributionKind, Manifest, Runtime as Execution},
     permission::Permission,
     ui::tree::{DrawOp, Node, ui_level_for_session, validate_draw_list},
     version::Version,
@@ -9,14 +9,15 @@ use craft_ext_core::{
 use craft_ext_host::{
     api::{Code, Grants, Invocation, OpError},
     jobs::JobBoard,
-    native::{Confinement, Helper, HelperLaunch},
-    wasm::{Plugin, Session},
+    native::{Helper, HelperLaunch, Launch},
+    policy::Strikes,
+    wasm::{Plugin, PluginError, Session},
 };
 use craft_ext_store::Store;
 use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
-    path::{Path, PathBuf},
+    path::Path,
     sync::{Arc, Mutex, PoisonError, atomic::AtomicBool, mpsc},
     time::{Duration, Instant},
 };
@@ -46,12 +47,11 @@ enum Runner {
     Native(Helper),
 }
 impl Runner {
-    fn dispatch(&mut self, inv: Invocation, event: &Value) -> Result<(), String> {
+    fn dispatch(&mut self, inv: Invocation, event: &Value) -> Result<(), PluginError> {
         match self {
             Self::Wasm(s) => s.dispatch(inv, event),
             Self::Native(h) => h.dispatch(inv, event),
         }
-        .map_err(|e| e.to_string())
     }
 }
 struct Job {
@@ -78,70 +78,24 @@ pub struct Surface {
     pub open: bool,
     pub owner: String,
 }
-pub const PAUSE_AFTER: u32 = 3;
+pub type Health = Arc<Mutex<BTreeMap<ExtensionId, Strikes>>>;
 
-pub type Health = Arc<Mutex<BTreeMap<String, (u32, String)>>>;
+pub type Problems = Arc<Mutex<Vec<(ExtensionId, String)>>>;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Paused {
-    pub plugin: String,
-    pub name: String,
-    pub reason: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Problem {
-    pub plugin: String,
-    pub name: String,
-    pub message: String,
-}
-
-pub type Problems = Arc<Mutex<Vec<Problem>>>;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Resumed {
-    Reload,
-    Init,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Launch {
-    Wasm(PathBuf),
-    Native { exe: PathBuf, confinement: Confinement },
-}
-
-impl Launch {
-    pub fn plan(manifest: &Manifest, c: &Contribution, release: &Path, data: &Path) -> Result<Option<Self>, String> {
-        Ok(match manifest.runtime(c) {
-            Execution::Data => None,
-            Execution::Wasm(module) => Some(Self::Wasm(release.join(module))),
-            Execution::Native(mode) => {
-                let native = manifest.native.as_ref().ok_or("The package has no native helper")?;
-                let exe = native.executables.get(&craft_ext_host::native::platform()).ok_or("No helper for this platform")?;
-                let confinement = match mode {
-                    NativeMode::Full => Confinement::Full,
-                    NativeMode::Restricted => Confinement::Restricted { release: release.to_path_buf(), data: data.to_path_buf() },
-                };
-                Some(Self::Native { exe: release.join(exe), confinement })
-            }
-        })
-    }
-
-    fn worker_key(&self) -> String {
-        match self {
-            Self::Wasm(module) => module.to_string_lossy().into_owned(),
-            Self::Native { .. } => "#native".into(),
-        }
+fn worker_key(launch: &Launch) -> String {
+    match launch {
+        Launch::Wasm(module) => module.to_string_lossy().into_owned(),
+        Launch::Native(_) => "#native".into(),
     }
 }
 
 enum Program {
     Wasm(Plugin),
-    Native { exe: PathBuf, work: PathBuf, confinement: Confinement },
+    Native(HelperLaunch),
 }
 
 impl Program {
-    fn load(plugin: &ExtensionId, launch: Launch, work: &Path) -> Result<Self, Box<dyn std::error::Error>> {
+    fn load(plugin: &ExtensionId, launch: Launch) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(match launch {
             Launch::Wasm(module) => {
                 use std::io::Read;
@@ -149,55 +103,40 @@ impl Program {
                 std::fs::File::open(module)?.take(craft_ext_host::wasm::MAX_MODULE_BYTES as u64 + 1).read_to_end(&mut bytes)?;
                 Self::Wasm(Plugin::load(plugin.as_str(), &bytes)?)
             }
-            Launch::Native { exe, confinement } => {
-                std::fs::create_dir_all(work)?;
-                Self::Native { exe, work: work.to_path_buf(), confinement }
+            Launch::Native(helper) => {
+                std::fs::create_dir_all(&helper.work)?;
+                Self::Native(helper)
             }
         })
     }
 
-    fn start(self, plugin: &ExtensionId, version: Version, api: Arc<DocumentApi>, jobs: Arc<JobBoard>) -> Result<Runner, String> {
+    fn start(&self, plugin: &ExtensionId, version: Version, api: Arc<DocumentApi>, jobs: Arc<JobBoard>) -> Result<Runner, PluginError> {
         let log: craft_ext_host::wasm::LogFn = Arc::new(|_, _, _| {});
         match self {
-            Self::Wasm(p) => Session::new(&p, api, Arc::new(LiveGrants), log).map(|mut s| {
+            Self::Wasm(p) => Session::new(p, api, Arc::new(LiveGrants), log).map(|mut s| {
                 s.set_jobs(jobs);
                 Runner::Wasm(s)
             }),
-            Self::Native { exe, work, confinement } => {
-                Helper::start(plugin, version, &HelperLaunch { exe, work, confinement }, api, Arc::new(LiveGrants), log).map(|mut h| {
-                    h.set_jobs(jobs);
-                    Runner::Native(h)
-                })
-            }
+            Self::Native(launch) => Helper::start(plugin, version, launch, api, Arc::new(LiveGrants), log).map(|mut h| {
+                h.set_jobs(jobs);
+                Runner::Native(h)
+            }),
         }
-        .map_err(|e| e.to_string())
     }
 }
 
-pub fn record_outcome(health: &Health, store: &Store, app: &AppId, plugin: &ExtensionId, version: Version, outcome: &Result<(), String>) {
+pub fn record_outcome(health: &Health, store: &Store, app: &AppId, plugin: &ExtensionId, version: Version, outcome: Result<(), &PluginError>) {
     let mut h = health.lock().unwrap_or_else(PoisonError::into_inner);
-    let key = plugin.to_string();
-    match outcome {
-        Ok(()) => {
-            h.remove(&key);
-        }
-        Err(e) => {
-            let entry = h.entry(key).or_insert((0, String::new()));
-            *entry = (entry.0.saturating_add(1), e.clone());
-            if entry.0 == PAUSE_AFTER {
-                let reason = format!("paused after {PAUSE_AFTER} failures in a row: {e}");
-                if let Err(why) = store.quarantine(app, plugin, version, &reason) {
-                    entry.1 = format!("{e} (could not be remembered across restarts: {why})");
-                }
-            }
-        }
+    if let Some(reason) = h.entry(plugin.clone()).or_default().record(outcome)
+        && let Err(why) = store.quarantine(app, plugin, version, &reason)
+    {
+        eprintln!("plugins: {plugin} could not be turned off after repeated failures: {why}");
     }
 }
 
 struct Worker {
     plugin: ExtensionId,
     version: Version,
-    name: String,
     health: Health,
     problems: Problems,
     jobs: Arc<JobBoard>,
@@ -205,7 +144,13 @@ struct Worker {
 
 impl Worker {
     fn problem(&self, message: String) {
-        self.problems.lock().unwrap_or_else(PoisonError::into_inner).push(Problem { plugin: self.plugin.to_string(), name: self.name.clone(), message });
+        self.problems.lock().unwrap_or_else(PoisonError::into_inner).push((self.plugin.clone(), message));
+    }
+
+    fn record(&self, outcome: Result<(), &PluginError>) {
+        if let (Ok(store), Ok(app)) = (crate::store::open(), crate::store::app()) {
+            record_outcome(&self.health, &store, &app, &self.plugin, self.version, outcome);
+        }
     }
 
     fn spawn(self, program: Program, api: Arc<DocumentApi>) -> Result<mpsc::SyncSender<Job>, Box<dyn std::error::Error>> {
@@ -213,39 +158,43 @@ impl Worker {
         let context = api.context.clone();
         let finish_error = api.finish_error.clone();
         std::thread::Builder::new().name(format!("plugin-{}", self.plugin)).spawn(move || {
-            let mut runner = match program.start(&self.plugin, self.version, api, self.jobs.clone()) {
-                Ok(runner) => runner,
+            let start = || program.start(&self.plugin, self.version, api.clone(), self.jobs.clone());
+            let mut runner = match start() {
+                Ok(runner) => Some(runner),
                 Err(e) => return self.problem(format!("could not start: {e}")),
             };
-            let paused = || self.health.lock().unwrap_or_else(PoisonError::into_inner).get(self.plugin.as_str()).is_some_and(|(n, _)| *n >= PAUSE_AFTER);
             loop {
-                if let Runner::Native(helper) = &mut runner
+                if let Some(Runner::Native(helper)) = &mut runner
                     && !helper.supervise()
                 {
-                    return self.problem("the helper stopped".into());
+                    runner = None;
+                    if LiveGrants.stopped(&self.plugin, self.version) || !LiveGrants.full_access(&self.plugin) {
+                        return;
+                    }
+                    self.record(Err(&PluginError::Trap("the helper stopped".into())));
                 }
                 let job = match rx.recv_timeout(Duration::from_millis(250)) {
                     Ok(job) => job,
                     Err(mpsc::RecvTimeoutError::Timeout) => continue,
                     Err(mpsc::RecvTimeoutError::Disconnected) => return,
                 };
-                if paused() {
-                    let _ = job.done.send(Err("Plugin paused after three failures; resume it in the Plugins window".into()));
-                    continue;
-                }
-                *context.lock().unwrap_or_else(PoisonError::into_inner) = Some(job.capture);
-                let result = runner.dispatch(job.inv, &job.event);
-                let finish = finish_error.lock().unwrap_or_else(PoisonError::into_inner).take();
-                let result = result.and_then(|_| finish.map_or(Ok(()), |e| Err(e.to_string())));
-                if result.is_ok() || !job.expected_cancel.load(std::sync::atomic::Ordering::Relaxed) {
-                    match (crate::store::open(), crate::store::app()) {
-                        (Ok(store), Ok(app)) => record_outcome(&self.health, &store, &app, &self.plugin, self.version, &result),
-                        _ => {
-                            let mut h = self.health.lock().unwrap_or_else(PoisonError::into_inner);
-                            h.insert(self.plugin.to_string(), (PAUSE_AFTER, "the plugin store could not be read".into()));
-                        }
+                let running = match runner.take().map_or_else(&start, Ok) {
+                    Ok(r) => runner.insert(r),
+                    Err(e) => {
+                        let _ = job.done.send(Err(e.to_string()));
+                        continue;
                     }
+                };
+                *context.lock().unwrap_or_else(PoisonError::into_inner) = Some(job.capture);
+                let result = running.dispatch(job.inv, &job.event);
+                if matches!(running, Runner::Native(_)) && matches!(result, Err(PluginError::Stopped(_) | PluginError::TooSlow | PluginError::Trap(_))) {
+                    runner = None;
                 }
+                if result.is_ok() || !job.expected_cancel.load(std::sync::atomic::Ordering::Relaxed) {
+                    self.record(result.as_ref().map(|_| ()));
+                }
+                let finish = finish_error.lock().unwrap_or_else(PoisonError::into_inner).take();
+                let result = result.map_err(|e| e.to_string()).and_then(|_| finish.map_or(Ok(()), |e| Err(e.to_string())));
                 let _ = job.done.send(result);
             }
         })?;
@@ -289,18 +238,18 @@ impl Runtime {
             next_rev: 0,
         };
         let store = crate::store::open()?;
-        for (plugin, version, root, manifest, enabled) in crate::store::enabled()? {
-            match rt.load_plugin(&api, &store, &plugin, version, &root, &manifest, &enabled) {
-                Ok(entries) => rt.entries.extend(entries),
-                Err(e) => rt.problems.lock().unwrap_or_else(PoisonError::into_inner).push(Problem {
-                    plugin: plugin.to_string(),
-                    name: manifest.name.clone(),
-                    message: e.to_string(),
-                }),
-            }
+        let enabled = crate::store::enabled()?;
+        rt.problems.lock().unwrap_or_else(PoisonError::into_inner).extend(enabled.problems);
+        for (plugin, version, root, manifest, on) in enabled.releases {
+            let entries = rt.load_plugin(&api, &store, &plugin, version, &root, &manifest, &on);
+            rt.entries.extend(entries);
         }
         rt.cancel_unloaded_jobs();
         Ok(rt)
+    }
+
+    pub fn load_problems(&self) -> Vec<(ExtensionId, String)> {
+        self.problems.lock().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
     pub fn begin_run(&self) -> Vec<ExtensionId> {
@@ -322,8 +271,14 @@ impl Runtime {
         root: &Path,
         manifest: &Manifest,
         enabled: &std::collections::BTreeSet<String>,
-    ) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
-        let contract = crate::contract()?;
+    ) -> Vec<Entry> {
+        let contract = match crate::contract() {
+            Ok(c) => c,
+            Err(e) => {
+                self.problems.lock().unwrap_or_else(PoisonError::into_inner).push((plugin.clone(), e.to_string()));
+                return vec![];
+            }
+        };
         let work = store.private_dir(&contract.app, plugin);
         let mut workers: BTreeMap<String, mpsc::SyncSender<Job>> = BTreeMap::new();
         let mut entries = vec![];
@@ -331,25 +286,31 @@ impl Runtime {
             if !enabled.contains(&c.id)
                 || c.contract.check(&contract.provided).is_some()
                 || !matches!(c.kind, ContributionKind::Command | ContributionKind::Panel | ContributionKind::Tool | ContributionKind::EventHook)
+                || matches!(manifest.runtime(c), Execution::Data)
             {
                 continue;
             }
-            let Some(launch) = Launch::plan(manifest, c, root, &work)? else { continue };
-            let key = launch.worker_key();
-            let tx = match workers.get(&key) {
-                Some(tx) => tx.clone(),
-                None => {
-                    let worker = Worker {
-                        plugin: plugin.clone(),
-                        version,
-                        name: manifest.name.clone(),
-                        health: self.health.clone(),
-                        problems: self.problems.clone(),
-                        jobs: self.jobs.clone(),
-                    };
-                    let tx = worker.spawn(Program::load(plugin, launch, &work)?, Arc::new(api.fork()?))?;
-                    workers.insert(key, tx.clone());
-                    tx
+            let worker = |launch: Launch| -> Result<mpsc::SyncSender<Job>, Box<dyn std::error::Error>> {
+                let worker = Worker { plugin: plugin.clone(), version, health: self.health.clone(), problems: self.problems.clone(), jobs: self.jobs.clone() };
+                worker.spawn(Program::load(plugin, launch)?, Arc::new(api.fork()?))
+            };
+            let tx = match Launch::plan(manifest, c, root, &work) {
+                Ok(launch) => {
+                    let key = worker_key(&launch);
+                    match workers.get(&key).cloned().map_or_else(|| worker(launch), Ok) {
+                        Ok(tx) => {
+                            workers.insert(key, tx.clone());
+                            tx
+                        }
+                        Err(e) => {
+                            self.problems.lock().unwrap_or_else(PoisonError::into_inner).push((plugin.clone(), format!("{}: {e}", c.label)));
+                            continue;
+                        }
+                    }
+                }
+                Err(e) => {
+                    self.problems.lock().unwrap_or_else(PoisonError::into_inner).push((plugin.clone(), format!("{}: {e}", c.label)));
+                    continue;
                 }
             };
             let inv = Invocation {
@@ -361,11 +322,12 @@ impl Runtime {
                 cancel: Arc::new(AtomicBool::new(false)),
                 deadline: None,
                 label: format!("{} · {}", c.label, manifest.name),
+                document: None,
                 declared: c.permissions.iter().chain(&c.optional_permissions).cloned().collect(),
             };
             entries.push(Entry { id: format!("plugin.session.{}/{}", plugin, c.id), plugin_name: manifest.name.clone(), contribution: c.clone(), invocation: inv, tx });
         }
-        Ok(entries)
+        entries
     }
 
     pub fn running(&self) -> Vec<ExtensionId> {
@@ -389,23 +351,15 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn take_job_events(&self) -> Vec<(String, String, Value)> {
-        self.jobs
-            .take_finished()
-            .into_iter()
-            .filter_map(|job| {
-                let owner = self.entries.iter().find(|e| e.invocation.plugin == job.plugin && e.contribution.id == job.contribution)?;
-                Some((owner.id.clone(), job.label.clone(), job.event()))
-            })
-            .collect()
-    }
-
-    pub fn deliver_jobs(&mut self, capture: &Capture) {
-        for (owner, label, event) in self.take_job_events() {
-            if let Err(e) = self.post(&owner, capture.clone(), event) {
-                self.errors.push(format!("{label} finished, but its plugin could not receive the result: {}", e.message));
-            }
-        }
+    pub fn deliver_jobs(&mut self, capture: &Capture, busy: bool) {
+        let Some(document) = capture.document.map(|d| d.to_string()).filter(|_| !busy) else { return };
+        let owners: Vec<(ExtensionId, String, String)> = self.entries.iter().map(|e| (e.invocation.plugin.clone(), e.contribution.id.clone(), e.id.clone())).collect();
+        let owner = |job: &craft_ext_host::jobs::JobInfo| owners.iter().find(|(p, c, _)| p == &job.plugin && c == &job.contribution).map(|(_, _, id)| id.clone());
+        let jobs = self.jobs.clone();
+        jobs.deliver(
+            |job| job.document.as_deref() == Some(document.as_str()) && owner(job).is_some(),
+            |job| owner(job).is_some_and(|id| self.post(&id, capture.clone(), job.event()).is_ok()),
+        );
     }
 
     pub fn settle(&mut self) {
@@ -430,7 +384,7 @@ impl Runtime {
         if inv.cancelled() {
             return Err(OpError::new(Code::Cancelled, "Event expired"));
         }
-        let enabled = crate::store::enabled().map_err(|e| OpError::denied(e.to_string()))?;
+        let enabled = crate::store::enabled().map_err(|e| OpError::denied(e.to_string()))?.releases;
         if !enabled.iter().any(|(p, v, _, _, cs)| p == &inv.plugin && v == &inv.version && cs.contains(&inv.contribution))
             || LiveGrants.stopped(&inv.plugin, inv.version)
             || LiveGrants.generation(&inv.plugin) != inv.grant_generation
@@ -445,6 +399,7 @@ impl Runtime {
     pub fn dispatch_with(&self, id: &str, capture: Capture, event: Value, expected_cancel: Arc<AtomicBool>) -> Result<mpsc::Receiver<Result<(), String>>, OpError> {
         let e = self.entries.iter().find(|e| e.id == id).ok_or_else(|| OpError::new(Code::NotFound, "Unknown contribution"))?;
         let mut inv = e.invocation.clone();
+        inv.document = capture.document.map(|d| d.to_string());
         inv.cancel = Arc::new(AtomicBool::new(false));
         inv.deadline = Some(Instant::now() + Duration::from_secs(8));
         inv.grant_generation = LiveGrants.generation(&inv.plugin);
@@ -452,34 +407,6 @@ impl Runtime {
         let (done, rx) = mpsc::sync_channel(1);
         e.tx.try_send(Job { capture, inv, event, done, expected_cancel }).map_err(|_| OpError::new(Code::Stale, "Plugin worker is busy"))?;
         Ok(rx)
-    }
-    pub fn paused(&self) -> Vec<Paused> {
-        let mut out = crate::store::open().and_then(|store| crate::store::quarantined(&store)).unwrap_or_default();
-        let h = self.health.lock().unwrap_or_else(PoisonError::into_inner);
-        for (plugin, (n, reason)) in h.iter() {
-            if *n >= PAUSE_AFTER && !out.iter().any(|p| &p.plugin == plugin) {
-                let name = self.entries.iter().find(|e| e.invocation.plugin.as_str() == plugin).map_or_else(|| plugin.clone(), |e| e.plugin_name.clone());
-                out.push(Paused { plugin: plugin.clone(), name, reason: reason.clone() });
-            }
-        }
-        out
-    }
-    pub fn resume(&self, plugin: &str) -> Result<Resumed, String> {
-        let id = ExtensionId::new(plugin).map_err(|e| e.to_string())?;
-        let store = crate::store::open().map_err(|e| e.to_string())?;
-        let quarantined = crate::store::quarantined(&store).map_err(|e| e.to_string())?.iter().any(|p| p.plugin == plugin);
-        let mut h = self.health.lock().unwrap_or_else(PoisonError::into_inner);
-        let paused = h.get(plugin).is_some_and(|(n, _)| *n >= PAUSE_AFTER);
-        if quarantined {
-            store.clear_quarantine(&crate::store::app().map_err(|e| e.to_string())?, &id).map_err(|e| e.to_string())?;
-            h.remove(plugin);
-            return Ok(Resumed::Reload);
-        }
-        if !paused {
-            return Err(format!("{plugin} is not paused"));
-        }
-        h.remove(plugin);
-        Ok(Resumed::Init)
     }
     fn declared_level(&self, inv: &Invocation) -> craft_ext_core::contract::Level {
         self.entries
@@ -578,6 +505,7 @@ mod tests {
             cancel: Arc::new(AtomicBool::new(false)),
             deadline: None,
             label: "Panel · Test".into(),
+            document: None,
             declared: Arc::from([]),
         };
         let contribution: Contribution =
@@ -644,74 +572,29 @@ mod tests {
         assert!(Runtime::overlay(&json!({})).unwrap().is_empty());
     }
     #[test]
-    fn a_finished_job_reaches_its_contribution_as_one_event() {
-        let (rt, inv) = fixture();
-        let ticket = rt.jobs.admit(&inv.plugin, "panel", "Analyse", true).unwrap();
-        let other = rt.jobs.admit(&ExtensionId::new("io.test.gone").unwrap(), "panel", "Orphan", true).unwrap();
+    fn a_finished_job_waits_for_its_document_and_for_no_gesture() {
+        let (mut rt, inv) = fixture();
+        let capture = |document| Capture { document, epoch: 0, revision: 0, surface: None, gesture: None };
+        let ticket = rt.jobs.admit(&inv.plugin, "panel", "Analyse", true, Some("7")).unwrap();
         ticket.finish(craft_ext_host::jobs::JobState::Done(json!({"frames": 3})));
-        other.finish(craft_ext_host::jobs::JobState::Cancelled);
-        assert_eq!(
-            rt.take_job_events(),
-            vec![("panel-command".to_owned(), "Analyse".to_owned(), json!({"event":"job","job":1,"ok":true,"result":{"frames":3}}))]
-        );
-        assert_eq!(rt.take_job_events(), vec![], "each job is delivered once");
+        let pending = |rt: &Runtime| rt.jobs.list().iter().filter(|j| !j.delivered).count();
+        rt.deliver_jobs(&capture(Some(8)), false);
+        rt.deliver_jobs(&capture(Some(7)), true);
+        rt.deliver_jobs(&capture(None), false);
+        assert_eq!(pending(&rt), 1, "another document, an open gesture or no document keeps the result");
+        assert!(rt.inflight.is_empty());
     }
     #[test]
     fn jobs_of_plugins_that_are_no_longer_loaded_are_cancelled() {
         let (rt, inv) = fixture();
-        let mine = rt.jobs.admit(&inv.plugin, "panel", "Mine", true).unwrap();
-        let gone = rt.jobs.admit(&ExtensionId::new("io.test.gone").unwrap(), "panel", "Gone", true).unwrap();
+        let mine = rt.jobs.admit(&inv.plugin, "panel", "Mine", true, None).unwrap();
+        let gone = rt.jobs.admit(&ExtensionId::new("io.test.gone").unwrap(), "panel", "Gone", true, None).unwrap();
         rt.cancel_unloaded_jobs();
         assert!(!mine.cancel.load(std::sync::atomic::Ordering::Relaxed));
         assert!(gone.cancel.load(std::sync::atomic::Ordering::Relaxed));
     }
     #[test]
-    fn hybrid_packages_run_modules_sandboxed_and_restricted_helpers_confined() {
-        let platform = craft_ext_host::native::platform();
-        let manifest = Manifest::parse(
-            format!(
-                r#"schema = 2
-id = "io.test.hybrid"
-name = "Hybrid"
-version = "1.0.0"
-license = "MIT"
-source = "https://github.com/example/hybrid"
-summary = "Hybrid"
-apps = ["photocraft"]
-[native]
-mode = "restricted"
-executables = {{ "{platform}" = "bin/helper" }}
-[[contribution]]
-id = "sandboxed"
-kind = "command"
-contract = "photocraft.session@1.0"
-label = "Sandboxed"
-module = "main.wasm"
-[[contribution]]
-id = "helper"
-kind = "command"
-contract = "photocraft.session@1.0"
-label = "Helper"
-"#
-            )
-            .as_bytes(),
-        )
-        .unwrap();
-        let (release, data) = (Path::new("/rel"), Path::new("/data"));
-        let plan = |id: &str| Launch::plan(&manifest, manifest.contribution(id).unwrap(), release, data).unwrap();
-        assert_eq!(plan("sandboxed"), Some(Launch::Wasm(PathBuf::from("/rel/main.wasm"))));
-        assert_eq!(
-            plan("helper"),
-            Some(Launch::Native {
-                exe: PathBuf::from("/rel/bin/helper"),
-                confinement: Confinement::Restricted { release: PathBuf::from("/rel"), data: PathBuf::from("/data") }
-            })
-        );
-        assert_eq!(plan("sandboxed").unwrap().worker_key(), "/rel/main.wasm");
-        assert_eq!(plan("helper").unwrap().worker_key(), "#native");
-    }
-    #[test]
-    fn the_third_failure_in_a_row_quarantines_the_release() {
+    fn the_third_fault_in_a_row_quarantines_the_release() {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::at(dir.path());
         let app = AppId::new("photocraft").unwrap();
@@ -719,19 +602,21 @@ label = "Helper"
         store.set_active(&app, &installed.id, installed.version).unwrap();
         store.set_enabled(&app, &installed.id, "run", true).unwrap();
         let health = Health::default();
-        let failed: Result<(), String> = Err("boom".into());
-        record_outcome(&health, &store, &app, &installed.id, installed.version, &failed);
-        record_outcome(&health, &store, &app, &installed.id, installed.version, &Ok(()));
-        for _ in 0..PAUSE_AFTER - 1 {
-            record_outcome(&health, &store, &app, &installed.id, installed.version, &failed);
-        }
-        assert!(store.state().unwrap().apps[&app][&installed.id].quarantine.is_none(), "a success in between resets the count");
-        record_outcome(&health, &store, &app, &installed.id, installed.version, &failed);
+        let trap = PluginError::Trap("boom".into());
+        let record = |outcome: Result<(), &PluginError>| record_outcome(&health, &store, &app, &installed.id, installed.version, outcome);
+        record(Err(&trap));
+        record(Ok(()));
+        record(Err(&trap));
+        record(Err(&PluginError::Failed(-1, "bad input".into())));
+        record(Err(&PluginError::Stopped("document changed".into())));
+        record(Err(&trap));
+        assert!(store.state().unwrap().apps[&app][&installed.id].quarantine.is_none(), "a success resets the count and the plugin's own errors never count");
+        record(Err(&trap));
         let q = store.state().unwrap().apps[&app][&installed.id].quarantine.clone().unwrap();
-        assert_eq!((q.version, q.reason.as_str()), (installed.version, "paused after 3 failures in a row: boom"));
+        assert_eq!((q.version, q.reason.as_str()), (installed.version, "stopped after 3 failures in a row: the plugin crashed: boom"));
         let view = craft_ext_store::view::GrantView::open(dir.path(), app.clone()).unwrap();
         assert!(view.stopped(&installed.id, installed.version));
-        assert!(view.enabled_contributions(&app).unwrap().is_empty(), "a quarantined release does not load at the next start");
+        assert!(view.enabled_contributions(&app).releases.is_empty(), "a quarantined release does not load at the next start");
     }
     fn install_test_package(store: &Store) -> craft_ext_store::store::Installed {
         use std::io::Write;

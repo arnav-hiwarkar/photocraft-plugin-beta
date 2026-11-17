@@ -12,8 +12,6 @@ use craft_ext_core::{
 use craft_ext_host::api::{AppContract, EventSpec, OpKind, OpSpec, SlotSpec, none};
 use serde_json::Value;
 
-/// The session contract level this build provides. 1.1 carries UI level 1.1 (the shared renderer),
-/// tools, overlays, pixels, layers, selection, guides, histogram, adjustments and picked files.
 pub const SESSION_LEVEL: (u32, u32) = (1, 2);
 
 fn read_document(_: &Value) -> Vec<Permission> {
@@ -326,7 +324,7 @@ const OPS: &[(&str, OpKind, Rule, &str, &str, &str, &str)] = &[
         OpKind::Ui,
         none,
         "free",
-        "Draw a panel your manifest declares (UI level 1.1); published when the event commits.",
+        "Draw a panel your manifest declares, at the UI level your session level carries (1.2 at session 1.2); published when the event commits.",
         r#"{"panel": "levels", "tree": {…}}"#,
         r#"{"rev": 4}"#,
     ),
@@ -406,7 +404,7 @@ pub fn contract() -> Result<AppContract, IdError> {
     })
 }
 
-const NOTES: &str = r#"Each session event is one transaction and one undo step labelled "<label> · <plugin>"; an event that fails, times out, is revoked or finds the document changed rolls back. A tool gesture (begin … commit) is one undo step; Escape, a failed event, a document switch or revocation mid-gesture rolls the whole gesture back. Coordinates are image pixels (fractional; the top-left pixel spans 0–1). While a plugin tool is selected the canvas still zooms and pans (wheel, pinch, Space, middle button, the Zoom keys); choosing any built-in tool deselects it. From the CLI a tool command takes `{"points": [[x, y], …]}` (begin at the first point, commit at the last; `"cancel": true` cancels instead). A plugin whose events fail three times in a row is paused; the Plugins window shows it with Resume, as does the engine command `plugin.resume {"plugin": id}` (pauses last for one process).
+const NOTES: &str = r#"Each session event is one transaction and one undo step labelled "<label> · <plugin>"; an event that fails, times out, is revoked or finds the document changed rolls back. A tool gesture (begin … commit) is one undo step; Escape, a failed event, a document switch or revocation mid-gesture rolls the whole gesture back. Coordinates are image pixels (fractional; the top-left pixel spans 0–1). While a plugin tool is selected the canvas still zooms and pans (wheel, pinch, Space, middle button, the Zoom keys); choosing any built-in tool deselects it. From the CLI a tool command takes `{"points": [[x, y], …]}` (begin at the first point, commit at the last; `"cancel": true` cancels instead). Three faults in a row (a trap, running too long, too much memory or a native helper that stopped) turn the plugin off: it stays off across restarts and shows as Quarantined in the Plugin Manager's Problems with Turn back on (`photocraft-cli plugin resume <id>` does the same). Errors a plugin returns, rolled-back events and document changes never count.
 
 Pixel operations work on RGB documents (8, 16 and 32 bit). Pixel data is straight (not premultiplied) RGBA in the document's own values, base64-encoded; a 32-bit document's values are linear light. Plugin filters, by contrast, receive premultiplied RGBA f32 in sRGB for integer depths or linear sRGB for float, with CMS conversion. Other modes are disabled with a reason. Filters apply destructively as one history step; plugin smart filters are unsupported.
 
@@ -416,7 +414,7 @@ Effect dialogs use Form schema 1 (`contribution.form`, optional worker `craft_de
 
 The host draws all form kinds, units, help and sections, evaluates visible/enabled conditions, and calls optional `craft_update` on workers after edits. Event fuel, grant checks and a 100 ms deadline bound form calls. Patches apply atomically at the current revision; stale edit results are discarded. Plugin presets accept `{id,label,effects:[{effect,values}]}` single-effect recipes and legacy direct `{id,label,effect,values}` records inside a `presets` array; the dialog offers matching, validated presets and omits multi-effect recipes.
 
-Panels, windows and filter dialogs are drawn by the shared renderer (`craft_ext_ui::plugin_ui`, UI level 1.1) with the engine chosen in Preferences ▸ Plugins (egui by default); plugins cannot choose or detect it. A contribution declaring `photocraft.session@1.0` may only send level-1.0 trees. No framework component library is registered: every `component` node draws its fallback. Sessions execute on workers; document operations are authorized and committed on the document thread."#;
+Panels, windows and filter dialogs are drawn by the shared renderer (`craft_ext_ui::plugin_ui`) with the engine chosen in Preferences ▸ Plugins (the framework engine by default, egui selectable); plugins cannot choose or detect it. The UI level follows the declared session level: 1.0 trees at `photocraft.session@1.0`, 1.1 at 1.1, 1.2 at 1.2. No framework component library is registered: every `component` node draws its fallback. Sessions execute on workers; document operations are authorized and committed on the document thread."#;
 
 #[cfg(test)]
 mod tests {

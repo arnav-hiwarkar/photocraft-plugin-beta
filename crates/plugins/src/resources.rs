@@ -16,7 +16,7 @@ pub fn query() -> Result<Vec<Resource>, Box<dyn std::error::Error>> {
         use craft_ext_core::manifest::ContributionKind;
         let mut out = Vec::new();
         let provided = super::contract()?.provided;
-        for (plugin, _, root, manifest, enabled) in super::store::enabled()? {
+        for (plugin, _, root, manifest, enabled) in super::store::enabled()?.releases {
             let root = root.canonicalize()?;
             for c in manifest.contributions {
                 let kind = match c.kind {

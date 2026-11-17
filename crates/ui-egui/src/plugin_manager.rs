@@ -2,14 +2,9 @@
 mod native {
     use std::cell::RefCell;
 
-    use craft::ui::buttons::Button;
-    use craft::ui::contract::{Props as _, Show as _, ShowContainer as _};
-    use craft::ui::display::{Shade, Text};
-    use craft::ui::layout_components::{Row, Stack};
     use craft::ui::runtime::env::Label;
     use craft::ui::runtime::memory::SaveKey;
     use craft::ui::shell::ViewportWindow;
-    use craft::ui::style::TypeRole;
     use craft_ext_manager::{Action, Config, Tab};
     use craft_ext_ui_fw::{ManagerState, PluginManager, ProjectPrompt, PromptState};
 
@@ -80,49 +75,24 @@ mod native {
         if WINDOW.with(|w| w.borrow().is_none()) {
             return;
         }
-        let paused = app.session.plugins_paused();
         let problems = app.session.plugin_load_problems();
         let unclean = app.session.plugins_unclean_exit();
-        let mut resume = Vec::new();
         let mut links = Vec::new();
         let mut pick_package = false;
         let closed = WINDOW.with(|w| {
             let mut slot = w.borrow_mut();
             let Some(state) = slot.as_mut() else { return false };
-            if !UNCLEAN_GIVEN.with(|g| g.replace(true))
-                && let Some(id) = state.model().config().scope().cloned()
-            {
-                state.set_unclean_exit(id, unclean.clone());
+            if let Some(id) = state.model().config().scope().cloned() {
+                if !UNCLEAN_GIVEN.with(|g| g.replace(true)) {
+                    state.set_unclean_exit(id.clone(), unclean.clone());
+                }
+                state.set_load_problems(id, problems.clone());
             }
             let window = ViewportWindow::new(Label::from(tl!("Plugins").to_string())).remember(SaveKey::named("photocraft.plugins.manager"));
             let out = window.show(ui, |ui, _| {
                 let shown = PluginManager::new(state)
                     .app_names(|_| Label::from("PhotoCraft"))
                     .install_file()
-                    .problems(|ui| {
-                        for p in &problems {
-                            Stack::new().id_salt(("load-problem", p.plugin.as_str())).show(ui, |ui, _| {
-                                Text::new(Label::from(p.name.clone())).role(TypeRole::BodyStrong).show(ui);
-                                Text::new(Label::from(p.message.clone())).shade(Shade::Muted).show(ui);
-                            });
-                        }
-                        if !paused.is_empty() {
-                            Text::new(tl!("Turned off").to_string()).role(TypeRole::BodyStrong).show(ui);
-                            Text::new(tl!("These plugins failed repeatedly or were running when PhotoCraft closed unexpectedly. They stay off until you resume them.").to_string())
-                                .shade(Shade::Muted)
-                                .show(ui);
-                        }
-                        for p in &paused {
-                            Row::new().id_salt(("paused", p.plugin.as_str())).show(ui, |ui, _| {
-                                Text::new(Label::from(p.name.clone())).show(ui);
-                                let button = Button::new(tl!("Resume").to_string()).tooltip(Label::from(tl!("Clear the pause and start the plugin again").to_string()));
-                                if button.show(ui).clicked() && !resume.contains(&p.plugin) {
-                                    resume.push(p.plugin.clone());
-                                }
-                                Text::new(Label::from(p.reason.clone())).shade(Shade::Faint).show(ui);
-                            });
-                        }
-                    })
                     .show(ui);
                 links.extend(shown.links);
                 pick_package |= shown.install_file;
@@ -139,11 +109,6 @@ mod native {
         }
         if closed {
             return;
-        }
-        for plugin in resume {
-            if let Err(e) = app.session.resume_plugin(&plugin) {
-                crate::notices::error(app, e.to_string());
-            }
         }
         if pick_package
             && let Err(e) = app.pick_path_filtered(&["craftplugin"], |_, path| {

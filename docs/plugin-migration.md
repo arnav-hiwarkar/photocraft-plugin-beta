@@ -232,13 +232,14 @@ Tool contributions are no longer marked unavailable. The model follows FigCraft'
 - **CLI/automation**: the tool command with `{"points": [[x,y],…]}` runs a whole gesture
   (`"cancel": true` cancels at the end; optional `modifiers`, `zoom`).
 
-## Pause and resume (done)
+## Repeated faults (done)
 
-Three failed events in a row (cancelled tool events excepted) pause a plugin for the process.
-The Plugins window lists paused plugins with their last error and a **Resume** button; the engine
-commands `plugin.paused` and `plugin.resume {"plugin": id}` do the same for `serve`/`mcp`
-sessions. Resume clears the count and sends `init` again. `photocraft-cli plugin resume <id>`
-resumes a plugin paused in its own process and otherwise explains that pauses are per process.
+Three faults in a row (a trap, running too long, too much memory or a native helper that
+stopped; cancelled tool events excepted) quarantine the release with `Store::quarantine`.
+Errors a plugin returns, rolled-back events and document changes never count, and a success
+resets the count. The release stays off across restarts and appears as Quarantined in the
+Plugin Manager's Problems with **Turn back on**; `photocraft-cli plugin resume <id>` does the
+same. Contributions that fail to load are Problems too, and the rest of the package still loads.
 
 ## Capability audit (done)
 

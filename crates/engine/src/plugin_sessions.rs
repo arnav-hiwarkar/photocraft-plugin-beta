@@ -57,11 +57,14 @@ impl Session {
         }
         self.plugin_gesture_end(false);
         self.plugin_picks.invalidate_pending();
+        let unclean = self.plugin_sessions.take().map(|r| r.unclean).unwrap_or_default();
         self.plugin_sessions = Runtime::load(self.plugin_jobs.clone()).ok();
-        if self.plugin_run_begun
-            && let Some(rt) = &self.plugin_sessions
+        if let Some(rt) = self.plugin_sessions.as_mut()
+            && self.plugin_picks.interactive
+            && !photocraft_plugins::safe_mode()
         {
-            rt.begin_run();
+            let crashed = rt.begin_run();
+            rt.unclean = if std::mem::replace(&mut self.plugin_run_begun, true) { unclean } else { crashed };
         }
         if let Some(rt) = &self.plugin_sessions {
             if self.plugin_tool.as_ref().is_some_and(|t| !rt.entries.iter().any(|e| &e.id == t)) {
@@ -83,14 +86,16 @@ impl Session {
         if !self.plugin_picks.interactive {
             return;
         }
-        let fresh: Vec<(u64, Vec<craft_ext_core::project::PluginRef>)> =
-            self.docs.iter().filter(|d| !self.plugin_prompted.contains(&d.doc.id.0)).map(|d| (d.doc.id.0, d.doc.plugins.clone())).collect();
-        for (id, refs) in fresh {
+        self.prompt_for_documents(|refs| photocraft_plugins::store::manager().map_err(|e| e.to_string()).and_then(|m| m.check_project(refs).map_err(|e| e.to_string())));
+    }
+    fn prompt_for_documents(&mut self, check: impl Fn(&[craft_ext_core::project::PluginRef]) -> Result<Vec<(craft_ext_core::project::PluginRef, craft_ext_core::project::Status)>, String>) {
+        while self.plugin_prompt.is_none() {
+            let Some((id, refs)) = self.docs.iter().find(|d| !self.plugin_prompted.contains(&d.doc.id.0)).map(|d| (d.doc.id.0, d.doc.plugins.clone())) else { return };
             self.plugin_prompted.insert(id);
-            if refs.is_empty() || self.plugin_prompt.is_some() {
+            if refs.is_empty() {
                 continue;
             }
-            match photocraft_plugins::store::manager().map_err(|e| e.to_string()).and_then(|m| m.check_project(&refs).map_err(|e| e.to_string())) {
+            match check(&refs) {
                 Ok(statuses) if statuses.iter().any(|(_, s)| !s.ready()) => self.plugin_prompt = Some(statuses),
                 Ok(_) => {}
                 Err(e) => eprintln!("plugins: cannot check the document's plugins: {e}"),
@@ -107,9 +112,11 @@ impl Session {
         self.check_opened_projects();
         self.plugin_check_gesture();
         let Some(mut rt) = self.plugin_sessions.take() else { return };
-        if self.plugin_picks.interactive && !self.plugin_run_begun {
-            self.plugin_run_begun = true;
-            rt.unclean = rt.begin_run();
+        let open: std::collections::BTreeSet<u64> = self.docs.iter().map(|d| d.doc.id.0).collect();
+        let closed: Vec<u64> = self.plugin_opened.iter().copied().filter(|id| !open.contains(id)).collect();
+        for id in closed {
+            self.plugin_opened.remove(&id);
+            self.plugin_jobs.cancel_document(&id.to_string());
         }
         let now = self.active().map(|d| (d.doc.id.0, self.active_generation(), d.selected_layers.clone(), d.doc.selection.clone()));
         let opened = self.docs.iter().filter(|d| !self.plugin_opened.contains(&d.doc.id.0)).map(|d| (d.doc.id.0, d.doc.name.clone())).collect::<Vec<_>>();
@@ -126,7 +133,7 @@ impl Session {
                 rt.notifications.push(format!("A plugin could not receive its file answer: {e}"));
             }
         }
-        rt.deliver_jobs(&self.plugin_capture());
+        rt.deliver_jobs(&self.plugin_capture(), self.plugin_gesture.is_some());
         while let Some(request) = rt.pending.pop_front().or_else(|| rt.requests.try_recv().ok()) {
             if matches!(request.action, Action::Begin) {
                 self.plugin_transaction(&mut rt, request);
@@ -175,8 +182,8 @@ impl Session {
             .collect()
     }
 
-    pub fn plugin_load_problems(&self) -> Vec<photocraft_plugins::runtime::Problem> {
-        self.plugin_sessions.as_ref().map(|rt| rt.problems.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()).unwrap_or_default()
+    pub fn plugin_load_problems(&self) -> Vec<(craft_ext_core::id::ExtensionId, String)> {
+        self.plugin_sessions.as_ref().map(Runtime::load_problems).unwrap_or_default()
     }
 
     pub fn end_plugin_run(&mut self) {
@@ -444,24 +451,6 @@ impl Session {
         }
     }
 
-    pub fn plugins_paused(&self) -> Vec<photocraft_plugins::runtime::Paused> {
-        self.plugin_sessions.as_ref().map(Runtime::paused).unwrap_or_default()
-    }
-
-    pub fn resume_plugin(&mut self, plugin: &str) -> crate::Result<()> {
-        self.ensure_plugin_sessions();
-        let rt = self.plugin_sessions.as_ref().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
-        if rt.resume(plugin).map_err(EngineError::Other)? == photocraft_plugins::runtime::Resumed::Reload {
-            self.ensure_plugin_sessions();
-            return Ok(());
-        }
-        let rt = self.plugin_sessions.as_ref().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
-        for e in rt.entries.iter().filter(|e| e.invocation.plugin.as_str() == plugin) {
-            let _ = rt.dispatch(&e.id, self.plugin_capture(), json!({"event":"init","contribution":e.contribution.id}));
-        }
-        Ok(())
-    }
-
     /// The canvas overlays of every plugin (image pixels).
     pub fn plugin_overlays(&self) -> Vec<craft_ext_core::ui::tree::DrawOp> {
         self.plugin_sessions.as_ref().map(|rt| rt.overlays.values().flatten().cloned().collect()).unwrap_or_default()
@@ -703,7 +692,7 @@ mod registry {
         let (Ok(releases), Ok(contract)) = (photocraft_plugins::store::enabled(), photocraft_plugins::contract()) else { return };
         let mut specs = Vec::new();
         let mut panels = Vec::new();
-        for (plugin, _version, _root, manifest, enabled) in releases {
+        for (plugin, _version, _root, manifest, enabled) in releases.releases {
             for c in manifest.contributions {
                 // The same selection `Runtime::load` makes: only these kinds get a worker.
                 let listed = enabled.contains(&c.id)
@@ -762,60 +751,11 @@ pub fn panels() -> Vec<SessionPanel> {
 
 /// The command specs of the enabled session contributions, for discovery and menus.
 pub fn specs() -> Vec<&'static CommandSpec> {
-    let mut all = manage_specs();
-    all.extend(registry::with(|specs| specs.to_vec()));
-    all
-}
-
-/// Commands that manage running plugins (not in menus: the Plugins window has the buttons).
-static MANAGE: [CommandSpec; 2] = [
-    CommandSpec {
-        id: "plugin.resume",
-        label: "Resume Plugin",
-        menu: &[],
-        shortcut: None,
-        params: r##"{"plugin":id} (a plugin turned off after repeated failures or an unexpected close; it stays off across restarts until resumed)"##,
-        enabled: session_enabled,
-        run: resume_run,
-        journal: false,
-    },
-    CommandSpec {
-        id: "plugin.paused",
-        label: "Paused Plugins",
-        menu: &[],
-        shortcut: None,
-        params: "{} → [{plugin, name, reason}]",
-        enabled: session_enabled,
-        run: paused_run,
-        journal: false,
-    },
-];
-
-fn resume_run(s: &mut Session, p: &Value) -> crate::Result<Value> {
-    let plugin = p
-        .get("plugin")
-        .and_then(Value::as_str)
-        .filter(|id| !id.is_empty() && id.len() <= 256)
-        .ok_or_else(|| EngineError::BadParams { cmd: "plugin.resume".into(), msg: "`plugin` is the plugin id".into() })?;
-    s.resume_plugin(plugin)?;
-    Ok(json!({"resumed": plugin}))
-}
-
-fn paused_run(s: &mut Session, _: &Value) -> crate::Result<Value> {
-    s.ensure_plugin_sessions();
-    Ok(json!(s.plugins_paused().into_iter().map(|p| json!({"plugin": p.plugin, "name": p.name, "reason": p.reason})).collect::<Vec<_>>()))
-}
-
-/// The plugin management commands.
-pub fn manage_specs() -> Vec<&'static CommandSpec> {
-    MANAGE.iter().collect()
+    registry::with(|specs| specs.to_vec())
 }
 
 /// The spec of session command `id`, while its contribution is enabled.
 pub fn find(id: &str) -> Option<&'static CommandSpec> {
-    if let Some(spec) = MANAGE.iter().find(|s| s.id == id) {
-        return Some(spec);
-    }
     if !id.starts_with(PREFIX) {
         return None;
     }
@@ -859,6 +799,35 @@ mod tests {
     fn op(s: &mut Session, op: &str, args: Value) -> Result<Value, OpError> {
         let mut staged = Staged::default();
         s.plugin_op(op, args, &mut OpCtx { plugin: "io.test.ops", owner: "plugin.session.io.test.ops/cmd", selection: &Value::Null, staged: &mut staged })
+    }
+    #[test]
+    fn each_document_missing_plugins_gets_its_prompt_after_the_one_before_is_answered() {
+        use craft_ext_core::project::{PluginRef, Source, Status};
+        let mut s = Session::new();
+        let reference = |id: &str| PluginRef {
+            id: craft_ext_core::id::ExtensionId::new(id).unwrap(),
+            version: craft_ext_core::version::Version::new(1, 0, 0),
+            sha256: None,
+            source: Source::Catalogue,
+            name: id.into(),
+            contributions: vec![],
+            state_versions: None,
+        };
+        for id in ["io.github.a.first", "io.github.a.second"] {
+            s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+            let d = s.docs.last_mut().unwrap();
+            Arc::make_mut(&mut d.doc).plugins = vec![reference(id)];
+        }
+        let missing = |refs: &[PluginRef]| Ok(refs.iter().map(|r| (r.clone(), Status::Downloadable)).collect::<Vec<_>>());
+        let prompted = |s: &mut Session| s.take_plugin_project_prompt().map(|p| p.into_iter().map(|(r, _)| r.id.to_string()).collect::<Vec<_>>());
+        s.prompt_for_documents(missing);
+        s.prompt_for_documents(missing);
+        assert_eq!(prompted(&mut s), Some(vec!["io.github.a.first".to_string()]));
+        assert_eq!(prompted(&mut s), None, "the second waits until the first is answered");
+        s.prompt_for_documents(missing);
+        assert_eq!(prompted(&mut s), Some(vec!["io.github.a.second".to_string()]));
+        s.prompt_for_documents(missing);
+        assert_eq!(prompted(&mut s), None, "each document is asked about once");
     }
     #[test]
     fn multiple_session_edits_fold_to_one_labelled_history_step() {
@@ -1187,8 +1156,8 @@ mod tests {
         s.execute("file.new", json!({"width":4,"height":4})).unwrap();
         let id = op(&mut s, "layer.create", json!({"name":"Rig","kind":"pixel"})).unwrap()["id"].as_u64().unwrap();
         s.edit("seed", |doc, _| {
-            doc.plugin_data.insert("io.github.gone.rig".into(), json!({"v":7,"newer":{"field":true}}));
-            doc.layer_mut(LayerId(id)).unwrap().plugin_data.insert("io.github.gone.rig".into(), json!({"bone":"hip"}));
+            Arc::make_mut(&mut doc.plugin_data).insert("io.github.gone.rig".into(), json!({"v":7,"newer":{"field":true}}));
+            Arc::make_mut(&mut doc.layer_mut(LayerId(id)).unwrap().plugin_data).insert("io.github.gone.rig".into(), json!({"bone":"hip"}));
             Ok(())
         })
         .unwrap();

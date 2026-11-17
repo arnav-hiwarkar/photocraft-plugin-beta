@@ -15,7 +15,7 @@ pub mod store {
     use super::{AppId, contract, safe_mode};
     use craft_ext_store::{
         Manager, Store,
-        view::{EnabledRelease, GrantView},
+        view::GrantView,
     };
     pub fn open() -> Result<Store, Box<dyn std::error::Error>> {
         Ok(Store::at(craft_ext_store::location::default_root()?))
@@ -82,7 +82,7 @@ pub mod store {
     pub fn named_filters() -> Result<Vec<(FilterSource, String)>, Box<dyn std::error::Error>> {
         let provided = contract()?.provided;
         let mut filters = Vec::new();
-        for (plugin, version, root, manifest, enabled) in enabled()? {
+        for (plugin, version, root, manifest, enabled) in enabled()?.releases {
             for contribution in manifest.contributions {
                 if enabled.contains(&contribution.id)
                     && contribution.kind == craft_ext_core::manifest::ContributionKind::Effect
@@ -94,27 +94,13 @@ pub mod store {
         }
         Ok(filters)
     }
-    pub fn enabled() -> Result<Vec<EnabledRelease>, Box<dyn std::error::Error>> {
+    pub fn enabled() -> Result<craft_ext_store::view::Enabled, Box<dyn std::error::Error>> {
         if safe_mode() {
-            return Ok(Vec::new());
+            return Ok(Default::default());
         }
         let app = app()?;
         let view = GrantView::open(craft_ext_store::location::default_root()?, app.clone())?;
-        Ok(view.enabled_contributions(&app)?)
-    }
-    pub fn quarantined(store: &Store) -> Result<Vec<crate::runtime::Paused>, Box<dyn std::error::Error>> {
-        let app = app()?;
-        let state = store.state()?;
-        let mut out = Vec::new();
-        for (id, setup) in state.apps.get(&app).into_iter().flatten() {
-            if let (Some(q), Some(active)) = (&setup.quarantine, setup.active)
-                && q.version == active
-            {
-                let name = store.manifest(&state, id, active).map_or_else(|_| id.to_string(), |m| m.name);
-                out.push(crate::runtime::Paused { plugin: id.to_string(), name, reason: q.reason.clone() });
-            }
-        }
-        Ok(out)
+        Ok(view.enabled_contributions(&app))
     }
 }
 
@@ -191,7 +177,7 @@ impl store::FilterSource {
     }
     pub fn validate(&self, generation: u64) -> Result<(), Box<dyn std::error::Error>> {
         if self.grant_generation()? != generation
-            || !store::enabled()?.iter().any(|(id, version, root, _, enabled)| {
+            || !store::enabled()?.releases.iter().any(|(id, version, root, _, enabled)| {
                 id == &self.plugin && version == &self.version && root == &self.root && enabled.contains(&self.contribution.id)
             })
         {

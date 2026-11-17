@@ -46,7 +46,7 @@ fn photocraft_example_plugins_end_to_end() {
     gradient_tool();
     levels_scope();
     layer_export();
-    pause_and_resume();
+    own_errors_never_turn_a_plugin_off();
 }
 
 fn gradient_tool() {
@@ -163,10 +163,9 @@ fn layer_export() {
     assert!(r["notifications"].to_string().contains("--pick"), "{r}");
 }
 
-fn pause_and_resume() {
+fn own_errors_never_turn_a_plugin_off() {
     let mut s = Session::new();
     s.execute("file.new", json!({"width":4,"height":4})).unwrap();
-    // A synchronous command serves the plugins' `init` events first, so the panel exists.
     let auto = format!("plugin.session.{LEVELS}/auto-levels-layer");
     s.execute(&auto, json!({})).unwrap();
     let key = format!("{LEVELS}/levels-scope");
@@ -175,18 +174,8 @@ fn pause_and_resume() {
         let rev = s.plugin_sessions.as_ref().unwrap().surfaces[&key].rev;
         s.execute("plugin.uiEvent", json!({"surface": key, "rev": rev, "widget": "black", "value": value}))
     };
-    // A number field that sends text: the plugin's event fails each time.
-    for _ in 0..3 {
+    for _ in 0..4 {
         assert!(send(&mut s, json!("not a number")).is_err());
     }
-    let paused = s.execute("plugin.paused", json!({})).unwrap();
-    assert_eq!(paused[0]["plugin"], LEVELS, "{paused}");
-    let err = send(&mut s, json!(12)).unwrap_err();
-    assert!(err.to_string().contains("paused"), "{err}");
-    s.execute("plugin.resume", json!({"plugin": LEVELS})).unwrap();
-    assert!(s.plugins_paused().is_empty());
-    // Resume sends `init` again; serve it before using the redrawn panel.
-    s.execute(&auto, json!({})).unwrap();
     send(&mut s, json!(12)).unwrap();
-    assert!(s.execute("plugin.resume", json!({"plugin": LEVELS})).is_err(), "not paused any more");
 }

@@ -105,6 +105,7 @@ mod tests {
             cancel: Arc::new(AtomicBool::new(false)),
             deadline: None,
             label: "Test · Bridge".into(),
+            document: None,
             declared: Arc::from([]),
         }
     }

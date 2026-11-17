@@ -30,7 +30,7 @@ Residual review work: revalidate cancellation and live grants after synchronous 
 
 New engine tests cover save-name validation, a symlink planted after staging, failure after one file has published (later writes stop), document/history rollback on publication failure, gesture file-operation refusal, histogram tile boundaries/work limits, and a one-pixel composite read from a giant sparse canvas. Existing session tests cover authorization-related op restrictions, layer locks, undo folding, cancellation and malformed params.
 
-The ignored integration test requires actual release-built guest packages and a disposable `CRAFT_EXT_DIR`. It exercises Gradient Ramp gesture commit/undo/Escape/revocation, Levels Scope panel/command, Layer Export and failed publication, and pause/resume. Merely compiling that test or observing its default ignored result is not counted as a pass.
+The ignored integration test requires actual release-built guest packages and a disposable `CRAFT_EXT_DIR`. It exercises Gradient Ramp gesture commit/undo/Escape/revocation, Levels Scope panel/command, Layer Export and failed publication, and that errors a plugin returns never turn it off. Merely compiling that test or observing its default ignored result is not counted as a pass.
 
 UI screenshots, wasm app gates, performance benchmarks, full corpus runs, Windows/macOS execution and remote CI must be reported separately; unit or headless integration results do not prove those behaviors.
 

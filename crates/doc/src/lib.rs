@@ -692,7 +692,7 @@ pub struct Layer {
     pub xmp: Option<Arc<str>>,
     /// Data Craft plugins keep on this layer, by plugin id: one JSON object each, opaque here and
     /// saved unchanged in `.pcraft` when the plugin is missing. Copied by [`Layer::duplicate`].
-    pub plugin_data: std::collections::BTreeMap<String, serde_json::Value>,
+    pub plugin_data: Arc<std::collections::BTreeMap<String, serde_json::Value>>,
 }
 
 impl Layer {
@@ -728,7 +728,7 @@ impl Layer {
             advanced: AdvancedBlending::default(),
             video: None,
             xmp: None,
-            plugin_data: std::collections::BTreeMap::new(),
+            plugin_data: Default::default(),
         }
     }
     pub fn raster(name: impl Into<String>, format: PixelFormat) -> Self {
@@ -962,7 +962,7 @@ pub struct Document {
     /// opening it where they are missing names them. Kept when a plugin is missing.
     pub plugins: Vec<PluginRef>,
     /// Data Craft plugins keep with the whole document, by plugin id (see [`Layer::plugin_data`]).
-    pub plugin_data: std::collections::BTreeMap<String, serde_json::Value>,
+    pub plugin_data: Arc<std::collections::BTreeMap<String, serde_json::Value>>,
 }
 
 pub use craft_ext_core::project::PluginRef;
@@ -1041,7 +1041,7 @@ impl Document {
             timeline: None,
             file_encoding: FileEncoding::default(),
             plugins: Vec::new(),
-            plugin_data: std::collections::BTreeMap::new(),
+            plugin_data: Default::default(),
         }
     }
 

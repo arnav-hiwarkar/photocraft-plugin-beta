@@ -10,7 +10,7 @@ use craft::ui::contract::{Bind, Props as _, Show as _, ShowContainer as _, Sizin
 use craft::ui::display::{Progress, Shade, Text};
 use craft::ui::layout_components::Row;
 use craft::ui::popover::Popover;
-use craft_ext_host::jobs::{JobInfo, JobState};
+use craft_ext_host::jobs::{JobInfo, Status};
 use craft::ui::canvas::{CanvasTool, ToolAction, ToolContext, ToolPath, ToolPointer};
 use craft::ui::primitives::Draw;
 use craft::ui::runtime::env::Label;
@@ -103,12 +103,12 @@ pub(crate) fn logic(app: &mut PhotocraftApp, ctx: &egui::Context) {
 }
 
 fn job_status(job: &JobInfo) -> String {
-    match &job.state {
-        JobState::Running if job.note.is_empty() => tl!("Working…").to_owned(),
-        JobState::Running => job.note.clone(),
-        JobState::Done(_) => tl!("Done").to_owned(),
-        JobState::Failed(why) => crate::i18n::fmt(tl!("Failed: {why}"), &[("why", why)]),
-        JobState::Cancelled => tl!("Cancelled").to_owned(),
+    match job.status() {
+        Status::Working => tl!("Working…").to_owned(),
+        Status::Note(note) => note.to_owned(),
+        Status::Done => tl!("Done").to_owned(),
+        Status::Failed(why) => crate::i18n::fmt(tl!("Failed: {why}"), &[("why", why)]),
+        Status::Cancelled => tl!("Cancelled").to_owned(),
     }
 }
 
@@ -142,7 +142,7 @@ pub(crate) fn status_jobs(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
             }
             Row::new().fill_width().show(ui, |ui, _| {
                 Text::new(job_status(job)).shade(Shade::Muted).show(ui);
-                if !job.state.finished() && job.cancellable && Button::new(tl!("Cancel")).show(ui).clicked() {
+                if !job.state.finished() && Button::new(tl!("Cancel")).show(ui).clicked() {
                     cancel.push(job.id);
                 }
             });
@@ -153,7 +153,7 @@ pub(crate) fn status_jobs(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     });
     STATE.with(|st| st.borrow_mut().jobs_open = open);
     for id in cancel {
-        app.session.plugin_jobs.cancel(id, false);
+        app.session.plugin_jobs.stop(id);
     }
     if clear {
         app.session.plugin_jobs.clear_finished();

@@ -15,6 +15,7 @@ use photocraft_geom::Rect;
 use photocraft_raster::Surface;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Pixel bytes one `pixels.get` or `selection.mask.get` may return (the result is base64, under
 /// the host's 8 MiB pending-result budget).
@@ -124,7 +125,7 @@ impl PickBinding {
         // PhotoCraft's plugin fingerprint: a catalogue refresh or another app's change must not
         // discard the user's answer to a pending file question.
         let generation = photocraft_plugins::store::generation().ok()?;
-        let (_, version, _, manifest, enabled) = photocraft_plugins::store::enabled().ok()?.into_iter().find(|r| r.0 == id)?;
+        let (_, version, _, manifest, enabled) = photocraft_plugins::store::enabled().ok()?.releases.into_iter().find(|r| r.0 == id)?;
         let contribution = manifest.contributions.iter().find(|c| owner == format!("plugin.session.{plugin}/{}", c.id) && enabled.contains(&c.id))?;
         if contribution.contract.check(&photocraft_plugins::contract().ok()?.provided).is_some() {
             return None;
@@ -554,8 +555,11 @@ impl Session {
             None => doc.plugin_data.get(plugin).cloned(),
             Some(l) => doc.layer(l).ok_or_else(|| OpError::new(Code::NotFound, "No such layer"))?.plugin_data.get(plugin).cloned(),
         };
+        let size = |v: &Value| PluginData::from_json(Some(v)).bytes();
+        let on_layers: usize = doc.layers.iter().filter(|l| Some(l.id) != layer).filter_map(|l| l.plugin_data.get(plugin)).map(size).sum();
+        let on_document = if layer.is_some() { doc.plugin_data.get(plugin).map_or(0, size) } else { 0 };
         let mut data = PluginData::from_json(saved.as_ref());
-        let out = handle(op, args, &mut data)?;
+        let out = handle(op, args, &mut data, on_layers + on_document)?;
         let next = data.to_json();
         if op == "project.data.set" && next != saved {
             #[cfg(not(target_arch = "wasm32"))]
@@ -564,8 +568,8 @@ impl Session {
             let installed = None;
             self.edit("Plugin Data", |doc, _| {
                 let map = match layer {
-                    None => &mut doc.plugin_data,
-                    Some(l) => &mut doc.layer_mut(l).ok_or(crate::EngineError::NoLayer(l))?.plugin_data,
+                    None => Arc::make_mut(&mut doc.plugin_data),
+                    Some(l) => Arc::make_mut(&mut doc.layer_mut(l).ok_or(crate::EngineError::NoLayer(l))?.plugin_data),
                 };
                 match next {
                     Some(v) => map.insert(plugin.to_string(), v),
