@@ -28,15 +28,15 @@ pub const SRGB_ONLY: &str = "This filter needs an sRGB document";
 
 // Dead on wasm with the rest of the plugin filter run path, which only native builds reach.
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-fn color_transforms(doc: &photocraft_doc::Document) -> Result<Option<(std::sync::Arc<photocraft_cms::Transform>, std::sync::Arc<photocraft_cms::Transform>)>> {
-    use photocraft_cms::{
+fn color_transforms(doc: &photocraft_doc::Document) -> Result<Option<(std::sync::Arc<craft_cms::Transform>, std::sync::Arc<craft_cms::Transform>)>> {
+    use craft_cms::{
         Builtin, Profile,
         transform::{TransformOptions, cached},
     };
     let Some(bytes) = &doc.icc_profile else { return Ok(None) };
     let bad = |_| EngineError::Other(SRGB_ONLY.into());
     let source = Profile::parse(bytes).map_err(bad)?;
-    if source.color_space != photocraft_cms::ColorSpace::Rgb {
+    if source.color_space != craft_cms::ColorSpace::Rgb {
         return Err(EngineError::Other(SRGB_ONLY.into()));
     }
     let target = if doc.depth == photocraft_color::SampleType::F32 { Builtin::LinearSrgb } else { Builtin::Srgb }.profile();

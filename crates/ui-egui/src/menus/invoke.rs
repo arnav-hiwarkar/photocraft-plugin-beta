@@ -113,6 +113,9 @@ fn invoke_early_commands(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str,
     }
     if let Some(tool) = crate::tool_shortcuts::tool(id) {
         crate::tool_memory::select(app, tool);
+        // The tool's own brush now, not at the next frame, so a paint command right after uses
+        // it: a first Pencil pick its 1 px tip (#12200), any other tool its remembered brush.
+        crate::paint_mouse::sync_tool_brush(app);
         return Some(Ok(json!({"tool": tool})));
     }
     if id == "layer.frame.convert" && params.as_object().is_none_or(|o| o.is_empty()) {
@@ -145,6 +148,9 @@ fn invoke_early_commands(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str,
     // An open Free Transform or Crop box steps itself first.
     if let Some(r) = crate::vector_ui::pen_history_step(app, id) {
         return Some(r.map(|_| Value::Null));
+    }
+    if id == "edit.undo" && crate::actions::library::edit_undo_label(app).is_some() {
+        return Some(crate::actions::library::undo(app));
     }
     // Image › Crop while the Crop tool has a pending frame commits that frame (#1918).
     if id == "image.crop" && crate::crop_ui::pending(app) {
