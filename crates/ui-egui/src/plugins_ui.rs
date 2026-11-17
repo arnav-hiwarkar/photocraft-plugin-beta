@@ -1,45 +1,45 @@
-//! Plugins in the desktop UI (native only): host-drawn panels and windows through the shared
-//! renderer (`craft_ext_ui::plugin_ui`, the engine chosen in Preferences ▸ Plugins), the selected
-//! plugin tool on the canvas (pointer gestures in image pixels; Escape cancels and rolls back),
-//! canvas overlays, answers to plugins' file questions, and notifications. Plugin code never runs
-//! here: widget changes and pointer events go to the plugin runtime, which serves document
-//! operations on this (the document) thread.
 use std::cell::RefCell;
 use std::path::PathBuf;
 
-use craft_ext_core::ui::tree::{DrawOp, Gradient, Paint, PathCmd};
+use craft::behavior::kurbo::Point;
+use craft::behavior::{CanvasView, CancelReason, Cursor, CursorIcon};
+use craft::host::{PickRequest as HostPick, Picked};
+use craft::theme::variant::Tone;
+use craft::ui::canvas::{CanvasTool, ToolAction, ToolContext, ToolPath, ToolPointer};
+use craft::ui::primitives::Draw;
+use craft::ui::runtime::env::Label;
+use craft::ui::runtime::memory::SaveKey;
+use craft::ui::shell::ViewportWindow;
+use craft_ext_core::ui::tree::{DrawOp, Gradient, Paint, PathCmd, UiEvent};
 use craft_ext_ui::plugin_ui::{EngineChoice, Host, PluginUi, Surface, Xf, paint_ops};
 use egui::{Pos2, Rect, pos2};
 use photocraft_engine::plugin_ops::{PickMode, PickRequest};
+use photocraft_engine::plugin_sessions::PREFIX;
 use photocraft_engine::prefs::PluginUiEngine;
 use serde_json::{Value, json};
 
 use crate::PhotocraftApp;
-use crate::canvas::ViewXform;
-use crate::file_dialog::{FileDialogAnswer, FileDialogRequest};
+use crate::canvas::tools::{FamilyTool, ToolScope};
+use crate::panels::registry::{self, PluginPanel};
 use crate::state::Tool;
 
-/// What the renderer gets from PhotoCraft. Defaults today: English host words, no framework
-/// components (their fallbacks draw), no widget registry.
+const IMAGE_EXTENSIONS: [&str; 9] = ["png", "jpg", "jpeg", "tif", "tiff", "webp", "psd", "gif", "bmp"];
+const SESSION_REPAINT: std::time::Duration = std::time::Duration::from_millis(100);
+
 pub(crate) struct PhotocraftHost;
 impl Host for PhotocraftHost {}
 
 #[derive(Default)]
 struct State {
-    renderer: Option<(EngineChoice, PluginUi)>,
-    /// The file question whose dialog is open.
+    renderer: Option<PluginUi>,
     awaiting: Option<PickRequest>,
-    /// The built-in tool when the plugin tool was picked: choosing another puts the plugin tool down.
     base_tool: Option<Tool>,
-    /// The last pointer position sent during a gesture, so a still pointer sends nothing.
-    last_at: Option<[f64; 2]>,
 }
 
 thread_local! {
     static STATE: RefCell<State> = RefCell::new(State::default());
 }
 
-/// The engine the app chose (Preferences ▸ Plugins ▸ Plugin UI Engine). Plugins never choose.
 fn engine_choice(app: &PhotocraftApp) -> EngineChoice {
     match app.session.prefs().plug_ins.plugin_ui_engine {
         PluginUiEngine::Egui => EngineChoice::Egui,
@@ -47,63 +47,143 @@ fn engine_choice(app: &PhotocraftApp) -> EngineChoice {
     }
 }
 
-pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
-    // This session has a desktop to ask the person: plugins' file questions open dialogs.
-    app.session.plugin_picks.interactive = true;
-    app.session.pump_plugins();
-    follow_tool_choice(app, ctx);
-    answer_picks(app);
-    let choice = engine_choice(app);
-    let surfaces = app.session.plugin_sessions.as_ref().map(|r| r.surfaces.values().cloned().collect::<Vec<_>>()).unwrap_or_default();
-    let mut events = vec![];
+fn with_renderer<R>(choice: EngineChoice, f: impl FnOnce(&mut PluginUi) -> R) -> R {
     STATE.with(|st| {
         let mut st = st.borrow_mut();
-        if st.renderer.as_ref().is_none_or(|(c, _)| *c != choice) {
-            st.renderer = Some((choice, PluginUi::new(choice)));
+        let renderer = match st.renderer.take() {
+            Some(renderer) if renderer.choice() == choice => renderer,
+            _ => PluginUi::new(choice),
+        };
+        f(st.renderer.insert(renderer))
+    })
+}
+
+pub(crate) fn register_panels() -> bool {
+    registry::set_plugin_panels(photocraft_engine::plugin_sessions::panels())
+}
+
+pub(crate) fn logic(app: &mut PhotocraftApp, ctx: &egui::Context) {
+    app.session.plugin_picks.interactive = true;
+    app.session.pump_plugins();
+    if register_panels() {
+        crate::panel_docking::reconcile_plugin_panels(app);
+    }
+    sync_panel_surfaces(app);
+    follow_tool_choice(app, ctx);
+    answer_picks(app);
+    let notifications = match app.session.plugin_sessions.as_mut() {
+        Some(rt) => {
+            if !rt.entries.is_empty() {
+                ctx.request_repaint_after(SESSION_REPAINT);
+            }
+            std::mem::take(&mut rt.notifications)
         }
-        let Some((_, renderer)) = st.renderer.as_mut() else { return };
+        None => Vec::new(),
+    };
+    for message in notifications {
+        crate::notices::post(app, "Plugin notification", vec![message], Tone::Neutral, None);
+    }
+}
+
+fn sync_panel_surfaces(app: &mut PhotocraftApp) {
+    let shown: Vec<(String, bool)> = registry::plugin_panels().into_iter().map(|p| (p.surface, crate::panel_docking::is_shown(app, p.id))).collect();
+    let Some(rt) = app.session.plugin_sessions.as_mut() else { return };
+    for (key, open) in shown {
+        if let Some(surface) = rt.surfaces.get_mut(&key) {
+            surface.open = open;
+        }
+    }
+}
+
+pub(crate) fn run_session_command(app: &mut PhotocraftApp, id: &str, params: &Value) -> Result<Value, String> {
+    if !id.starts_with(PREFIX) {
+        return Err(format!("{id} is not a plugin session command"));
+    }
+    let Some(panel) = registry::plugin_panels().into_iter().find(|p| p.command == id) else {
+        return app.session.execute(id, params.clone()).map_err(|e| e.to_string());
+    };
+    let drawn = app.session.plugin_sessions.as_ref().is_some_and(|rt| rt.surfaces.contains_key(&panel.surface));
+    if !drawn {
+        app.session.execute(id, params.clone()).map_err(|e| e.to_string())?;
+    }
+    let shown = crate::panel_docking::show_panel(app, panel.id, Some(true))?;
+    sync_panel_surfaces(app);
+    Ok(json!({"panel": panel.id, "shown": shown}))
+}
+
+fn event_json(key: &str, event: &UiEvent) -> Value {
+    json!({"surface": key, "rev": event.rev, "widget": event.widget, "value": serde_json::to_value(&event.value).unwrap_or(Value::Null)})
+}
+
+fn send_events(app: &mut PhotocraftApp, events: Vec<Value>) {
+    for event in events {
+        if let Err(e) = app.session.execute("plugin.uiEvent", event) {
+            crate::dialogs::alerts::report_error(app, e.to_string());
+        }
+    }
+}
+
+fn current_events(key: &str, rev: u64, drawn: Vec<UiEvent>) -> Vec<Value> {
+    drawn.iter().filter(|e| !e.is_stale(rev)).map(|e| event_json(key, e)).collect()
+}
+
+pub(crate) fn panel_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, panel: &PluginPanel) {
+    let surface = app.session.plugin_sessions.as_ref().and_then(|rt| rt.surfaces.get(&panel.surface)).cloned();
+    let choice = engine_choice(app);
+    let events = with_renderer(choice, |renderer| {
+        egui::ScrollArea::vertical()
+            .id_salt(("plugin-panel", panel.id))
+            .auto_shrink(false)
+            .show(ui, |ui| match &surface {
+                Some(sf) => current_events(&sf.key, sf.rev, renderer.draw(ui, Surface { key: &sf.key, rev: sf.rev, tree: &sf.tree }, &mut PhotocraftHost)),
+                None => {
+                    renderer.draw_json(ui, &panel.surface, 0, None, &mut PhotocraftHost);
+                    Vec::new()
+                }
+            })
+            .inner
+    });
+    send_events(app, events);
+}
+
+pub(crate) fn windows(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+    let panels: Vec<String> = registry::plugin_panels().into_iter().map(|p| p.surface).collect();
+    let surfaces: Vec<_> =
+        app.session.plugin_sessions.as_ref().map(|rt| rt.surfaces.values().filter(|s| !panels.contains(&s.key)).cloned().collect()).unwrap_or_default();
+    let choice = engine_choice(app);
+    let mut events = Vec::new();
+    let mut closed = Vec::new();
+    with_renderer(choice, |renderer| {
         for sf in surfaces {
             if !sf.open {
                 renderer.forget(&sf.key);
                 continue;
             }
-            let mut open = true;
-            egui::Window::new(&sf.title).id(egui::Id::unique(("photocraft-plugin-surface", &sf.key))).open(&mut open).resizable(true).default_width(280.0).show(ctx, |ui| {
-                for e in renderer.draw(ui, Surface { key: &sf.key, rev: sf.rev, tree: &sf.tree }, &mut PhotocraftHost) {
-                    if !e.is_stale(sf.rev) {
-                        events.push(json!({"surface": sf.key, "rev": e.rev, "widget": e.widget, "value": serde_json::to_value(&e.value).unwrap_or(Value::Null)}));
-                    }
-                }
-            });
-            if !open {
+            let window = ViewportWindow::new(Label::from(sf.title.clone())).remember(SaveKey::named(format!("photocraft.plugin.{}", sf.key)));
+            let out = ui
+                .push_id(("plugin-window", &sf.key), |ui| {
+                    window.show(ui, |ui, _| {
+                        let drawn = renderer.draw(ui, Surface { key: &sf.key, rev: sf.rev, tree: &sf.tree }, &mut PhotocraftHost);
+                        events.extend(current_events(&sf.key, sf.rev, drawn));
+                    })
+                })
+                .inner;
+            if out.close_requested.is_some() {
                 renderer.forget(&sf.key);
-                if let Some(s) = app.session.plugin_sessions.as_mut().and_then(|r| r.surfaces.get_mut(&sf.key)) {
-                    s.open = false;
-                }
+                closed.push(sf.key);
             }
         }
     });
-    for event in events {
-        if let Err(e) = app.session.execute("plugin.uiEvent", event) {
-            app.ui.status = e.to_string();
-            app.ui.status_error = true;
+    if let Some(rt) = app.session.plugin_sessions.as_mut() {
+        for key in closed {
+            if let Some(surface) = rt.surfaces.get_mut(&key) {
+                surface.open = false;
+            }
         }
     }
-    let notifications = if let Some(rt) = app.session.plugin_sessions.as_mut() {
-        if !rt.entries.is_empty() {
-            ctx.request_repaint_after(std::time::Duration::from_millis(100));
-        }
-        std::mem::take(&mut rt.notifications)
-    } else {
-        vec![]
-    };
-    for message in notifications {
-        crate::notices::post(app, "Plugin notification", vec![message], false, None);
-    }
+    send_events(app, events);
 }
 
-/// Keeps the plugin tool and the toolbar honest: picking any built-in tool puts the plugin tool
-/// down (a gesture under way rolls back), and Escape cancels a gesture or puts the tool down.
 fn follow_tool_choice(app: &mut PhotocraftApp, ctx: &egui::Context) {
     let selected = app.session.plugin_tool.is_some();
     let changed = STATE.with(|st| {
@@ -124,32 +204,41 @@ fn follow_tool_choice(app: &mut PhotocraftApp, ctx: &egui::Context) {
         deselect(app);
         return;
     }
-    if selected && app.ui.dialogs.is_empty() && !ctx.egui_wants_keyboard_input() && ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+    let escape = selected
+        && !app.session.plugin_gesture_active()
+        && !app.dialog_open()
+        && !ctx.egui_wants_keyboard_input()
+        && ctx.input(|i| i.key_pressed(egui::Key::Escape));
+    if escape {
         app.session.plugin_tool_escape();
-        STATE.with(|st| st.borrow_mut().last_at = None);
     }
 }
 
-/// Puts the plugin tool down (rolling back a gesture under way).
 pub(crate) fn deselect(app: &mut PhotocraftApp) {
     if app.session.plugin_gesture_active() {
         app.session.plugin_tool_escape();
     }
     app.session.plugin_tool = None;
-    STATE.with(|st| {
-        let mut st = st.borrow_mut();
-        st.base_tool = None;
-        st.last_at = None;
-    });
+    STATE.with(|st| st.borrow_mut().base_tool = None);
 }
 
-/// Whether a plugin tool is selected (the toolbar shows no built-in tool as current then).
 pub(crate) fn tool_selected(app: &PhotocraftApp) -> bool {
     app.session.plugin_tool.is_some()
 }
 
-/// Shows the file question a plugin asked once its event committed; a closed dialog that never
-/// answered is a Cancel.
+fn host_pick(req: &PickRequest) -> HostPick {
+    let pick = match req.mode {
+        PickMode::Folder => HostPick::folder("plugin"),
+        PickMode::Save => {
+            let mut pick = HostPick::save("plugin");
+            pick.file_name = Some(req.name.clone());
+            pick
+        }
+        PickMode::Open => HostPick::open("plugin").filter("Images", &IMAGE_EXTENSIONS),
+    };
+    if req.title.is_empty() { pick } else { pick.title(req.title.clone()) }
+}
+
 fn answer_picks(app: &mut PhotocraftApp) {
     let awaiting = STATE.with(|st| st.borrow().awaiting.clone());
     if let Some(req) = awaiting {
@@ -163,24 +252,14 @@ fn answer_picks(app: &mut PhotocraftApp) {
         return;
     }
     let Some(req) = app.session.take_plugin_pick() else { return };
-    let request = match req.mode {
-        PickMode::Folder => FileDialogRequest::Folder { initial_dir: None },
-        PickMode::Save => FileDialogRequest::Save { suggested: req.name.clone() },
-        PickMode::Open => FileDialogRequest::Open {
-            multiple: false,
-            initial_dir: None,
-            extensions: Some(["png", "jpg", "jpeg", "tif", "tiff", "webp", "psd", "gif", "bmp"].iter().map(|s| s.to_string()).collect()),
-        },
-    };
     let answered = req.clone();
-    let asked = app.ask_file(request, move |app, answer| {
+    let asked = app.ask_file(host_pick(&req), move |app, picked| {
         STATE.with(|st| st.borrow_mut().awaiting = None);
-        let path = match answer {
-            FileDialogAnswer::Paths(p) => p.into_iter().next(),
-            FileDialogAnswer::SaveTo(p) | FileDialogAnswer::FolderTo(p) => Some(p),
+        let path: Option<PathBuf> = match picked {
+            Picked::Paths(paths) => paths.into_iter().next(),
             _ => None,
         };
-        app.session.answer_plugin_pick(&answered, path.map(PathBuf::from));
+        app.session.answer_plugin_pick(&answered, path);
         Ok(Value::Null)
     });
     match asked {
@@ -189,91 +268,103 @@ fn answer_picks(app: &mut PhotocraftApp) {
     }
 }
 
-/// The selected plugin tool takes the canvas's primary-button gestures (the caller has already
-/// left Space, the middle button, held zoom keys and Free Transform to the canvas). Sends begin on
-/// the press, at most one update per frame while the pointer moves, and commit on release.
-pub(crate) fn canvas_pointer(app: &mut PhotocraftApp, ctx: &egui::Context, response: &egui::Response, xf: &ViewXform) {
-    if response.hovered() || app.session.plugin_gesture_active() {
-        ctx.set_cursor_icon(egui::CursorIcon::Crosshair);
-    }
-    let (pressed, down, released, mods, pos, origin) = ctx.input(|i| {
-        (i.pointer.primary_pressed(), i.pointer.primary_down(), i.pointer.primary_released(), i.modifiers, i.pointer.interact_pos(), i.pointer.press_origin())
-    });
-    let mods = json!({"shift": mods.shift, "alt": mods.alt, "ctrl": mods.ctrl, "cmd": mods.command});
-    let extra = json!({"modifiers": mods, "button": "primary", "pressure": app.stylus.pressure(), "zoom": xf.zoom});
-    let report = |app: &mut PhotocraftApp, r: photocraft_engine::Result<()>| {
-        if let Err(e) = r {
-            app.ui.status = e.to_string();
-            app.ui.status_error = true;
-        }
-    };
-    if pressed && !app.session.plugin_gesture_active() {
-        if let Some(p) = origin.filter(|p| response.rect.contains(*p) && response.contains_pointer()) {
-            let at = xf.to_doc(p);
-            STATE.with(|st| st.borrow_mut().last_at = Some(at));
-            let r = app.session.plugin_tool_event("begin", at, extra.clone());
-            report(app, r);
-        }
-        return;
-    }
-    if !app.session.plugin_gesture_active() {
-        return;
-    }
-    let at = pos.map(|p| xf.to_doc(p));
-    if released || !down {
-        let at = at.or_else(|| STATE.with(|st| st.borrow().last_at)).unwrap_or([0.0, 0.0]);
-        STATE.with(|st| st.borrow_mut().last_at = None);
-        let r = app.session.plugin_tool_event("commit", at, extra);
-        report(app, r);
-        return;
-    }
-    if let Some(at) = at {
-        let moved = STATE.with(|st| {
-            let mut st = st.borrow_mut();
-            let moved = st.last_at != Some(at);
-            st.last_at = Some(at);
-            moved
-        });
-        if moved {
-            let r = app.session.plugin_tool_event("update", at, extra);
-            report(app, r);
-        }
-    }
-    ctx.request_repaint();
+struct PluginTool<'a> {
+    scope: &'a ToolScope<'a>,
 }
 
-/// Paints the plugins' canvas overlays (image pixels) and the selected tool's name.
-pub(crate) fn paint_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform, clip: Rect) {
+pub(crate) fn tool<'a>(scope: &'a ToolScope<'a>) -> FamilyTool<'a> {
+    Box::new(PluginTool { scope })
+}
+
+impl PluginTool<'_> {
+    fn send(&self, phase: &str, pointer: &ToolPointer, cx: &ToolContext<'_>) -> bool {
+        let Some(view) = cx.space().map(|space| space.view) else { return false };
+        let at = view.to_doc(pointer.pos);
+        if !(at.x.is_finite() && at.y.is_finite()) {
+            return false;
+        }
+        let mods = json!({"shift": pointer.mods.shift, "alt": pointer.mods.alt, "ctrl": pointer.mods.ctrl, "cmd": pointer.mods.cmd});
+        let extra = json!({"modifiers": mods, "button": "primary", "pressure": pointer.sample.pressure, "zoom": view.zoom});
+        self.scope.with_app(|app| match app.session.plugin_tool_event(phase, [at.x, at.y], extra) {
+            Ok(()) => app.session.plugin_gesture_active(),
+            Err(e) => {
+                crate::dialogs::alerts::report_error(app, e.to_string());
+                false
+            }
+        })
+    }
+}
+
+impl CanvasTool for PluginTool<'_> {
+    fn press(&mut self, pointer: &ToolPointer, cx: &mut ToolContext<'_>) -> ToolAction {
+        if self.send("begin", pointer, cx) { ToolAction::Claimed } else { ToolAction::Done }
+    }
+
+    fn drag(&mut self, pointer: &ToolPointer, cx: &mut ToolContext<'_>) {
+        if self.scope.with_app(|app| app.session.plugin_gesture_active()) {
+            self.send("update", pointer, cx);
+        }
+    }
+
+    fn release(&mut self, pointer: &ToolPointer, cx: &mut ToolContext<'_>) {
+        if self.scope.with_app(|app| app.session.plugin_gesture_active()) {
+            self.send("commit", pointer, cx);
+        }
+    }
+
+    fn cancel(&mut self, _: CancelReason, _: &mut ToolContext<'_>) {
+        self.scope.with_app(|app| {
+            if app.session.plugin_gesture_active() {
+                app.session.plugin_tool_escape();
+            }
+        });
+    }
+
+    fn paint(&self, _: &Draw<'_>, _: &ToolContext<'_>) {}
+
+    fn cursor(&self, _: &ToolContext<'_>) -> Cursor {
+        Cursor::System(CursorIcon::Crosshair)
+    }
+
+    fn autoscrolls(&self) -> bool {
+        false
+    }
+
+    fn command_form(&self) -> ToolPath {
+        ToolPath::Command("the plugin tool's session command with points")
+    }
+}
+
+pub(crate) fn paint_overlay(app: &PhotocraftApp, ui: &egui::Ui, clip: Rect, view: &CanvasView) {
+    let painter = ui.painter().with_clip_rect(clip);
     let ops = app.session.plugin_overlays();
     if !ops.is_empty() {
-        let screen: Vec<DrawOp> = ops.iter().filter_map(|op| to_screen(op, xf)).collect();
-        paint_ops(painter, Xf::new(Pos2::ZERO, 1.0), clip, &screen, &|_| None);
+        let screen: Vec<DrawOp> = ops.iter().filter_map(|op| to_screen(op, view)).collect();
+        paint_ops(&painter, Xf::new(Pos2::ZERO, 1.0), clip, &screen, &|_| None);
     }
     if let Some(label) = app.session.plugin_tool_label() {
         let t = crate::theme::Tokens::get(painter.ctx());
-        let text = format!("{label} — Esc puts it down");
-        let galley = painter.layout_no_wrap(text, egui::FontId::proportional(12.0), t.text);
-        let r = Rect::from_min_size(clip.min + egui::vec2(8.0, 8.0), galley.size() + egui::vec2(12.0, 6.0));
-        painter.rect_filled(r, 4.0, t.chrome);
-        painter.galley(r.min + egui::vec2(6.0, 3.0), galley, t.text);
+        let galley = painter.layout_no_wrap(format!("{label} — Esc puts it down"), egui::TextStyle::Small.resolve(ui.style()), t.text);
+        let pad = ui.spacing().button_padding;
+        let at = clip.min + ui.spacing().item_spacing;
+        let chip = Rect::from_min_size(at, galley.size() + 2.0 * pad);
+        painter.rect_filled(chip, ui.visuals().widgets.noninteractive.corner_radius, t.chrome);
+        painter.galley(chip.min + pad, galley, t.text);
     }
 }
 
-/// An overlay op in image pixels mapped to screen points through the view (zoom, pan, rotation,
-/// flip, pixel aspect). Lengths (radii) scale with the zoom; stroke widths and text sizes stay in
-/// screen points. Rotated rectangles become polygons.
-fn to_screen(op: &DrawOp, xf: &ViewXform) -> Option<DrawOp> {
+fn to_screen(op: &DrawOp, view: &CanvasView) -> Option<DrawOp> {
     let p = |q: [f32; 2]| {
-        let s = xf.to_screen(q[0], q[1]);
+        let s = view.to_screen(Point::new(f64::from(q[0]), f64::from(q[1])));
         [s.x, s.y]
     };
-    let len = |v: f32| v * xf.zoom_x().abs();
+    let len = |v: f32| v * view.zoom_x().abs() as f32;
     let paint = |f: &Paint| match f {
         Paint::Solid(c) => Paint::Solid(*c),
         Paint::Gradient(Gradient::Linear { from, to, stops }) => Paint::Gradient(Gradient::Linear { from: p(*from), to: p(*to), stops: stops.clone() }),
         Paint::Gradient(Gradient::Radial { center, radius, stops }) => Paint::Gradient(Gradient::Radial { center: p(*center), radius: len(*radius), stops: stops.clone() }),
     };
-    let axis_aligned = xf.rotation.rem_euclid(360.0) == 0.0 && !xf.flip;
+    let axis_aligned = view.rotation.rem_euclid(360.0) == 0.0 && !view.flip_x;
     Some(match op {
         DrawOp::Line(l) => {
             let mut l = l.clone();
@@ -330,7 +421,6 @@ fn to_screen(op: &DrawOp, xf: &ViewXform) -> Option<DrawOp> {
             DrawOp::Clip(craft_ext_core::ui::tree::ClipOp { min: [r.min.x, r.min.y], max: [r.max.x, r.max.y] })
         }
         DrawOp::ResetClip => DrawOp::ResetClip,
-        // Overlays carry no images (`validate_draw_list` refuses them).
         DrawOp::Image(_) => return None,
     })
 }
@@ -339,22 +429,24 @@ fn to_screen(op: &DrawOp, xf: &ViewXform) -> Option<DrawOp> {
 mod tests {
     use super::*;
 
-    fn xf(zoom: f32, rotation: f32) -> ViewXform {
-        ViewXform { rect: Rect::from_min_size(Pos2::ZERO, egui::vec2(200.0, 100.0)), zoom, center: [50.0, 25.0], flip: false, rotation, aspect: 1.0 }
+    fn view(zoom: f64, rotation: f64) -> CanvasView {
+        let mut view = CanvasView::new(Rect::from_min_size(Pos2::ZERO, egui::vec2(200.0, 100.0)), Point::new(50.0, 25.0), zoom);
+        view.rotation = rotation;
+        view
     }
 
     #[test]
     fn overlay_ops_follow_the_view_and_scale_radii_not_strokes() {
         let line: DrawOp = serde_json::from_value(json!({"op":"line","from":[50,25],"to":[60,25],"width":2,"rgba":[1,0,0,1]})).unwrap();
-        let DrawOp::Line(l) = to_screen(&line, &xf(2.0, 0.0)).unwrap() else { panic!() };
-        // The view's centre is the document's [50, 25]; ten pixels at zoom 2 are 20 points.
-        assert!((l.to[0] - l.from[0] - 20.0).abs() < 1e-3, "{l:?}");
+        let Some(DrawOp::Line(l)) = to_screen(&line, &view(2.0, 0.0)) else { panic!("a line stays a line") };
+        assert_eq!(l.from, [100.0, 50.0]);
+        assert_eq!(l.to, [120.0, 50.0]);
         assert_eq!(l.width, 2.0);
         let circle: DrawOp = serde_json::from_value(json!({"op":"circle","center":[50,25],"radius":5,"fill":[1,1,1,1]})).unwrap();
-        let DrawOp::Circle(c) = to_screen(&circle, &xf(2.0, 0.0)).unwrap() else { panic!() };
-        assert!((c.radius - 10.0).abs() < 1e-3);
+        let Some(DrawOp::Circle(c)) = to_screen(&circle, &view(2.0, 0.0)) else { panic!("a circle stays a circle") };
+        assert_eq!(c.radius, 10.0);
         let rect: DrawOp = serde_json::from_value(json!({"op":"rect","min":[0,0],"max":[10,10],"fill":[1,1,1,1]})).unwrap();
-        assert!(matches!(to_screen(&rect, &xf(1.0, 0.0)), Some(DrawOp::Rect(_))));
-        assert!(matches!(to_screen(&rect, &xf(1.0, 30.0)), Some(DrawOp::Polygon(_))), "a rotated view turns rectangles");
+        assert!(matches!(to_screen(&rect, &view(1.0, 0.0)), Some(DrawOp::Rect(_))));
+        assert!(matches!(to_screen(&rect, &view(1.0, 30.0)), Some(DrawOp::Polygon(_))));
     }
 }

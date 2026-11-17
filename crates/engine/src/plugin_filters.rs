@@ -341,7 +341,7 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
             let before = surf.read_region(area);
             let mut working = before.clone();
             if let Some((to, _)) = &transforms {
-                to.apply(&mut working, n);
+                to.apply(&mut working, n).map_err(|e| EngineError::Other(e.to_string()))?;
             }
             let px = to_premultiplied(&working, n).map_err(EngineError::Other)?;
             let cancelled = || ctx.cancelled();
@@ -351,7 +351,7 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
             ctx.check()?;
             let mut after = from_premultiplied(&out, n, format.sample != SampleType::F32).map_err(EngineError::Other)?;
             if let Some((_, back)) = &transforms {
-                back.apply(&mut after, n);
+                back.apply(&mut after, n).map_err(|e| EngineError::Other(e.to_string()))?;
             }
             if after.len() != before.len() {
                 return Err(EngineError::Other(format!("{failed} returned an image of the wrong size")));

@@ -568,6 +568,7 @@ mod registry {
         checked: Option<Instant>,
         generation: Option<u64>,
         specs: Vec<&'static CommandSpec>,
+        panels: Vec<SessionPanel>,
         /// Specs are `'static`: each distinct (id, label, plugin name) is leaked once and reused.
         interned: HashMap<String, &'static CommandSpec>,
     }
@@ -615,6 +616,7 @@ mod registry {
         }
         let (Ok(releases), Ok(contract)) = (photocraft_plugins::store::enabled(), photocraft_plugins::contract()) else { return };
         let mut specs = Vec::new();
+        let mut panels = Vec::new();
         for (plugin, _version, _root, manifest, enabled) in releases {
             for c in manifest.contributions {
                 // The same selection `Runtime::load` makes: only these kinds get a worker.
@@ -622,12 +624,17 @@ mod registry {
                     && matches!(c.kind, ContributionKind::Command | ContributionKind::Panel | ContributionKind::Tool)
                     && c.contract.check(&contract.provided).is_none();
                 if listed {
-                    specs.push(spec_for(r, format!("{PREFIX}{plugin}/{}", c.id), &c.label, &manifest.name));
+                    let spec = spec_for(r, format!("{PREFIX}{plugin}/{}", c.id), &c.label, &manifest.name);
+                    specs.push(spec);
+                    if c.kind == ContributionKind::Panel {
+                        panels.push(SessionPanel { plugin: plugin.to_string(), panel: c.id.clone(), label: c.label.clone(), command: spec.id });
+                    }
                 }
             }
         }
         r.generation = generation;
         r.specs = specs;
+        r.panels = panels;
         REVISION.fetch_add(1, Ordering::Relaxed);
     }
 
@@ -641,6 +648,30 @@ mod registry {
         with(|_| ());
         REVISION.load(Ordering::Relaxed)
     }
+
+    pub(super) fn panels() -> Vec<SessionPanel> {
+        let mut r = registry().lock().unwrap_or_else(PoisonError::into_inner);
+        refresh(&mut r);
+        r.panels.clone()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionPanel {
+    pub plugin: String,
+    pub panel: String,
+    pub label: String,
+    pub command: &'static str,
+}
+
+impl SessionPanel {
+    pub fn surface(&self) -> String {
+        format!("{}/{}", self.plugin, self.panel)
+    }
+}
+
+pub fn panels() -> Vec<SessionPanel> {
+    registry::panels()
 }
 
 /// The command specs of the enabled session contributions, for discovery and menus.
