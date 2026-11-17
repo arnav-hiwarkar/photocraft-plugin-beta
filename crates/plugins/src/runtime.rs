@@ -9,7 +9,7 @@ use craft_ext_core::{
 use craft_ext_host::{
     api::{Code, Grants, Invocation, OpError},
     jobs::JobBoard,
-    native::{Confinement, Helper},
+    native::{Confinement, Helper, HelperLaunch},
     wasm::{Plugin, Session},
 };
 use craft_ext_store::Store;
@@ -165,7 +165,7 @@ impl Program {
                 Runner::Wasm(s)
             }),
             Self::Native { exe, work, confinement } => {
-                Helper::start_confined(plugin, version, &exe, &work, api, Arc::new(LiveGrants), log, &confinement).map(|mut h| {
+                Helper::start(plugin, version, &HelperLaunch { exe, work, confinement }, api, Arc::new(LiveGrants), log).map(|mut h| {
                     h.set_jobs(jobs);
                     Runner::Native(h)
                 })
