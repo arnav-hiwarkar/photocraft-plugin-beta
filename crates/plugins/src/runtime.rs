@@ -79,7 +79,6 @@ pub struct Surface {
     pub owner: String,
 }
 pub const PAUSE_AFTER: u32 = 3;
-pub const UNCLEAN_EXIT: &str = "the app closed unexpectedly while this plugin was running";
 
 pub type Health = Arc<Mutex<BTreeMap<String, (u32, String)>>>;
 
@@ -481,17 +480,6 @@ impl Runtime {
         }
         h.remove(plugin);
         Ok(Resumed::Init)
-    }
-    pub fn quarantine_unclean(&mut self) -> Result<(), String> {
-        let store = crate::store::open().map_err(|e| e.to_string())?;
-        let app = crate::store::app().map_err(|e| e.to_string())?;
-        for plugin in std::mem::take(&mut self.unclean) {
-            let version = self.entries.iter().find(|e| e.invocation.plugin == plugin).map(|e| e.invocation.version);
-            if let Some(version) = version {
-                store.quarantine(&app, &plugin, version, UNCLEAN_EXIT).map_err(|e| e.to_string())?;
-            }
-        }
-        Ok(())
     }
     fn declared_level(&self, inv: &Invocation) -> craft_ext_core::contract::Level {
         self.entries

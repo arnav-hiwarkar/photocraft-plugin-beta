@@ -175,6 +175,38 @@ pub struct OpCtx<'a> {
     pub staged: &'a mut Staged,
 }
 
+/// Records in `doc.plugins` each plugin whose LUT a Color Lookup layer uses (`plugin://<plugin>/
+/// <contribution>/<file>`), so opening the document where the plugin is missing names it. Reads
+/// the plugin store only for a use not recorded yet.
+pub(crate) fn record_plugin_luts(doc: &mut photocraft_doc::Document) {
+    let mut uses = Vec::new();
+    let mut stack: Vec<&Layer> = doc.layers.iter().collect();
+    while let Some(layer) = stack.pop() {
+        match &layer.content {
+            LayerContent::Group(g) => stack.extend(g.children.iter()),
+            LayerContent::Adjustment(photocraft_doc::Adjustment::ColorLookup { name, .. }) => {
+                let mut parts = name.strip_prefix("plugin://").unwrap_or("").splitn(3, '/');
+                if let (Some(plugin), Some(contribution)) = (parts.next(), parts.next())
+                    && let Ok(id) = craft_ext_core::id::ExtensionId::new(plugin)
+                {
+                    uses.push((id, contribution.to_string()));
+                }
+            }
+            _ => {}
+        }
+    }
+    for (id, contribution) in uses {
+        if doc.plugins.iter().any(|r| r.id == id && r.contributions.contains(&contribution)) {
+            continue;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        let installed = photocraft_plugins::store::installed_reference(&id);
+        #[cfg(target_arch = "wasm32")]
+        let installed = None;
+        photocraft_plugins::record_use(&mut doc.plugins, &id, Some(&contribution), installed);
+    }
+}
+
 fn invalid(m: impl Into<String>) -> OpError {
     OpError::invalid(m)
 }
@@ -507,6 +539,46 @@ impl Session {
     }
 
     /// Runs one contract operation. `ui.*` and `canvas.overlay.set` are handled by the caller.
+    /// `project.data.*`: the calling plugin's entry of the document's or a layer's `plugin_data`,
+    /// written in one history edit that also records the plugin in the document's references.
+    fn plugin_data(&mut self, op: &str, args: &Value, plugin: &str) -> Result<Value, OpError> {
+        use craft_ext_host::data::{PluginData, Target, handle};
+        let id = craft_ext_core::id::ExtensionId::new(plugin).map_err(engine)?;
+        let layer = match Target::parse(args)? {
+            Target::Document => None,
+            Target::Layer(l) => Some(self.plugin_layer(&json!({"layer": l}))?),
+            Target::Node(_) => return Err(invalid("PhotoCraft keeps data in the document or on a layer: {\"layer\": id}")),
+        };
+        let doc = &self.active().ok_or_else(|| OpError::new(Code::NotFound, "No document"))?.doc;
+        let saved = match layer {
+            None => doc.plugin_data.get(plugin).cloned(),
+            Some(l) => doc.layer(l).ok_or_else(|| OpError::new(Code::NotFound, "No such layer"))?.plugin_data.get(plugin).cloned(),
+        };
+        let mut data = PluginData::from_json(saved.as_ref());
+        let out = handle(op, args, &mut data)?;
+        let next = data.to_json();
+        if op == "project.data.set" && next != saved {
+            #[cfg(not(target_arch = "wasm32"))]
+            let installed = photocraft_plugins::store::installed_reference(&id);
+            #[cfg(target_arch = "wasm32")]
+            let installed = None;
+            self.edit("Plugin Data", |doc, _| {
+                let map = match layer {
+                    None => &mut doc.plugin_data,
+                    Some(l) => &mut doc.layer_mut(l).ok_or(crate::EngineError::NoLayer(l))?.plugin_data,
+                };
+                match next {
+                    Some(v) => map.insert(plugin.to_string(), v),
+                    None => map.remove(plugin),
+                };
+                photocraft_plugins::record_use(&mut doc.plugins, &id, None, installed);
+                Ok(())
+            })
+            .map_err(engine)?;
+        }
+        Ok(out)
+    }
+
     pub(crate) fn plugin_op(&mut self, op: &str, args: Value, cx: &mut OpCtx<'_>) -> Result<Value, OpError> {
         self.plugin_serving = self.plugin_serving.saturating_add(1);
         let out = self.plugin_op_inner(op, args, cx);
@@ -644,6 +716,7 @@ impl Session {
                 Ok(json!(out))
             }
             "history.list" => Ok(json!({"entries": d.history.entries(), "current": d.history.past_len()})),
+            "project.data.get" | "project.data.set" => self.plugin_data(op, &args, cx.plugin),
             "layer.rename" => {
                 let target = self.plugin_layer(&args)?;
                 let name = args["name"].as_str().filter(|s| !s.is_empty() && s.len() <= 4096).ok_or_else(|| invalid("Invalid name"))?;

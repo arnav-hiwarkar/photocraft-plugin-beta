@@ -65,6 +65,20 @@ pub mod store {
     pub fn generation() -> Result<u64, Box<dyn std::error::Error>> {
         Ok(open()?.state()?.app_fingerprint(&app()?))
     }
+    /// The project reference for `plugin`'s release active in PhotoCraft, if it is installed.
+    pub fn installed_reference(plugin: &craft_ext_core::id::ExtensionId) -> Option<craft_ext_core::project::PluginRef> {
+        let store = open().ok()?;
+        let state = store.state().ok()?;
+        let version = state.apps.get(&app().ok()?)?.get(plugin)?.active?;
+        let package = state.packages.get(plugin)?;
+        let release = package.releases.get(&version)?;
+        let name = store.manifest(&state, plugin, version).ok()?.name;
+        let source = match package.origin {
+            craft_ext_store::state::Origin::Catalogue { .. } => craft_ext_core::project::Source::Catalogue,
+            _ => craft_ext_core::project::Source::Local,
+        };
+        Some(craft_ext_core::project::PluginRef { id: plugin.clone(), version, sha256: Some(release.sha256.clone()), source, name, contributions: vec![], state_versions: None })
+    }
     pub fn named_filters() -> Result<Vec<(FilterSource, String)>, Box<dyn std::error::Error>> {
         let provided = contract()?.provided;
         let mut filters = Vec::new();
@@ -213,6 +227,24 @@ impl store::FilterSource {
     }
 }
 
+/// Records that the document uses `plugin` (and its `contribution`, for a resource such as a
+/// LUT) in `refs`. `installed` is its active release here: the reference moves to it; without one
+/// the recorded reference is kept, so a missing plugin is never dropped or invented.
+pub fn record_use(refs: &mut Vec<craft_ext_core::project::PluginRef>, plugin: &craft_ext_core::id::ExtensionId, contribution: Option<&str>, installed: Option<craft_ext_core::project::PluginRef>) {
+    let existing = refs.iter().position(|r| &r.id == plugin);
+    let mut contributions = existing.map(|i| refs[i].contributions.clone()).unwrap_or_default();
+    if let Some(c) = contribution.filter(|c| !contributions.iter().any(|x| x == c)) {
+        contributions.push(c.to_string());
+        contributions.sort();
+    }
+    match (existing, installed) {
+        (Some(i), Some(current)) => refs[i] = craft_ext_core::project::PluginRef { contributions, ..current },
+        (None, Some(current)) => refs.push(craft_ext_core::project::PluginRef { contributions, ..current }),
+        (Some(i), None) => refs[i].contributions = contributions,
+        (None, None) => {}
+    }
+}
+
 pub mod document_thread;
 pub mod filter;
 pub mod resources;
@@ -220,3 +252,34 @@ pub mod session_filters;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod runtime;
+
+#[cfg(test)]
+mod reference_tests {
+    use super::record_use;
+    use craft_ext_core::{id::ExtensionId, project::{PluginRef, Source}, version::Version};
+
+    fn reference(version: &str, contributions: &[&str]) -> PluginRef {
+        PluginRef {
+            id: ExtensionId::new("io.github.alice.looks").unwrap(),
+            version: Version::parse(version).unwrap(),
+            sha256: Some("aa".repeat(32)),
+            source: Source::Catalogue,
+            name: "Looks".into(),
+            contributions: contributions.iter().map(|c| c.to_string()).collect(),
+            state_versions: None,
+        }
+    }
+
+    #[test]
+    fn uses_are_recorded_against_the_installed_release_and_kept_while_missing() {
+        let id = ExtensionId::new("io.github.alice.looks").unwrap();
+        let mut refs = vec![];
+        record_use(&mut refs, &id, None, None);
+        assert_eq!(refs, vec![], "nothing is invented for a plugin that is not installed");
+        record_use(&mut refs, &id, None, Some(reference("1.0.0", &[])));
+        record_use(&mut refs, &id, Some("film"), Some(reference("1.1.0", &[])));
+        assert_eq!(refs, vec![reference("1.1.0", &["film"])]);
+        record_use(&mut refs, &id, Some("cool"), None);
+        assert_eq!(refs, vec![reference("1.1.0", &["cool", "film"])], "a missing plugin keeps its recorded release");
+    }
+}

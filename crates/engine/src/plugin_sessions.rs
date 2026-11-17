@@ -74,8 +74,37 @@ impl Session {
             self.plugin_tool = None;
         }
     }
+    /// The plugins an opened document uses whose status is not ready, once per document, for the
+    /// project prompt (interactive sessions only).
+    pub fn take_plugin_project_prompt(&mut self) -> Option<Vec<(craft_ext_core::project::PluginRef, craft_ext_core::project::Status)>> {
+        self.plugin_prompt.take()
+    }
+    fn check_opened_projects(&mut self) {
+        if !self.plugin_picks.interactive {
+            return;
+        }
+        let fresh: Vec<(u64, Vec<craft_ext_core::project::PluginRef>)> =
+            self.docs.iter().filter(|d| !self.plugin_prompted.contains(&d.doc.id.0)).map(|d| (d.doc.id.0, d.doc.plugins.clone())).collect();
+        for (id, refs) in fresh {
+            self.plugin_prompted.insert(id);
+            if refs.is_empty() || self.plugin_prompt.is_some() {
+                continue;
+            }
+            match photocraft_plugins::store::manager().map_err(|e| e.to_string()).and_then(|m| m.check_project(&refs).map_err(|e| e.to_string())) {
+                Ok(statuses) if statuses.iter().any(|(_, s)| !s.ready()) => self.plugin_prompt = Some(statuses),
+                Ok(_) => {}
+                Err(e) => eprintln!("plugins: cannot check the document's plugins: {e}"),
+            }
+        }
+    }
+    /// The plugins that were running when PhotoCraft last quit unexpectedly, for the Plugin
+    /// Manager's Problems (empty until the first interactive pump records this run).
+    pub fn plugins_unclean_exit(&self) -> Vec<craft_ext_core::id::ExtensionId> {
+        self.plugin_sessions.as_ref().map(|rt| rt.unclean.clone()).unwrap_or_default()
+    }
     pub fn pump_plugins(&mut self) {
         self.ensure_plugin_sessions();
+        self.check_opened_projects();
         self.plugin_check_gesture();
         let Some(mut rt) = self.plugin_sessions.take() else { return };
         if self.plugin_picks.interactive && !self.plugin_run_begun {
@@ -148,29 +177,6 @@ impl Session {
 
     pub fn plugin_load_problems(&self) -> Vec<photocraft_plugins::runtime::Problem> {
         self.plugin_sessions.as_ref().map(|rt| rt.problems.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()).unwrap_or_default()
-    }
-
-    pub fn plugins_after_unclean_exit(&self) -> Vec<String> {
-        self.plugin_sessions
-            .as_ref()
-            .map(|rt| {
-                rt.unclean
-                    .iter()
-                    .map(|id| rt.entries.iter().find(|e| &e.invocation.plugin == id).map_or_else(|| id.to_string(), |e| e.plugin_name.clone()))
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
-    pub fn answer_unclean_exit(&mut self, start_without: bool) -> crate::Result<()> {
-        let Some(rt) = self.plugin_sessions.as_mut() else { return Ok(()) };
-        if start_without {
-            rt.quarantine_unclean().map_err(EngineError::Other)?;
-            self.ensure_plugin_sessions();
-        } else {
-            rt.unclean.clear();
-        }
-        Ok(())
     }
 
     pub fn end_plugin_run(&mut self) {
@@ -1124,5 +1130,98 @@ mod tests {
         assert_eq!(s.active().unwrap().history.undo_label(), Some("Draw · Test"));
         s.execute("edit.undo", json!({})).unwrap();
         assert_eq!(s.active().unwrap().doc, start.doc);
+    }
+
+    use photocraft_doc::LayerId;
+
+    fn op_as(s: &mut Session, plugin: &str, op: &str, args: Value) -> Result<Value, OpError> {
+        let mut staged = Staged::default();
+        let owner = format!("plugin.session.{plugin}/cmd");
+        s.plugin_op(op, args, &mut OpCtx { plugin, owner: &owner, selection: &Value::Null, staged: &mut staged })
+    }
+
+    fn reopen(s: &Session) -> photocraft_doc::Document {
+        let saved = photocraft_format::save_to_bytes(&s.active().unwrap().doc, &Default::default()).unwrap();
+        crate::file_cmds::import("plugin-data.pcraft", &saved).unwrap()
+    }
+
+    #[test]
+    fn plugin_data_round_trips_through_pcraft() {
+        let mut s = Session::new();
+        s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+        let id = op(&mut s, "layer.create", json!({"name":"Rig","kind":"pixel"})).unwrap()["id"].as_u64().unwrap();
+        op(&mut s, "project.data.set", json!({"key":"rig","value":{"bones":3},"target":{"layer":id}})).unwrap();
+        op(&mut s, "project.data.set", json!({"key":"theme","value":"dark"})).unwrap();
+        let doc = reopen(&s);
+        assert_eq!(doc.plugin_data.get("io.test.ops"), Some(&json!({"theme":"dark"})));
+        assert_eq!(doc.layer(LayerId(id)).unwrap().plugin_data.get("io.test.ops"), Some(&json!({"rig":{"bones":3}})));
+        s.active_mut().unwrap().doc = std::sync::Arc::new(doc);
+        assert_eq!(op(&mut s, "project.data.get", json!({"key":"rig","target":{"layer":id}})).unwrap(), json!({"bones":3}));
+        assert_eq!(op(&mut s, "project.data.get", json!({"key":"never"})).unwrap(), Value::Null);
+        assert!(op(&mut s, "project.data.get", json!({"key":"rig","target":{"node":id}})).is_err());
+    }
+
+    #[test]
+    fn plugin_data_is_private_and_undone_with_the_event() {
+        let mut s = Session::new();
+        s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+        op_as(&mut s, "io.github.alice.rig", "project.data.set", json!({"key":"rig","value":1})).unwrap();
+        assert_eq!(op_as(&mut s, "io.github.bob.spy", "project.data.get", json!({"key":"rig"})).unwrap(), Value::Null);
+        op_as(&mut s, "io.github.bob.spy", "project.data.set", json!({"key":"rig","value":2})).unwrap();
+        assert_eq!(op_as(&mut s, "io.github.alice.rig", "project.data.get", json!({"key":"rig"})).unwrap(), json!(1));
+        let before = s.active().unwrap().clone();
+        let (journal, n) = (s.journal.len(), before.history.past_len());
+        op_as(&mut s, "io.github.alice.rig", "project.data.set", json!({"key":"rig","value":null})).unwrap();
+        op_as(&mut s, "io.github.alice.rig", "project.data.set", json!({"key":"pose","value":[0,1]})).unwrap();
+        s.finish_plugin_edits(Some(before.clone()), journal, true, "Rig · Alice", false);
+        assert_eq!(s.active().unwrap().history.past_len(), n + 1, "one step for the event");
+        assert_eq!(s.active().unwrap().doc.plugin_data.get("io.github.alice.rig"), Some(&json!({"pose":[0,1]})));
+        s.execute("edit.undo", json!({})).unwrap();
+        let doc = &s.active().unwrap().doc;
+        assert_eq!((doc.plugin_data.get("io.github.alice.rig"), doc.plugin_data.get("io.github.bob.spy")), (Some(&json!({"rig":1})), Some(&json!({"rig":2}))));
+    }
+
+    #[test]
+    fn data_of_a_missing_plugin_survives_editing_and_saving() {
+        let mut s = Session::new();
+        s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+        let id = op(&mut s, "layer.create", json!({"name":"Rig","kind":"pixel"})).unwrap()["id"].as_u64().unwrap();
+        s.edit("seed", |doc, _| {
+            doc.plugin_data.insert("io.github.gone.rig".into(), json!({"v":7,"newer":{"field":true}}));
+            doc.layer_mut(LayerId(id)).unwrap().plugin_data.insert("io.github.gone.rig".into(), json!({"bone":"hip"}));
+            Ok(())
+        })
+        .unwrap();
+        op(&mut s, "layer.rename", json!({"layer":id,"name":"Renamed"})).unwrap();
+        s.execute("layer.duplicate", json!({})).unwrap();
+        let doc = reopen(&s);
+        assert_eq!(doc.plugin_data.get("io.github.gone.rig"), Some(&json!({"v":7,"newer":{"field":true}})));
+        let kept: Vec<_> = doc.layers.iter().filter(|l| l.name.starts_with("Renamed")).map(|l| l.plugin_data.get("io.github.gone.rig").cloned()).collect();
+        assert_eq!(kept, vec![Some(json!({"bone":"hip"})); 2], "the layer and its duplicate keep the data");
+    }
+
+    #[test]
+    fn plugin_lut_layers_are_recorded_in_the_document_references() {
+        let mut s = Session::new();
+        s.execute("file.new", json!({"width":4,"height":4})).unwrap();
+        let looks = craft_ext_core::id::ExtensionId::new("io.github.alice.looks").unwrap();
+        let recorded: craft_ext_core::project::PluginRef =
+            serde_json::from_value(json!({"id":"io.github.alice.looks","version":"1.0.0","source":"catalogue","name":"Looks"})).unwrap();
+        s.edit("seed", |doc, _| {
+            doc.plugins.push(recorded.clone());
+            Ok(())
+        })
+        .unwrap();
+        let r = s.execute("layer.newAdjustmentLayer.colorLookup", json!({"lut":"dayForNight"})).unwrap();
+        let id = LayerId(r["layer"].as_u64().unwrap());
+        s.edit("use a plugin LUT", |doc, _| {
+            if let photocraft_doc::LayerContent::Adjustment(photocraft_doc::Adjustment::ColorLookup { name, .. }) = &mut doc.layer_mut(id).unwrap().content {
+                *name = "plugin://io.github.alice.looks/film/luts/warm.cube".into();
+            }
+            Ok(())
+        })
+        .unwrap();
+        let doc = reopen(&s);
+        assert_eq!(doc.plugins.iter().map(|r| (r.id.clone(), r.contributions.clone())).collect::<Vec<_>>(), vec![(looks, vec!["film".to_string()])]);
     }
 }

@@ -38,8 +38,24 @@ Status of the named integration tasks (all done unless marked otherwise):
   Plugin filters accept raster layers only (`plugin_filters::enabled` and the run
   path both enforce this); PhotoCraft's existing smart filters store built-in filter
   command ids, not plugin contributions. Destructive pixels are self-contained in
-  native documents and export needs no plugin. Revisit persistence/missing-plugin
-  export refusal only when non-destructive plugin smart filters are introduced.
+  native documents and export needs no plugin. Revisit missing-plugin export
+  refusal only when non-destructive plugin smart filters are introduced.
+- PhotoCraft-plugin-data: done (`photocraft.session` 1.2). `project.data.get/set`
+  keep one JSON object per plugin id in `Document.plugin_data` and
+  `Layer.plugin_data`, saved in `.pcraft` as optional `plugin_data` members (left
+  out when empty, so `format_version` 1 is unchanged and older bundles open with
+  none). A write is one `Session::edit` inside the event's history step. Data of
+  missing plugins is kept verbatim through edits, duplication and saves.
+- PhotoCraft-plugin-references: done. `Document.plugins` (`.pcraft` `plugins`)
+  records plugins whose data the document keeps and the plugin and LUT
+  contribution of every `plugin://` Color Lookup layer, against the installed
+  release; a missing plugin keeps its recorded release. Opening a document whose
+  plugins are not ready shows the shared project prompt (framework
+  `ProjectPrompt`) with Install all through the normal setup sheet; withdrawn
+  plugins are never offered. PSD and flat exports do not carry plugin data.
+- Plugins running at an unexpected quit appear on the Plugins window's Problems,
+  which opens once at startup; Turn off quarantines them. The window installs a
+  `.craftplugin` with Install from file….
 - PhotoCraft-plugin-examples: source added for CLI and engine examples. Current
   runtime behavior remains unverified; see `plugin-takeover-validation.md` and the
   historical records in `plugin-testing.md`.

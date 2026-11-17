@@ -1658,6 +1658,7 @@ version = "0.1.0"
 dependencies = [
  "craft-ext-core",
  "craft-ext-store",
+ "png 0.18.1",
  "serde_json",
 ]
 
@@ -1695,7 +1696,6 @@ dependencies = [
  "craft-ext-core",
  "craft-ext-manager",
  "egui",
- "image",
 ]
 
 [[package]]
@@ -6556,6 +6556,7 @@ dependencies = [
 name = "photocraft-doc"
 version = "0.23.1"
 dependencies = [
+ "craft-ext-core",
  "photocraft-color",
  "photocraft-geom",
  "photocraft-raster",

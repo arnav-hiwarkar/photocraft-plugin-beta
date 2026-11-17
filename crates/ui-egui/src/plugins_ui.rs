@@ -153,34 +153,6 @@ pub(crate) fn status_jobs(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     }
 }
 
-fn unclean_exit_notice(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
-    let names = app.session.plugins_after_unclean_exit();
-    if names.is_empty() {
-        return;
-    }
-    let mut answer = None;
-    let window = ViewportWindow::new(Label::from(tl!("Plugins after an unexpected close").to_owned())).remember(SaveKey::named("photocraft.plugins.unclean"));
-    let out = window.show(ui, |ui, _| {
-        Text::new(crate::i18n::fmt(tl!("PhotoCraft closed unexpectedly while these plugins were running: {names}"), &[("names", &names.join(", "))])).show(ui);
-        Row::new().show(ui, |ui, _| {
-            if Button::new(tl!("Start without these plugins")).show(ui).clicked() {
-                answer = Some(true);
-            }
-            if Button::new(tl!("Keep them on")).show(ui).clicked() {
-                answer = Some(false);
-            }
-        });
-    });
-    if out.close_requested.is_some() {
-        answer = answer.or(Some(false));
-    }
-    if let Some(start_without) = answer
-        && let Err(e) = app.session.answer_unclean_exit(start_without)
-    {
-        crate::notices::error(app, e.to_string());
-    }
-}
-
 fn sync_panel_surfaces(app: &mut PhotocraftApp) {
     let shown: Vec<(String, bool)> = registry::plugin_panels().into_iter().map(|p| (p.surface, crate::panel_docking::is_shown(app, p.id))).collect();
     let Some(rt) = app.session.plugin_sessions.as_mut() else { return };
@@ -243,7 +215,6 @@ pub(crate) fn panel_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, panel: &Plu
 }
 
 pub(crate) fn windows(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
-    unclean_exit_notice(app, ui);
     let panels: Vec<String> = registry::plugin_panels().into_iter().map(|p| p.surface).collect();
     let surfaces: Vec<_> =
         app.session.plugin_sessions.as_ref().map(|rt| rt.surfaces.values().filter(|s| !panels.contains(&s.key)).cloned().collect()).unwrap_or_default();

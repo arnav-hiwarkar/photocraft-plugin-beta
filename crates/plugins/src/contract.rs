@@ -14,7 +14,7 @@ use serde_json::Value;
 
 /// The session contract level this build provides. 1.1 carries UI level 1.1 (the shared renderer),
 /// tools, overlays, pixels, layers, selection, guides, histogram, adjustments and picked files.
-pub const SESSION_LEVEL: (u32, u32) = (1, 1);
+pub const SESSION_LEVEL: (u32, u32) = (1, 2);
 
 fn read_document(_: &Value) -> Vec<Permission> {
     vec![Permission::DocumentRead(DocScope::Document)]
@@ -164,6 +164,24 @@ const OPS: &[(&str, OpKind, Rule, &str, &str, &str, &str)] = &[
         "The tool gesture under way (the last `tool` event's payload), or null.",
         "{}",
         r#"{"tool": "gradient", "phase": "update", "at": [120.5, 40.0], "start": [10.0, 10.0], "modifiers": {"shift": true}, "zoom": 0.5}"#,
+    ),
+    (
+        "project.data.get",
+        OpKind::Query,
+        read_document,
+        "document.read:document",
+        "Read one of this plugin's keys kept in the document or on a layer (`target: {layer: id}`).",
+        r#"{"key": "rig", "target": {"layer": 7}}"#,
+        "the stored JSON value, or null",
+    ),
+    (
+        "project.data.set",
+        OpKind::Edit,
+        edit_document,
+        "document.edit:document",
+        "Keep one key of this plugin's data in the document or on a layer; saved in .pcraft, kept when the plugin is missing, undone with the event (null deletes). Writing data records the plugin in the document's references.",
+        r#"{"key": "rig", "value": {"bones": 3}, "target": {"layer": 7}}"#,
+        "null",
     ),
     (
         "layer.rename",
@@ -399,3 +417,17 @@ Effect dialogs use Form schema 1 (`contribution.form`, optional worker `craft_de
 The host draws all form kinds, units, help and sections, evaluates visible/enabled conditions, and calls optional `craft_update` on workers after edits. Event fuel, grant checks and a 100 ms deadline bound form calls. Patches apply atomically at the current revision; stale edit results are discarded. Plugin presets accept `{id,label,effects:[{effect,values}]}` single-effect recipes and legacy direct `{id,label,effect,values}` records inside a `presets` array; the dialog offers matching, validated presets and omits multi-effect recipes.
 
 Panels, windows and filter dialogs are drawn by the shared renderer (`craft_ext_ui::plugin_ui`, UI level 1.1) with the engine chosen in Preferences ▸ Plugins (egui by default); plugins cannot choose or detect it. A contribution declaring `photocraft.session@1.0` may only send level-1.0 trees. No framework component library is registered: every `component` node draws its fallback. Sessions execute on workers; document operations are authorized and committed on the document thread."#;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_contract_page_lists_project_data_at_session_1_2() {
+        let c = super::contract().unwrap();
+        assert_eq!(super::SESSION_LEVEL, (1, 2));
+        let md = c.to_markdown();
+        assert!(md.contains("`photocraft.session` | 1.2") && md.contains("project.data.set"), "{md}");
+        if let Some(out) = std::env::var_os("PHOTOCRAFT_CONTRACT_OUT") {
+            std::fs::write(out, &md).unwrap();
+        }
+    }
+}

@@ -212,6 +212,11 @@ pub struct Session {
     plugin_run_begun: bool,
     #[cfg(not(target_arch = "wasm32"))]
     plugin_opened: std::collections::BTreeSet<u64>,
+    /// Documents whose plugin references were checked, and the statuses the project prompt shows.
+    #[cfg(not(target_arch = "wasm32"))]
+    plugin_prompted: std::collections::BTreeSet<u64>,
+    #[cfg(not(target_arch = "wasm32"))]
+    plugin_prompt: Option<Vec<(craft_ext_core::project::PluginRef, craft_ext_core::project::Status)>>,
     #[cfg(not(target_arch = "wasm32"))]
     plugin_seen: Option<(u64, u64, Vec<LayerId>, Option<photocraft_raster::Surface>)>,
     /// The plugin tool selected on the canvas (`plugin.session.<plugin>/<tool>`).

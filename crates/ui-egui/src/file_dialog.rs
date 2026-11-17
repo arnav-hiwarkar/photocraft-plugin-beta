@@ -300,6 +300,15 @@ impl PhotocraftApp {
         })
     }
 
+    /// Ask for one file to read by its path (a plugin package): `then` gets the path. A browser's
+    /// file, which has no path, is refused.
+    pub(crate) fn pick_path_filtered(&mut self, extensions: &[&str], then: impl FnOnce(&mut Self, String) -> Result<Value, String> + 'static) -> Result<Value, String> {
+        self.ask_file(open_filters(PickRequest::open("file"), extensions), move |app, picked| match path_strings(&picked).into_iter().next() {
+            Some(path) => then(app, path),
+            None => Err("Choose a file on this computer".into()),
+        })
+    }
+
     /// File › Open: opens every chosen file in the order the dialog returns them, reporting each
     /// failure (see [`Self::open_paths_in_order`]).
     pub fn open_dialog_file(&mut self) -> Result<Value, String> {

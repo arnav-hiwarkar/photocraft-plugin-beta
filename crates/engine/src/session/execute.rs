@@ -290,6 +290,7 @@ impl Session {
         let mut doc = (*before).clone();
         let mut active = st.active_layer;
         let r = f(&mut doc, &mut active)?;
+        crate::plugin_ops::record_plugin_luts(&mut doc);
         if let Some(restrict) = restrict {
             channel_cmds::restrict_to_color(&before, &mut doc, restrict.layer, restrict.colors)?;
         }
