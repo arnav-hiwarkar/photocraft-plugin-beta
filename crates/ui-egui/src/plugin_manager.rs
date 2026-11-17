@@ -1,28 +1,28 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
     use std::cell::RefCell;
-    use std::sync::Arc;
 
+    use craft::ui::buttons::Button;
+    use craft::ui::contract::{Props as _, Show as _, ShowContainer as _};
+    use craft::ui::display::{Shade, Text};
+    use craft::ui::layout_components::{Row, Stack};
     use craft::ui::runtime::env::Label;
     use craft::ui::runtime::memory::SaveKey;
     use craft::ui::shell::ViewportWindow;
+    use craft::ui::style::TypeRole;
+    use craft_ext_manager::Config;
+    use craft_ext_ui_fw::{ManagerState, PluginManager};
 
     use crate::PhotocraftApp;
 
-    struct Window {
-        view: craft_ext_ui::ManagerView,
-        manager: Arc<craft_ext_store::Manager>,
-    }
-
-    thread_local! { static WINDOW: RefCell<Option<Window>> = const { RefCell::new(None) }; }
+    thread_local! { static WINDOW: RefCell<Option<ManagerState>> = const { RefCell::new(None) }; }
 
     pub(crate) fn open() -> Result<(), String> {
         let manager = photocraft_plugins::store::manager().map_err(|e| e.to_string())?;
+        let app = manager.app.clone().ok_or_else(|| "PhotoCraft has no plugin app id".to_string())?;
+        let config = Config::app(manager.store.root(), app, manager.provided, manager.platform);
         WINDOW.with(|w| {
-            let mut slot = w.borrow_mut();
-            if slot.is_none() {
-                *slot = Some(Window { view: craft_ext_ui::ManagerView::new(), manager: Arc::new(manager) });
-            }
+            w.borrow_mut().get_or_insert_with(|| ManagerState::new(config));
         });
         Ok(())
     }
@@ -34,31 +34,40 @@ mod native {
         let paused = app.session.plugins_paused();
         let problems = app.session.plugin_load_problems();
         let mut resume = Vec::new();
+        let mut links = Vec::new();
         let closed = WINDOW.with(|w| {
             let mut slot = w.borrow_mut();
-            let Some(window) = slot.as_mut() else { return false };
-            let out = ViewportWindow::new(Label::from(tl!("Plugins").to_string())).remember(SaveKey::named("photocraft.plugins.manager")).show(ui, |ui, _| {
-                window.view.show_with_app_problems(ui, &window.manager, |ui| {
-                    for p in &problems {
-                        ui.horizontal_wrapped(|ui| {
-                            ui.label(&p.name).on_hover_text(&p.plugin);
-                            ui.weak(&p.message);
-                        });
-                    }
-                    if !paused.is_empty() {
-                        ui.strong(tl!("Turned off"));
-                        ui.weak(tl!("These plugins failed repeatedly or were running when PhotoCraft closed unexpectedly. They stay off until you resume them."));
-                    }
-                    for p in &paused {
-                        ui.horizontal_wrapped(|ui| {
-                            ui.label(&p.name).on_hover_text(&p.plugin);
-                            if ui.button(tl!("Resume")).on_hover_text(tl!("Clear the pause and start the plugin again")).clicked() && !resume.contains(&p.plugin) {
-                                resume.push(p.plugin.clone());
-                            }
-                            ui.weak(&p.reason);
-                        });
-                    }
-                });
+            let Some(state) = slot.as_mut() else { return false };
+            let window = ViewportWindow::new(Label::from(tl!("Plugins").to_string())).remember(SaveKey::named("photocraft.plugins.manager"));
+            let out = window.show(ui, |ui, _| {
+                let shown = PluginManager::new(state)
+                    .app_names(|_| Label::from("PhotoCraft"))
+                    .problems(|ui| {
+                        for p in &problems {
+                            Stack::new().id_salt(("load-problem", p.plugin.as_str())).show(ui, |ui, _| {
+                                Text::new(Label::from(p.name.clone())).role(TypeRole::BodyStrong).show(ui);
+                                Text::new(Label::from(p.message.clone())).shade(Shade::Muted).show(ui);
+                            });
+                        }
+                        if !paused.is_empty() {
+                            Text::new(tl!("Turned off").to_string()).role(TypeRole::BodyStrong).show(ui);
+                            Text::new(tl!("These plugins failed repeatedly or were running when PhotoCraft closed unexpectedly. They stay off until you resume them.").to_string())
+                                .shade(Shade::Muted)
+                                .show(ui);
+                        }
+                        for p in &paused {
+                            Row::new().id_salt(("paused", p.plugin.as_str())).show(ui, |ui, _| {
+                                Text::new(Label::from(p.name.clone())).show(ui);
+                                let button = Button::new(tl!("Resume").to_string()).tooltip(Label::from(tl!("Clear the pause and start the plugin again").to_string()));
+                                if button.show(ui).clicked() && !resume.contains(&p.plugin) {
+                                    resume.push(p.plugin.clone());
+                                }
+                                Text::new(Label::from(p.reason.clone())).shade(Shade::Faint).show(ui);
+                            });
+                        }
+                    })
+                    .show(ui);
+                links.extend(shown.links);
             });
             let closed = out.close_requested.is_some();
             if closed {
@@ -66,6 +75,10 @@ mod native {
             }
             closed
         });
+        let ctx = ui.ctx().clone();
+        for url in links {
+            crate::links::open(app, &ctx, &url);
+        }
         if closed {
             return;
         }

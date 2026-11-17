@@ -93,3 +93,9 @@ workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies.craft-ext-store]
 workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.craft-ext-ui-fw]
+workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.craft-ext-manager]
+workspace = true

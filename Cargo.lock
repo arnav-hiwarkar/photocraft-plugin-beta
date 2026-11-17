@@ -1653,6 +1653,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-ext-manager"
+version = "0.1.0"
+dependencies = [
+ "craft-ext-core",
+ "craft-ext-store",
+ "serde_json",
+]
+
+[[package]]
 name = "craft-ext-store"
 version = "0.1.0"
 dependencies = [
@@ -1672,9 +1681,21 @@ name = "craft-ext-ui"
 version = "0.1.0"
 dependencies = [
  "craft-ext-core",
+ "craft-ext-manager",
  "craft-ext-store",
  "egui",
  "serde_json",
+]
+
+[[package]]
+name = "craft-ext-ui-fw"
+version = "0.1.0"
+dependencies = [
+ "craft",
+ "craft-ext-core",
+ "craft-ext-manager",
+ "egui",
+ "image",
 ]
 
 [[package]]
@@ -6811,8 +6832,10 @@ dependencies = [
  "craft",
  "craft-ext-core",
  "craft-ext-host",
+ "craft-ext-manager",
  "craft-ext-store",
  "craft-ext-ui",
+ "craft-ext-ui-fw",
  "craft-file-formats",
  "craft-i18n",
  "craft-image-codecs",
