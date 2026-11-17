@@ -109,8 +109,6 @@ choice!(CheckerSize { None = "none", Small = "small", Medium = "medium", Large =
 choice!(CheckerColors { Light = "light", Medium = "medium", Dark = "dark", Red = "red", Orange = "orange", Green = "green", Blue = "blue", Purple = "purple", Custom = "custom" } default Light);
 choice!(LineStyle { Lines = "lines", Dashed = "dashedLines", Dots = "dots" } default Lines);
 choice!(TextEngine { Modern = "modern", EastAsian = "eastAsian", WorldReady = "worldReady" } default WorldReady);
-// Which engine draws plugin panels, windows and filter dialogs. Plugins can't choose or detect it;
-// `framework` draws with craft framework components (`craft_ext_ui_fw::FrameworkEngine`).
 choice!(PluginUiEngine { Egui = "egui", Framework = "framework" } default Framework);
 choice!(FontPreview { Off = "off", Small = "small", Medium = "medium", Large = "large", ExtraLarge = "extraLarge", Huge = "huge" } default Medium);
 choice!(RawColorSpace { Srgb = "srgb", AdobeRgb = "adobeRgb", ProPhoto = "proPhoto", DisplayP3 = "displayP3" } default AdobeRgb);
