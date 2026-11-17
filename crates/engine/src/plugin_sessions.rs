@@ -55,10 +55,15 @@ impl Session {
         if self.plugin_sessions.as_ref().is_some_and(|r| Some(r.generation) == generation) {
             return;
         }
-        // Reloading (an install, a grant or a revocation changed the store) ends any gesture.
         self.plugin_gesture_end(false);
         self.plugin_picks.invalidate_pending();
-        self.plugin_sessions = Runtime::load().ok();
+        self.plugin_sessions = Runtime::load(self.plugin_jobs.clone()).ok();
+        if let Some(rt) = self.plugin_sessions.as_mut() {
+            if self.plugin_run_begun {
+                rt.unclean.clear();
+            }
+            self.plugin_run_begun = true;
+        }
         if let Some(rt) = &self.plugin_sessions {
             if self.plugin_tool.as_ref().is_some_and(|t| !rt.entries.iter().any(|e| &e.id == t)) {
                 self.plugin_tool = None;
@@ -84,12 +89,12 @@ impl Session {
             rt.app_event(self.plugin_capture(), "selection.changed",json!({"layers":self.active().map(|d|d.selected_layers.iter().map(|l|l.0).collect::<Vec<_>>()),"has_selection":self.active().is_some_and(|d|d.doc.selection.is_some())}));
         }
         self.plugin_seen = now;
-        // Answers to file questions, sent now that no event of theirs is running.
         while let Some((owner, event)) = self.plugin_followups.pop_front() {
             if let Err(e) = rt.dispatch(&owner, self.plugin_capture(), event) {
                 rt.notifications.push(format!("A plugin could not receive its file answer: {e}"));
             }
         }
+        rt.deliver_jobs(&self.plugin_capture());
         while let Some(request) = rt.pending.pop_front().or_else(|| rt.requests.try_recv().ok()) {
             if matches!(request.action, Action::Begin) {
                 self.plugin_transaction(&mut rt, request);
@@ -97,7 +102,81 @@ impl Session {
                 request.reply(Err(OpError::new(Code::Stale, "Event is no longer active")));
             }
         }
+        rt.settle();
         self.plugin_sessions = Some(rt);
+    }
+
+    pub fn post_plugin_ui_event(&mut self, params: &Value) -> crate::Result<()> {
+        self.ensure_plugin_sessions();
+        let (owner, capture, event) = self.plugin_ui_event(params)?;
+        let rt = self.plugin_sessions.as_mut().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
+        rt.post(&owner, capture, event).map_err(|e| EngineError::Other(e.to_string()))
+    }
+
+    fn plugin_ui_event(&self, params: &Value) -> crate::Result<(String, Capture, Value)> {
+        let rt = self.plugin_sessions.as_ref().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
+        let key = params["surface"].as_str().unwrap_or("");
+        let sf = rt
+            .surfaces
+            .get(key)
+            .filter(|s| s.open && Some(s.rev) == params["rev"].as_u64())
+            .ok_or_else(|| EngineError::Other("Stale plugin surface".into()))?;
+        let mut capture = self.plugin_capture();
+        capture.surface = Some((key.into(), sf.rev));
+        Ok((sf.owner.clone(), capture, json!({"event":"ui","surface":sf.id,"rev":sf.rev,"widget":params["widget"],"value":params["value"]})))
+    }
+
+    pub fn plugin_jobs(&self) -> Vec<(craft_ext_host::jobs::JobInfo, String)> {
+        let name = |job: &craft_ext_host::jobs::JobInfo| {
+            self.plugin_sessions
+                .as_ref()
+                .and_then(|rt| rt.entries.iter().find(|e| e.invocation.plugin == job.plugin).map(|e| e.plugin_name.clone()))
+                .unwrap_or_else(|| job.plugin.to_string())
+        };
+        self.plugin_jobs
+            .list()
+            .into_iter()
+            .map(|job| {
+                let n = name(&job);
+                (job, n)
+            })
+            .collect()
+    }
+
+    pub fn plugin_load_problems(&self) -> Vec<photocraft_plugins::runtime::Problem> {
+        self.plugin_sessions.as_ref().map(|rt| rt.problems.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()).unwrap_or_default()
+    }
+
+    pub fn plugins_after_unclean_exit(&self) -> Vec<String> {
+        self.plugin_sessions
+            .as_ref()
+            .map(|rt| {
+                rt.unclean
+                    .iter()
+                    .map(|id| rt.entries.iter().find(|e| &e.invocation.plugin == id).map_or_else(|| id.to_string(), |e| e.plugin_name.clone()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn answer_unclean_exit(&mut self, start_without: bool) -> crate::Result<()> {
+        let Some(rt) = self.plugin_sessions.as_mut() else { return Ok(()) };
+        if start_without {
+            rt.quarantine_unclean().map_err(EngineError::Other)?;
+            self.ensure_plugin_sessions();
+        } else {
+            rt.unclean.clear();
+        }
+        Ok(())
+    }
+
+    pub fn end_plugin_run(&mut self) {
+        if !self.plugin_run_begun {
+            return;
+        }
+        if let (Ok(store), Ok(app)) = (photocraft_plugins::store::open(), photocraft_plugins::store::app()) {
+            store.end_run(&app);
+        }
     }
     /// Serves the worker until `done` answers (CLI, automation and widget events wait here).
     fn plugin_wait(&mut self, done: std::sync::mpsc::Receiver<Result<(), String>>) -> crate::Result<()> {
@@ -157,23 +236,19 @@ impl Session {
                 }
             }
         }
-        let rt = self.plugin_sessions.as_ref().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
-        let mut capture = self.plugin_capture();
-        let (owner, event) = if id == "plugin.uiEvent" {
-            let key = params["surface"].as_str().unwrap_or("");
-            let sf = rt
-                .surfaces
-                .get(key)
-                .filter(|s| s.open && Some(s.rev) == params["rev"].as_u64())
-                .ok_or_else(|| EngineError::Other("Stale plugin surface".into()))?;
-            capture.surface = Some((key.into(), sf.rev));
-            (sf.owner.as_str(), json!({"event":"ui","surface":sf.id,"rev":sf.rev,"widget":params["widget"],"value":params["value"]}))
+        let (owner, capture, event) = if id == "plugin.uiEvent" {
+            self.plugin_ui_event(&params)?
         } else {
-            (id, json!({"event":"command","id":rt.entries.iter().find(|e|e.id==id).map(|e|&e.contribution.id),"params":params}))
+            let rt = self.plugin_sessions.as_ref().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
+            (
+                id.to_owned(),
+                self.plugin_capture(),
+                json!({"event":"command","id":rt.entries.iter().find(|e|e.id==id).map(|e|&e.contribution.id),"params":params}),
+            )
         };
+        let rt = self.plugin_sessions.as_ref().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
         let seen = rt.notifications.len();
-        let done = rt.dispatch(owner, capture, event).map_err(|e| EngineError::Other(e.to_string()))?;
-        // Synchronous command callers (CLI/automation) also serve the worker.
+        let done = rt.dispatch(&owner, capture, event).map_err(|e| EngineError::Other(e.to_string()))?;
         self.plugin_wait(done)?;
         let errors = self.plugin_run_followups();
         if !errors.is_empty() {
@@ -360,16 +435,18 @@ impl Session {
         }
     }
 
-    /// Plugins paused after three failed events in a row.
     pub fn plugins_paused(&self) -> Vec<photocraft_plugins::runtime::Paused> {
         self.plugin_sessions.as_ref().map(Runtime::paused).unwrap_or_default()
     }
 
-    /// Clears a plugin's pause and sends its contributions `init` again.
     pub fn resume_plugin(&mut self, plugin: &str) -> crate::Result<()> {
         self.ensure_plugin_sessions();
         let rt = self.plugin_sessions.as_ref().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
-        rt.resume(plugin).map_err(EngineError::Other)?;
+        if rt.resume(plugin).map_err(EngineError::Other)? == photocraft_plugins::runtime::Resumed::Reload {
+            self.ensure_plugin_sessions();
+            return Ok(());
+        }
+        let rt = self.plugin_sessions.as_ref().ok_or_else(|| EngineError::Other("Plugins unavailable".into()))?;
         for e in rt.entries.iter().filter(|e| e.invocation.plugin.as_str() == plugin) {
             let _ = rt.dispatch(&e.id, self.plugin_capture(), json!({"event":"init","contribution":e.contribution.id}));
         }
@@ -688,7 +765,7 @@ static MANAGE: [CommandSpec; 2] = [
         label: "Resume Plugin",
         menu: &[],
         shortcut: None,
-        params: r##"{"plugin":id} (a plugin paused after three failed events in a row; pauses last for one process)"##,
+        params: r##"{"plugin":id} (a plugin turned off after repeated failures or an unexpected close; it stays off across restarts until resumed)"##,
         enabled: session_enabled,
         run: resume_run,
         journal: false,

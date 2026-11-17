@@ -257,6 +257,8 @@ impl eframe::App for PhotocraftApp {
         }
         #[cfg(not(target_arch = "wasm32"))]
         self.close_control();
+        #[cfg(not(target_arch = "wasm32"))]
+        self.session.end_plugin_run();
     }
 
     fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {

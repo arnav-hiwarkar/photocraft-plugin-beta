@@ -5,6 +5,12 @@ use craft::behavior::kurbo::Point;
 use craft::behavior::{CanvasView, CancelReason, Cursor, CursorIcon};
 use craft::host::{PickRequest as HostPick, Picked};
 use craft::theme::variant::Tone;
+use craft::ui::buttons::Button;
+use craft::ui::contract::{Bind, Props as _, Show as _, ShowContainer as _, Sizing};
+use craft::ui::display::{Progress, Shade, Text};
+use craft::ui::layout_components::Row;
+use craft::ui::popover::Popover;
+use craft_ext_host::jobs::{JobInfo, JobState};
 use craft::ui::canvas::{CanvasTool, ToolAction, ToolContext, ToolPath, ToolPointer};
 use craft::ui::primitives::Draw;
 use craft::ui::runtime::env::Label;
@@ -34,6 +40,7 @@ struct State {
     renderer: Option<PluginUi>,
     awaiting: Option<PickRequest>,
     base_tool: Option<Tool>,
+    jobs_open: bool,
 }
 
 thread_local! {
@@ -71,17 +78,106 @@ pub(crate) fn logic(app: &mut PhotocraftApp, ctx: &egui::Context) {
     sync_panel_surfaces(app);
     follow_tool_choice(app, ctx);
     answer_picks(app);
-    let notifications = match app.session.plugin_sessions.as_mut() {
+    let (notifications, errors) = match app.session.plugin_sessions.as_mut() {
         Some(rt) => {
-            if !rt.entries.is_empty() {
+            if !rt.entries.is_empty() || rt.busy() || rt.jobs.running() > 0 {
                 ctx.request_repaint_after(SESSION_REPAINT);
             }
-            std::mem::take(&mut rt.notifications)
+            (std::mem::take(&mut rt.notifications), std::mem::take(&mut rt.errors))
         }
-        None => Vec::new(),
+        None => (Vec::new(), Vec::new()),
     };
     for message in notifications {
         crate::notices::post(app, "Plugin notification", vec![message], Tone::Neutral, None);
+    }
+    for message in errors {
+        crate::notices::error(app, message);
+    }
+}
+
+fn job_status(job: &JobInfo) -> String {
+    match &job.state {
+        JobState::Running if job.note.is_empty() => tl!("Working…").to_owned(),
+        JobState::Running => job.note.clone(),
+        JobState::Done(_) => tl!("Done").to_owned(),
+        JobState::Failed(why) => crate::i18n::fmt(tl!("Failed: {why}"), &[("why", why)]),
+        JobState::Cancelled => tl!("Cancelled").to_owned(),
+    }
+}
+
+pub(crate) fn status_jobs(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+    let jobs = app.session.plugin_jobs();
+    if jobs.is_empty() {
+        STATE.with(|st| st.borrow_mut().jobs_open = false);
+        return;
+    }
+    let running = jobs.iter().filter(|(j, _)| !j.state.finished()).count();
+    let title = if running > 0 { crate::i18n::fmt(tl!("Plugin jobs: {n} running"), &[("n", &running.to_string())]) } else { tl!("Plugin jobs").to_owned() };
+    let mut open = STATE.with(|st| st.borrow().jobs_open);
+    let button = Button::new(title.clone()).show(ui);
+    if button.clicked() {
+        open = !open;
+    }
+    let mut cancel = Vec::new();
+    let mut clear = false;
+    Popover::new(tl!("Plugin jobs").to_owned(), Bind::bound(&mut open)).opened_by(&button.response).show(ui, |ui, _| {
+        for (job, plugin) in &jobs {
+            Row::new().fill_width().show(ui, |ui, _| {
+                Text::new(job.label.clone()).show(ui);
+                Text::new(plugin.clone()).shade(Shade::Faint).show(ui);
+            });
+            if !job.state.finished() {
+                let bar = match job.progress {
+                    Some(fraction) => Progress::new(fraction),
+                    None => Progress::indeterminate(),
+                };
+                bar.label(job.label.clone()).sizing(Sizing::FillWidth).show(ui);
+            }
+            Row::new().fill_width().show(ui, |ui, _| {
+                Text::new(job_status(job)).shade(Shade::Muted).show(ui);
+                if !job.state.finished() && job.cancellable && Button::new(tl!("Cancel")).show(ui).clicked() {
+                    cancel.push(job.id);
+                }
+            });
+        }
+        if jobs.iter().any(|(j, _)| j.state.finished()) && Button::new(tl!("Clear finished")).show(ui).clicked() {
+            clear = true;
+        }
+    });
+    STATE.with(|st| st.borrow_mut().jobs_open = open);
+    for id in cancel {
+        app.session.plugin_jobs.cancel(id, false);
+    }
+    if clear {
+        app.session.plugin_jobs.clear_finished();
+    }
+}
+
+fn unclean_exit_notice(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+    let names = app.session.plugins_after_unclean_exit();
+    if names.is_empty() {
+        return;
+    }
+    let mut answer = None;
+    let window = ViewportWindow::new(Label::from(tl!("Plugins after an unexpected close").to_owned())).remember(SaveKey::named("photocraft.plugins.unclean"));
+    let out = window.show(ui, |ui, _| {
+        Text::new(crate::i18n::fmt(tl!("PhotoCraft closed unexpectedly while these plugins were running: {names}"), &[("names", &names.join(", "))])).show(ui);
+        Row::new().show(ui, |ui, _| {
+            if Button::new(tl!("Start without these plugins")).show(ui).clicked() {
+                answer = Some(true);
+            }
+            if Button::new(tl!("Keep them on")).show(ui).clicked() {
+                answer = Some(false);
+            }
+        });
+    });
+    if out.close_requested.is_some() {
+        answer = answer.or(Some(false));
+    }
+    if let Some(start_without) = answer
+        && let Err(e) = app.session.answer_unclean_exit(start_without)
+    {
+        crate::notices::error(app, e.to_string());
     }
 }
 
@@ -117,7 +213,7 @@ fn event_json(key: &str, event: &UiEvent) -> Value {
 
 fn send_events(app: &mut PhotocraftApp, events: Vec<Value>) {
     for event in events {
-        if let Err(e) = app.session.execute("plugin.uiEvent", event) {
+        if let Err(e) = app.session.post_plugin_ui_event(&event) {
             crate::dialogs::alerts::report_error(app, e.to_string());
         }
     }
@@ -147,6 +243,7 @@ pub(crate) fn panel_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, panel: &Plu
 }
 
 pub(crate) fn windows(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+    unclean_exit_notice(app, ui);
     let panels: Vec<String> = registry::plugin_panels().into_iter().map(|p| p.surface).collect();
     let surfaces: Vec<_> =
         app.session.plugin_sessions.as_ref().map(|rt| rt.surfaces.values().filter(|s| !panels.contains(&s.key)).cloned().collect()).unwrap_or_default();

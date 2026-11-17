@@ -32,15 +32,22 @@ mod native {
             return;
         }
         let paused = app.session.plugins_paused();
+        let problems = app.session.plugin_load_problems();
         let mut resume = Vec::new();
         let closed = WINDOW.with(|w| {
             let mut slot = w.borrow_mut();
             let Some(window) = slot.as_mut() else { return false };
             let out = ViewportWindow::new(Label::from(tl!("Plugins").to_string())).remember(SaveKey::named("photocraft.plugins.manager")).show(ui, |ui, _| {
                 window.view.show_with_app_problems(ui, &window.manager, |ui| {
+                    for p in &problems {
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label(&p.name).on_hover_text(&p.plugin);
+                            ui.weak(&p.message);
+                        });
+                    }
                     if !paused.is_empty() {
-                        ui.strong(tl!("Paused"));
-                        ui.weak(tl!("These plugins failed three times in a row and are paused until PhotoCraft restarts."));
+                        ui.strong(tl!("Turned off"));
+                        ui.weak(tl!("These plugins failed repeatedly or were running when PhotoCraft closed unexpectedly. They stay off until you resume them."));
                     }
                     for p in &paused {
                         ui.horizontal_wrapped(|ui| {

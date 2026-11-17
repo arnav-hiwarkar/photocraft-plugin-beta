@@ -41,6 +41,8 @@ pub fn status_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                 progress.show(ui);
             }
             crate::jobs_ui::status_progress(app, ui);
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::plugins_ui::status_jobs(app, ui);
         })
         .show(ui, |ui, _| {
             match (document, view.as_mut()) {

@@ -207,6 +207,10 @@ pub struct Session {
     #[cfg(not(target_arch = "wasm32"))]
     pub plugin_sessions: Option<photocraft_plugins::runtime::Runtime>,
     #[cfg(not(target_arch = "wasm32"))]
+    pub plugin_jobs: std::sync::Arc<craft_ext_host::jobs::JobBoard>,
+    #[cfg(not(target_arch = "wasm32"))]
+    plugin_run_begun: bool,
+    #[cfg(not(target_arch = "wasm32"))]
     plugin_opened: std::collections::BTreeSet<u64>,
     #[cfg(not(target_arch = "wasm32"))]
     plugin_seen: Option<(u64, u64, Vec<LayerId>, Option<photocraft_raster::Surface>)>,

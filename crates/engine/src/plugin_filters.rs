@@ -345,8 +345,10 @@ fn run_plugin(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
             }
             let px = to_premultiplied(&working, n).map_err(EngineError::Other)?;
             let cancelled = || ctx.cancelled();
+            let reporter = ctx.clone();
+            let progress: craft_ext_host::wasm::ProgressFn = std::sync::Arc::new(move |value, note| reporter.progress(value.unwrap_or(0.0), note));
             let out = source
-                .run(&px, w, h, color, params, generation, &cancelled)
+                .run(&px, w, h, color, params, generation, progress, &cancelled)
                 .map_err(|e| if ctx.cancelled() { EngineError::Cancelled } else { EngineError::Other(format!("{failed} could not run: {e}")) })?;
             ctx.check()?;
             let mut after = from_premultiplied(&out, n, format.sample != SampleType::F32).map_err(EngineError::Other)?;

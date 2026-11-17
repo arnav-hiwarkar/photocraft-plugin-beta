@@ -1,4 +1,3 @@
-//! PhotoCraft's boundary to the shared Craft plugin platform.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 use craft_ext_core::id::AppId;
@@ -13,22 +12,26 @@ pub fn safe_mode() -> bool {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod store {
-    use super::*;
+    use super::{AppId, contract, safe_mode};
     use craft_ext_store::{
         Manager, Store,
         view::{EnabledRelease, GrantView},
     };
+    pub fn open() -> Result<Store, Box<dyn std::error::Error>> {
+        Ok(Store::at(craft_ext_store::location::default_root()?))
+    }
+    pub fn app() -> Result<AppId, Box<dyn std::error::Error>> {
+        Ok(contract()?.app)
+    }
     pub fn manager() -> Result<Manager, Box<dyn std::error::Error>> {
         let c = contract()?;
         Ok(Manager::new(
-            Store::at(craft_ext_store::location::default_root()?),
+            open()?,
             Some(c.app),
             c.provided,
             format!("{}-{}", if cfg!(target_os = "macos") { "macos" } else { std::env::consts::OS }, std::env::consts::ARCH),
         ))
     }
-    /// Start one background refresher per process. Publishing the catalogue advances the
-    /// store generation, invalidating registries and session workers on their next pump.
     pub fn start_catalogue_refresh() {
         static START: std::sync::Once = std::sync::Once::new();
         START.call_once(|| {
@@ -59,13 +62,9 @@ pub mod store {
     pub fn filters() -> Result<Vec<FilterSource>, Box<dyn std::error::Error>> {
         Ok(named_filters()?.into_iter().map(|(filter, _)| filter).collect())
     }
-    /// Changes when PhotoCraft's loaded plugins must reload: its own setups, active release bytes
-    /// or a kill-list hit. Catalogue refreshes and other apps' changes leave it unchanged.
     pub fn generation() -> Result<u64, Box<dyn std::error::Error>> {
-        let app = AppId::new("photocraft")?;
-        Ok(Store::at(craft_ext_store::location::default_root()?).state()?.app_fingerprint(&app))
+        Ok(open()?.state()?.app_fingerprint(&app()?))
     }
-    /// Enabled effects with the display name of the plugin that provides each.
     pub fn named_filters() -> Result<Vec<(FilterSource, String)>, Box<dyn std::error::Error>> {
         let provided = contract()?.provided;
         let mut filters = Vec::new();
@@ -81,19 +80,31 @@ pub mod store {
         }
         Ok(filters)
     }
-    /// Management remains available in safe mode; executable contributions do not.
     pub fn enabled() -> Result<Vec<EnabledRelease>, Box<dyn std::error::Error>> {
         if safe_mode() {
             return Ok(Vec::new());
         }
-        let app = AppId::new("photocraft")?;
+        let app = app()?;
         let view = GrantView::open(craft_ext_store::location::default_root()?, app.clone())?;
         Ok(view.enabled_contributions(&app)?)
     }
+    pub fn quarantined(store: &Store) -> Result<Vec<crate::runtime::Paused>, Box<dyn std::error::Error>> {
+        let app = app()?;
+        let state = store.state()?;
+        let mut out = Vec::new();
+        for (id, setup) in state.apps.get(&app).into_iter().flatten() {
+            if let (Some(q), Some(active)) = (&setup.quarantine, setup.active)
+                && q.version == active
+            {
+                let name = store.manifest(&state, id, active).map_or_else(|_| id.to_string(), |m| m.name);
+                out.push(crate::runtime::Paused { plugin: id.to_string(), name, reason: q.reason.clone() });
+            }
+        }
+        Ok(out)
+    }
 }
 
-/// Run on the caller's worker thread, with a private runtime instance. No document is
-/// touched until this returns successfully; the caller owns the undo transaction.
+#[allow(clippy::too_many_arguments)]
 pub fn transform(
     module: &[u8],
     id: &str,
@@ -102,6 +113,7 @@ pub fn transform(
     height: u32,
     color: &str,
     params: Value,
+    progress: craft_ext_host::wasm::ProgressFn,
     check: &dyn Fn() -> Result<(), craft_ext_host::wasm::PluginError>,
 ) -> Result<Vec<f32>, craft_ext_host::wasm::PluginError> {
     use craft_ext_host::wasm::{Filter, Plugin, PluginError};
@@ -111,6 +123,7 @@ pub fn transform(
     check()?;
     let plugin = Plugin::load(id, module)?;
     let mut filter = Filter::new(&plugin, std::sync::Arc::new(|_, _, _| {}))?;
+    filter.set_progress(progress);
     let mut output = pixels.to_vec();
     let ctx = serde_json::json!({"params":params,"time":0.0,"scale":1.0,"origin":[0,0],"full":[width,height],"quality":"final","seed":0,"color":color});
     filter.run(&ctx, &mut output, width, height, check)?;
@@ -158,7 +171,6 @@ impl store::FilterSource {
             self.validate(epoch).map_err(|e| craft_ext_host::wasm::PluginError::Stopped(e.to_string()))
         })?)
     }
-    /// Capture and validate the invocation's permission epoch, including the kill list.
     pub fn grant_generation(&self) -> Result<u64, Box<dyn std::error::Error>> {
         let view = craft_ext_store::view::GrantView::open(craft_ext_store::location::default_root()?, contract()?.app)?;
         Ok(view.generation(&self.plugin))
@@ -173,8 +185,7 @@ impl store::FilterSource {
         }
         Ok(())
     }
-    /// Refresh enabled contributions before every run and every host fuel slice; `cancelled`
-    /// is asked at the same points so a cancelled job stops the guest.
+    #[allow(clippy::too_many_arguments)]
     pub fn run(
         &self,
         pixels: &[f32],
@@ -183,6 +194,7 @@ impl store::FilterSource {
         color: &str,
         params: Value,
         generation: u64,
+        progress: craft_ext_host::wasm::ProgressFn,
         cancelled: &dyn Fn() -> bool,
     ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         use craft_ext_host::wasm::PluginError;
@@ -197,7 +209,7 @@ impl store::FilterSource {
         use std::io::Read as _;
         let mut bytes = Vec::new();
         std::fs::File::open(self.root.join(module))?.take(craft_ext_host::wasm::MAX_MODULE_BYTES as u64 + 1).read_to_end(&mut bytes)?;
-        Ok(transform(&bytes, self.plugin.as_str(), pixels, width, height, color, params, &validate)?)
+        Ok(transform(&bytes, self.plugin.as_str(), pixels, width, height, color, params, progress, &validate)?)
     }
 }
 

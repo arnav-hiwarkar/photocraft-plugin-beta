@@ -1639,9 +1639,17 @@ name = "craft-ext-host"
 version = "0.1.0"
 dependencies = [
  "craft-ext-core",
+ "craft-ext-kernels",
  "serde",
  "serde_json",
  "wasmi",
+]
+
+[[package]]
+name = "craft-ext-kernels"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -6718,6 +6726,8 @@ dependencies = [
  "craft-ext-store",
  "serde",
  "serde_json",
+ "tempfile",
+ "zip",
 ]
 
 [[package]]
