@@ -2195,6 +2195,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-testkit"
+version = "0.1.0"
+source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=db83b1554687ed1fd1ae20c37573cd3767601d51#db83b1554687ed1fd1ae20c37573cd3767601d51"
+
+[[package]]
 name = "craft-text"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
@@ -10879,6 +10884,7 @@ dependencies = [
  "chrono",
  "craft",
  "craft-i18n",
+ "craft-testkit",
  "serde",
  "serde_json",
  "tempfile",

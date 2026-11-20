@@ -243,7 +243,7 @@ stroke trace: 62 frames on vulkan NVIDIA GeForce RTX 5090 (p50/p95 ms): interval
 
 What the app can't time is the rest of input-to-photon: the OS input queue before a frame starts (up to one `interval`), frames queued for the display (the surface keeps up to two; the GL backend ignores that setting), and the compositor. So the first line names the backend and how frames are presented. To compare presentation settings without rebuilding, launch with `PHOTOCRAFT_PRESENT_MODE` and `PHOTOCRAFT_FRAME_LATENCY` (see [Environment variables](#environment-variables)): with `novsync` the app no longer waits on vsync (`wait` near 0): each refresh shows the newest frame, and where the driver only offers Immediate, the screen may tear. The last summary is also in the control channel's `perf.strokeTrace` (`ui.inspect`). The code is `crates/ui-egui/src/stroke_trace.rs`.
 
-The trace has no clock of its own: it reads the per-frame stage record the app gathers every frame (`crates/ui-egui/src/frame_stages.rs`). The same record feeds the slow-frame ring: any frame over 50 ms is kept (the last 64, in `perf.slowFrames`) and logged at `info`, at most one line a second with a count of the slow frames in between, naming its input, command, damage, composite, upload, GPU and present times and the canvas redraw's kind and pixels.
+The trace has no clock of its own: it reads the per-frame stage record the app gathers every frame (`crates/ui-egui/src/frame_stages.rs`). Any frame over 50 ms is logged at `info`, at most one line a second with a count of the slow frames in between, naming its input, command, damage, composite, upload, GPU and present times and the canvas redraw's kind and pixels. The same record feeds the frame probe (`ui.set {"frameProbe": true}`, then `ui.perf.takeFrames`), which keeps every frame while it records, up to 131,072 with the rest counted as dropped, and nothing while it is off; `cargo xtask perf --pair` reads it (see Performance).
 
 ## Driving the app programmatically
 
@@ -534,6 +534,7 @@ cargo xtask perf                 # full benchmark run (tens of minutes, release 
 cargo xtask perf --quick         # small synthetic documents (about a minute once built)
 cargo xtask perf --update-baseline   # also write perf/baseline.json from this run (refused when contended)
 cargo xtask perf --update-baseline --from a/results.json --from b/results.json ...   # baseline from saved runs
+cargo xtask perf --pair          # frame probe in ABBA blocks: craft-pair/1 records and A/AA verdicts
 ```
 
 **Sources.** The scorecard reads only committed files, so it is deterministic:
@@ -635,6 +636,40 @@ nobody measured on that machine.
 **Adding a scenario.** Add a row to a bench (keep its name stable: it is the key), give the
 bench `--json` support through `photocraft_testkit::perf::{row, report, write_report}`, then add a
 `[[scenario]]` to `perf/budgets.toml` and run `cargo xtask scorecard`.
+
+**Paired runs.** `cargo xtask perf --pair` measures what a user feels through the frame probe
+(`frame_stages.rs`) instead of a bench row: C, the UI thread's wall time in each stage (input,
+ui_build, command, damage, composite, upload; the stages do not overlap, ui_build leaves out the
+commands and canvas work the UI build runs, and the frame-rate cap's sleep is in none of them);
+I, the interval between raw input hooks, where a frame is missed when 2 × I × hz > 3 s and a long
+stall when I × hz > 4 s and I > 50 ms; and L, from a synthetic input request to the end of the
+frame that takes it. It builds `frame_probe_bench` in release, which runs the real
+`PhotocraftApp` in an offscreen CPU harness (a 3000×2000 document in a 1920×1080 window), sends
+at most one synthetic input request a frame through the control methods, right after the
+previous frame and only once the earlier request's input was taken, and steps frames on a
+`--refresh-hz` grid (60) as a display's vsync would. It runs `--units` ABBA units (3) of
+`--frames` frames a block (3600, a minute at 60 Hz, at least 2), each block its own process,
+labelled A and AA: the same binary in both arms, which is the A/A calibration `CONF-calibrate`.
+Each run first deletes the previous run's records, summary and block reports. It writes a
+`craft-pair/1` record per gate, arm and block to `target/perf/pair.records` (`OverheadCpu` from
+the sum of a frame's C stages, `OverheadInterval`, `UiEqMissed` and `UiEqLongStalls` from I,
+`UiEqLatency` from L), writes the per-stage p50/p95/p99 and each gate's A/AA verdict from
+`craft_testkit::pair` to `target/perf/pair-summary.md`, and prints them. Records name the night
+(`--night`, default the UTC date), the runner image (`--runner-image`, default
+`$ImageOS-$ImageVersion` on a hosted runner, else `local`) and the load: `contended` when the
+1-minute load at the start is above `settings.max_load_per_core` per core, as plain `perf` judges
+it, else `idle`, so contended and idle records never pool. The plain `perf` run and its 15 % p50
+gate are unchanged.
+
+The harness has limits to keep in mind when reading its numbers:
+- Nothing is presented. The bench waits for the next tick of its grid after each frame
+  (`Display::present`), so I is C rounded up to whole display periods: it shows frames that
+  overran a period, not a compositor's or a GPU's own delays.
+- L starts right after the previous frame ended, so it is the wait for the next tick plus the
+  frame that takes the input.
+- `hover` is pointer moves with no button held, not a continuous drag. `paint` is a continuous
+  Brush drag: the press, then a move a frame, released and pressed again every 120 requests.
+- The canvas is on the CPU: kittest has no wgpu here, so `backend` is `cpu`.
 
 **CI.** `ci.yml` runs `cargo xtask scorecard --check`. `perf-nightly.yml` runs `cargo xtask perf`
 on a fixed macOS runner every night (and on demand), posts the table as the job summary, uploads

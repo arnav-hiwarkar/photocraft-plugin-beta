@@ -4,6 +4,7 @@
 //! ```text
 //! cargo xtask perf [--quick] [--update-baseline [--allow-contended]] [--threshold PCT] [--bench NAME]... [--skip-build] [--reuse]
 //! cargo xtask perf --update-baseline --from results.json [--from results.json]... [--allow-contended]
+//! cargo xtask perf --pair [--workload hover|paint]... [--units N] [--frames N] [--refresh-hz HZ] [--night ID] [--runner-image ID] [--skip-build]
 //! ```
 //!
 //! - `--quick`: only the benches with `quick_args` (small synthetic documents; minutes, not tens
@@ -37,6 +38,8 @@ use std::time::Instant;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
+
+mod pair;
 
 pub const BUDGETS: &str = "perf/budgets.toml";
 pub const BASELINE: &str = "perf/baseline.json";
@@ -861,6 +864,10 @@ fn write(path: &Path, text: &str) -> Result<(), String> {
 }
 
 pub fn run(root: &Path, rest: &[&str]) -> Result<(), String> {
+    if let Some(at) = rest.iter().position(|a| *a == "--pair") {
+        let others: Vec<&str> = rest.iter().enumerate().filter(|(i, _)| *i != at).map(|(_, a)| *a).collect();
+        return pair::run(root, &others);
+    }
     let o = parse_opts(rest)?;
     let text = std::fs::read_to_string(root.join(BUDGETS)).map_err(|e| format!("read {BUDGETS}: {e}"))?;
     let budgets = parse_budgets(&text)?;

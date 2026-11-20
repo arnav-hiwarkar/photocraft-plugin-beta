@@ -200,6 +200,13 @@ fn cancel_each(app: &mut PhotocraftApp, ids: Vec<JobId>) -> CancelReport {
 
 // ---- the shell: view state, windows, GPU, focus, screenshots, notices ----
 
+fn take_frames(app: &mut PhotocraftApp) -> Reply {
+    match app.frame_probe.take() {
+        Some(recorded) => Reply::from_result(serde_json::to_value(recorded).map_err(|e| e.to_string())),
+        None => err("the frame probe is off: turn it on with ui.set {\"frameProbe\": true}"),
+    }
+}
+
 fn shell_methods(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest) -> Option<Reply> {
     let p = &req.params;
     Some(match req.method.as_str() {
@@ -224,6 +231,7 @@ fn shell_methods(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequ
             ok(Value::Null)
         }
         "ui.gpu.simulateLoss" => simulate_gpu_loss(app, ctx, p),
+        "ui.perf.takeFrames" => take_frames(app),
         "ui.focus" => {
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
             // The window host sends `Minimized(false)` first and asks for attention where the platform cannot focus.
@@ -407,6 +415,7 @@ struct ToolSet {
     tool: Option<Tool>,
     gradient_classic: Option<bool>,
     stroke_trace: Option<&'static str>,
+    frame_probe: Option<bool>,
     eyedropper_size: Option<craft::color_ui::ui::SampleSize>,
     eyedropper_sample: Option<craft::color_ui::ui::SampleSource>,
     eyedropper_ring: Option<bool>,
@@ -433,6 +442,7 @@ impl ToolSet {
             tool: tool_param(p)?,
             gradient_classic: bool_field(p, "gradientClassic")?,
             stroke_trace: stroke_trace_param(p)?,
+            frame_probe: bool_field(p, "frameProbe")?,
             // The Eyedropper's options bar (#1649): Sample Size, Sample, Show Sampling Ring.
             eyedropper_size: eyedropper_size_param(p)?,
             eyedropper_sample: eyedropper_sample_param(p)?,
@@ -529,6 +539,9 @@ impl ToolSet {
         }
         if let Some(v) = &self.stroke_trace {
             app.stroke_trace.set(v);
+        }
+        if let Some(on) = self.frame_probe {
+            app.frame_probe.set_recording(on);
         }
         if let Some(classic) = self.gradient_classic {
             app.ui.tool_options.gradient_classic = classic;
@@ -1167,9 +1180,13 @@ fn input_methods(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequ
     let view = crate::canvas::document_display::active_view(app);
     let map = move |at: egui::Pos2| view.as_ref().map(|view| view.to_screen(Point::new(f64::from(at.x), f64::from(at.y))));
     let host = WindowHost::of(ctx);
+    let idle = host.injected_idle();
     let queued = craft::automation::synthetic::input_method(&req.method, &req.params, &host, egui::ViewportId::ROOT, &map)?;
     Some(match queued {
         Ok(()) => {
+            if idle {
+                app.frame_probe.input_injected(crate::gpu_canvas::now_ms);
+            }
             app.input_queued_for = Some(app.input_target());
             Reply::AfterInput
         }

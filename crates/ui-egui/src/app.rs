@@ -199,7 +199,7 @@ impl PhotocraftApp {
             perf: Default::default(),
             stroke_trace: stroke_trace::StrokeTrace::from_env(),
             render_path: Default::default(),
-            slow_frames: Default::default(),
+            frame_probe: Default::default(),
             prefs_rt: Default::default(),
             updates_rt: Default::default(),
             discard: None,

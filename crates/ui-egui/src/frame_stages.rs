@@ -1,22 +1,18 @@
-//! Where each frame's time goes (#9328), gathered every frame, and the slow ones kept.
+//! Where each frame's time goes (#9328), gathered every frame.
 //!
 //! [`FrameStages`] is one frame's record. Each stage has one writer: the raw input hook starts
 //! the frame, `App::run` adds commands, the GPU canvas path adds damage tracking and budgeting,
 //! [`crate::gpu_canvas::Perf::record`] adds composites and uploads, and the canvas adds stroke
-//! rendering. `App::ui` closes it on the frame's last egui pass ([`SlowFrames::finish`]). A frame over [`SLOW_FRAME_MS`] goes
-//! into [`SlowFrames`], the last [`SLOW_FRAMES`] of them, which the control channel's `perf`
-//! output lists as `slowFrames`; one `info` log line per second names them. The stroke trace
+//! rendering. `App::ui` closes it on the frame's last egui pass ([`FrameProbe::finish`]). A frame
+//! over [`SLOW_FRAME_MS`] gets one `info` log line per second at most. The stroke trace
 //! (`stroke_trace`) reads the same record, so the app times a frame in one place.
 //!
 //! The web build does the same: `now_ms()` is `performance.now()` there, and the log line goes to
 //! the browser console.
 
-use std::collections::VecDeque;
-
-/// A frame slower than this (ms) is kept and logged.
+/// A frame slower than this (ms) is logged.
 pub const SLOW_FRAME_MS: f64 = 50.0;
-/// How many slow frames are kept.
-pub const SLOW_FRAMES: usize = 64;
+pub const RECORDED_FRAMES: usize = 1 << 17;
 /// At most one slow-frame log line per this many ms.
 const LOG_EVERY_MS: f64 = 1000.0;
 
@@ -55,6 +51,8 @@ pub struct FrameStages {
     /// Building the UI (`App::ui`, every egui pass of the frame), the canvas refresh included.
     #[serde(skip)]
     pub ui_ms: f64,
+    pub build_ms: f64,
+    pub latency_ms: Option<f64>,
     /// Rendering stroke points (the stroke trace's `stroke`).
     #[serde(skip)]
     pub stroke_ms: f64,
@@ -68,6 +66,12 @@ pub struct FrameStages {
     /// eframe's CPU time for the previous frame.
     #[serde(skip)]
     pub cpu_prev_ms: Option<f64>,
+    #[serde(skip)]
+    pub injected: bool,
+    #[serde(skip)]
+    capped_ms: f64,
+    #[serde(skip)]
+    nested_before_ui_ms: f64,
     /// The raw input hook ran for this frame.
     #[serde(skip)]
     started: bool,
@@ -82,6 +86,15 @@ impl FrameStages {
         self.t = now;
         self.moves = moves;
         self.started = true;
+        self.capped_ms = 0.0;
+    }
+
+    pub fn capped(&mut self, ms: f64) {
+        self.capped_ms += ms;
+    }
+
+    fn nested_ms(&self) -> f64 {
+        self.command_ms + self.damage_ms + self.composite_ms + self.upload_ms
     }
 
     /// The UI build starts at `now`; `cpu_prev` is eframe's CPU time for the previous frame, in s.
@@ -94,7 +107,8 @@ impl FrameStages {
         if !self.started {
             self.start(now, 0);
         }
-        self.input_ms = (now - self.t - self.command_ms).max(0.0);
+        self.nested_before_ui_ms = self.nested_ms();
+        self.input_ms = (now - self.t - self.capped_ms - self.nested_before_ui_ms).max(0.0);
         self.cpu_prev_ms = cpu_prev.map(|s| f64::from(s) * 1000.0);
     }
 
@@ -114,7 +128,7 @@ impl FrameStages {
 
     /// The stages that make up `frame_ms` (`present_ms` belongs to the previous frame).
     pub fn stage_ms(&self) -> f64 {
-        self.input_ms + self.command_ms + self.damage_ms + self.composite_ms + self.upload_ms
+        self.input_ms + self.build_ms + self.nested_ms()
     }
 
     /// The frame ends at `now`.
@@ -122,7 +136,8 @@ impl FrameStages {
         if !self.started {
             self.t = now;
         }
-        self.frame_ms = (now - self.t).max(self.stage_ms());
+        self.build_ms = (self.ui_ms - (self.nested_ms() - self.nested_before_ui_ms)).max(0.0);
+        self.frame_ms = (now - self.t - self.capped_ms).max(self.stage_ms());
     }
 
     /// One line for the log.
@@ -146,38 +161,61 @@ impl FrameStages {
     }
 }
 
-/// The last [`SLOW_FRAMES`] frames over the threshold.
-#[derive(Debug)]
-pub struct SlowFrames {
-    frames: VecDeque<FrameStages>,
-    threshold_ms: f64,
-    /// The previous frame's UI build (for its `present_ms`).
+#[derive(Debug, Default)]
+pub struct FrameProbe {
+    recording: Option<Recording>,
     prev_ui_ms: Option<f64>,
-    /// When the last log line went out, and the slow frames since that weren't logged.
     logged_at: Option<f64>,
     unlogged: usize,
 }
 
-impl Default for SlowFrames {
-    fn default() -> Self {
-        Self { frames: VecDeque::with_capacity(SLOW_FRAMES), threshold_ms: SLOW_FRAME_MS, prev_ui_ms: None, logged_at: None, unlogged: 0 }
+#[derive(Debug, Default)]
+struct Recording {
+    frames: Vec<FrameStages>,
+    dropped: u64,
+    injected_at: Option<f64>,
+}
+
+#[derive(Debug, Default, PartialEq, serde::Serialize)]
+pub struct Recorded {
+    pub frames: Vec<FrameStages>,
+    pub dropped: u64,
+}
+
+impl Recording {
+    fn keep(&mut self, s: &mut FrameStages, now: f64) {
+        if s.injected {
+            s.latency_ms = self.injected_at.take().map(|at| (now - at).max(0.0));
+        }
+        if self.frames.len() < RECORDED_FRAMES {
+            self.frames.push(s.clone());
+        } else {
+            self.dropped = self.dropped.saturating_add(1);
+        }
     }
 }
 
-impl SlowFrames {
-    /// The kept frames, oldest first.
-    pub fn frames(&self) -> impl DoubleEndedIterator<Item = &FrameStages> {
-        self.frames.iter()
+impl FrameProbe {
+    pub fn set_recording(&mut self, on: bool) {
+        self.recording = on.then(|| self.recording.take().unwrap_or_default());
     }
 
-    /// Keep frames slower than `ms` instead of [`SLOW_FRAME_MS`] (tests).
-    #[cfg(test)]
-    pub(crate) fn set_threshold_ms(&mut self, ms: f64) {
-        self.threshold_ms = ms;
+    pub fn frames(&self) -> &[FrameStages] {
+        self.recording.as_ref().map(|r| r.frames.as_slice()).unwrap_or_default()
+    }
+
+    pub fn take(&mut self) -> Option<Recorded> {
+        self.recording.as_mut().map(|r| Recorded { frames: std::mem::take(&mut r.frames), dropped: std::mem::take(&mut r.dropped) })
+    }
+
+    pub fn input_injected(&mut self, now: impl FnOnce() -> f64) {
+        if let Some(r) = &mut self.recording {
+            r.injected_at = Some(now());
+        }
     }
 
     /// Close frame `s` at `now`: `gpu` says the canvas is on the GPU, `gpu_ms` is the GPU's
-    /// latest composite time. A slow frame is kept, and logged at most once a second.
+    /// latest composite time. A slow frame is logged at most once a second.
     pub fn finish(&mut self, mut s: FrameStages, now: f64, gpu: bool, gpu_ms: Option<f64>) -> FrameStages {
         s.end(now);
         let on_gpu = if s.refresh.is_empty() { gpu } else { s.refresh.starts_with("gpu") };
@@ -185,21 +223,19 @@ impl SlowFrames {
         s.gpu_ms = gpu_ms.filter(|_| on_gpu);
         s.present_ms = s.cpu_prev_ms.zip(self.prev_ui_ms).map(|(cpu, ui)| (cpu - ui).max(0.0));
         self.prev_ui_ms = Some(s.ui_ms);
-        if let Some(line) = self.push(&s) {
+        if let Some(r) = &mut self.recording {
+            r.keep(&mut s, now);
+        }
+        if let Some(line) = self.slow_line(&s) {
             log::info!("{line}");
         }
         s
     }
 
-    /// Keep `s` if it's slow; the log line to write, if one is due.
-    fn push(&mut self, s: &FrameStages) -> Option<String> {
-        if s.frame_ms.is_nan() || s.frame_ms <= self.threshold_ms {
+    fn slow_line(&mut self, s: &FrameStages) -> Option<String> {
+        if s.frame_ms.is_nan() || s.frame_ms <= SLOW_FRAME_MS {
             return None;
         }
-        if self.frames.len() == SLOW_FRAMES {
-            self.frames.pop_front();
-        }
-        self.frames.push_back(s.clone());
         if self.logged_at.is_some_and(|at| s.t - at < LOG_EVERY_MS) {
             self.unlogged += 1;
             return None;
@@ -214,14 +250,21 @@ impl SlowFrames {
     }
 }
 
-impl serde::Serialize for SlowFrames {
+impl serde::Serialize for FrameProbe {
     fn serialize<S: serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
-        ser.collect_seq(self.frames.iter())
+        use serde::ser::SerializeStruct;
+        let Some(r) = &self.recording else { return ser.serialize_none() };
+        let mut out = ser.serialize_struct("FrameProbe", 2)?;
+        out.serialize_field("count", &r.frames.len())?;
+        out.serialize_field("dropped", &r.dropped)?;
+        out.end()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use serde_json::{Value, json};
+
     use super::*;
 
     fn frame(t: f64, ms: f64) -> FrameStages {
@@ -233,36 +276,114 @@ mod tests {
     }
 
     #[test]
-    fn slow_frames_keep_the_last_64_over_the_threshold() {
-        let mut r = SlowFrames::default();
-        for k in 0..100 {
-            let t = f64::from(k) * 100.0;
-            r.finish(frame(t, 0.0), t + 60.0 + f64::from(k), false, None);
-        }
-        assert_eq!(r.frames().count(), SLOW_FRAMES);
-        let first = r.frames().next().unwrap();
-        assert_eq!(first.t, 3600.0, "the oldest are dropped");
-        assert_eq!(r.frames().last().unwrap().frame_ms, 159.0);
-        assert!(r.frames().all(|f| f.path == "cpu" && f.refresh_px == 100));
-        let json = serde_json::to_value(&r).unwrap();
-        assert_eq!(json.as_array().map(Vec::len), Some(SLOW_FRAMES));
-        assert_eq!(json[0]["frameMs"], 96.0);
+    fn a_recording_probe_keeps_every_frame_with_the_latency_of_the_last_injection() {
+        let mut p = FrameProbe::default();
+        p.set_recording(true);
+        p.finish(frame(0.0, 2.0), 16.0, false, None);
+        p.input_injected(|| 20.0);
+        p.input_injected(|| 25.0);
+        let mut consumed = frame(33.0, 2.0);
+        consumed.injected = true;
+        p.finish(consumed, 41.5, false, None);
+        let mut later = frame(50.0, 2.0);
+        later.injected = true;
+        p.finish(later, 60.0, false, None);
+        assert_eq!(serde_json::to_value(&p).unwrap(), json!({"count": 3, "dropped": 0}));
+        let recorded = p.take().unwrap();
+        let read = |key: &str| recorded.frames.iter().map(|f| serde_json::to_value(f).unwrap()[key].clone()).collect::<Vec<_>>();
+        assert_eq!(read("t"), [json!(0.0), json!(33.0), json!(50.0)]);
+        assert_eq!(read("frameMs"), [json!(16.0), json!(8.5), json!(10.0)]);
+        assert_eq!(read("latencyMs"), [Value::Null, json!(16.5), Value::Null]);
+        assert_eq!(serde_json::to_value(&p).unwrap(), json!({"count": 0, "dropped": 0}));
     }
 
     #[test]
-    fn a_fast_frame_is_not_recorded() {
-        let mut r = SlowFrames::default();
-        let s = r.finish(frame(0.0, 0.0), 49.0, true, Some(3.0));
+    fn input_injected_after_a_withdrawal_is_timed_from_its_own_injection() {
+        let mut p = FrameProbe::default();
+        p.set_recording(true);
+        p.input_injected(|| 10.0);
+        p.finish(frame(16.0, 2.0), 30.0, false, None);
+        p.input_injected(|| 40.0);
+        let mut consumed = frame(41.0, 2.0);
+        consumed.injected = true;
+        let consumed = p.finish(consumed, 45.0, false, None);
+        assert_eq!(consumed.latency_ms, Some(5.0));
+        assert!(consumed.latency_ms < Some(1000.0 / 60.0));
+    }
+
+    #[test]
+    fn the_frame_cap_sleep_is_in_no_stage_and_the_ui_build_excludes_what_it_nests() {
+        let mut s = FrameStages::default();
+        s.start(0.0, 1);
+        s.capped(10.0);
+        s.command("view.zoomIn", 0.5);
+        s.ui_start(12.0, None);
+        s.damage_ms += 0.5;
+        s.refresh("rect", 64, 3.0, 1.0);
+        s.command("layer.setProps", 1.5);
+        s.ui_ms = 8.0;
+        let s = FrameProbe::default().finish(s, 21.0, false, None);
+        assert_eq!((s.input_ms, s.build_ms, s.command_ms, s.frame_ms), (1.5, 2.0, 2.0, 11.0));
+        assert_eq!(s.stage_ms(), 10.0);
+    }
+
+    #[test]
+    fn the_disabled_probe_keeps_nothing_and_reads_no_clock() {
+        let reads = std::cell::Cell::new(0);
+        let run = |p: &mut FrameProbe| -> Vec<FrameStages> {
+            (0..10_000)
+                .map(|k| {
+                    let t = f64::from(k) * 16.0;
+                    p.input_injected(|| {
+                        reads.set(reads.get() + 1);
+                        t
+                    });
+                    let mut s = frame(t, 2.0);
+                    s.injected = true;
+                    p.finish(s, t + 8.0, false, None)
+                })
+                .collect()
+        };
+        let mut off = FrameProbe::default();
+        let closed_off = run(&mut off);
+        assert_eq!((reads.get(), off.frames().len(), off.take()), (0, 0, None));
+        assert_eq!(serde_json::to_value(&off).unwrap(), Value::Null);
+        assert_eq!(closed_off.iter().map(|s| (s.frame_ms, s.latency_ms)).next_back(), Some((8.0, None)));
+        let mut on = FrameProbe::default();
+        on.set_recording(true);
+        let closed_on = run(&mut on);
+        assert_eq!((reads.get(), on.frames().len()), (10_000, 10_000));
+        assert_eq!(closed_on.iter().filter_map(|s| s.latency_ms).sum::<f64>(), 80_000.0);
+    }
+
+    #[test]
+    fn frames_past_the_cap_count_as_dropped() {
+        let mut p = FrameProbe::default();
+        p.set_recording(true);
+        for k in 0..RECORDED_FRAMES + 5 {
+            p.finish(FrameStages::default(), k as f64, false, None);
+        }
+        assert_eq!(serde_json::to_value(&p).unwrap(), json!({"count": 131_072, "dropped": 5}));
+        let recorded = p.take().unwrap();
+        assert_eq!((recorded.frames.len(), recorded.frames.last().map(|f| f.t), recorded.dropped), (131_072, Some(131_071.0), 5));
+        assert_eq!(serde_json::to_value(&p).unwrap(), json!({"count": 0, "dropped": 0}));
+    }
+
+    #[test]
+    fn a_fast_frame_logs_nothing() {
+        let mut p = FrameProbe::default();
+        let s = p.finish(frame(0.0, 0.0), 49.0, true, Some(3.0));
         assert_eq!(s.frame_ms, 49.0);
         assert_eq!(s.path, "cpu", "the refresh says who drew it");
         assert_eq!(s.gpu_ms, None, "no GPU time for a CPU refresh");
-        r.finish(frame(100.0, 0.0), 150.0, false, None);
-        assert_eq!(r.frames().count(), 0, "exactly 50 ms isn't over");
+        let mut exactly = frame(100.0, 0.0);
+        exactly.end(150.0);
+        assert_eq!(p.slow_line(&exactly), None, "exactly 50 ms isn't over");
     }
 
     #[test]
     fn stages_never_exceed_the_frame() {
-        let mut r = SlowFrames::default();
+        let mut r = FrameProbe::default();
         // A command run between frames (before the hook) makes the stages longer than the clock.
         let mut s = FrameStages::default();
         s.command("layer.setProps", 80.0);
@@ -284,29 +405,31 @@ mod tests {
 
     #[test]
     fn slow_frame_log_is_rate_limited() {
-        let mut r = SlowFrames::default();
+        let mut r = FrameProbe::default();
         let lines: Vec<String> = (0..10)
             .filter_map(|k| {
                 let mut s = frame(f64::from(k) * 100.0, 0.0);
                 s.end(s.t + 60.0);
-                r.push(&s)
+                r.slow_line(&s)
             })
             .collect();
         assert_eq!(lines.len(), 1, "{lines:?}");
         assert!(lines[0].starts_with("slow frame: 60.0 ms") && !lines[0].contains("more"), "{}", lines[0]);
         let mut s = frame(1000.0, 0.0);
         s.end(1070.0);
-        let line = r.push(&s).expect("a second later, the next line");
+        let line = r.slow_line(&s).expect("a second later, the next line");
         assert!(line.ends_with("(9 more slow frames)"), "{line}");
-        assert_eq!(r.frames().count(), 11);
     }
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod app_tests {
+    use craft::ui::runtime::windows::WindowHost;
     use serde_json::json;
 
     use crate::PhotocraftApp;
+
+    const STALE_MS: u64 = 200;
 
     /// One frame of `passes` egui passes of `pass_ms` each, through the app's hooks: the raw input
     /// hook starts the record once, and each pass's UI build ends in `finish_frame`. Every pass but
@@ -334,11 +457,12 @@ mod app_tests {
     }
 
     #[test]
-    fn two_30_ms_passes_of_one_frame_are_one_60_ms_slow_frame() {
+    fn two_30_ms_passes_of_one_frame_are_one_60_ms_frame() {
         let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        app.frame_probe.set_recording(true);
         let ctx = app.ctx().clone();
         let first_input_ms = frame(&mut app, &ctx, 2, 30, false);
-        let frames: Vec<_> = app.slow_frames.frames().cloned().collect();
+        let frames = app.frame_probe.take().unwrap().frames;
         assert_eq!(frames.len(), 1, "{frames:?}");
         let f = &frames[0];
         assert!(f.frame_ms >= 60.0 && f.ui_ms >= 60.0, "both passes: {f:?}");
@@ -398,12 +522,11 @@ mod app_tests {
             PhotocraftApp::with_context(cc.egui_ctx.clone(), s, crate::Services::default())
         });
         harness.run_steps(6);
-        // Every frame counts as slow, so the test doesn't depend on the machine's speed.
-        harness.state_mut().slow_frames.set_threshold_ms(0.0);
+        harness.state_mut().frame_probe.set_recording(true);
         harness.state_mut().run("layer.setProps", json!({"layer": layer, "visible": false})).unwrap();
         harness.step();
         let app = harness.state();
-        let f = app.slow_frames.frames().rev().find(|f| f.command == "layer.setProps").expect("the toggle's frame is kept").clone();
+        let f = app.frame_probe.frames().iter().rev().find(|f| f.command == "layer.setProps").expect("the toggle's frame is kept").clone();
         // The CPU canvas (kittest has no wgpu) redraws the whole document. A damage refresh counts
         // reduced texels times the factor squared, which can fall a few rows short (see P80).
         assert_eq!(f.path, "cpu", "{f:?}");
@@ -411,5 +534,30 @@ mod app_tests {
         assert!(f.refresh_px * 100 >= w * h * 95 && f.refresh_px <= w * h, "{f:?}");
         assert!(f.composite_ms > 0.0 && f.command_ms > 0.0, "{f:?}");
         assert!(f.stage_ms() <= f.frame_ms, "{f:?}");
+    }
+
+    #[test]
+    fn a_synthetic_move_after_a_withdrawn_one_is_timed_from_its_own_injection() {
+        let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(800.0, 600.0)).with_max_steps(4).build_eframe(|cc| {
+            PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
+            PhotocraftApp::with_context(cc.egui_ctx.clone(), photocraft_engine::Session::new(), crate::Services::default())
+        });
+        harness.run_steps(2);
+        harness.state_mut().frame_probe.set_recording(true);
+        let ctx = harness.ctx.clone();
+        let move_to = |harness: &mut egui_kittest::Harness<'static, Box<PhotocraftApp>>, x: f64| {
+            let (req, _reply) = crate::ControlRequest::new("ui.move", json!({"x": x, "y": 150}));
+            assert!(matches!(crate::control::handle(harness.state_mut(), &ctx, &req), crate::control::Reply::AfterInput));
+        };
+        move_to(&mut harness, 200.0);
+        assert!(WindowHost::of(&harness.ctx).cancel_injected(), "the first move was still queued");
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(STALE_MS));
+        move_to(&mut harness, 240.0);
+        harness.run_steps(4);
+        let frames = harness.state_mut().frame_probe.take().unwrap().frames;
+        let measured: Vec<f64> = frames.iter().filter_map(|f| f.latency_ms).collect();
+        assert_eq!(measured.len(), 1, "{frames:?}");
+        assert!(measured.iter().all(|ms| *ms > 0.0 && *ms < STALE_MS as f64), "{measured:?}");
     }
 }

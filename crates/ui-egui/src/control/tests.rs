@@ -98,19 +98,44 @@ fn shift_right_brush_does_not_open_presets_or_paint() {
 }
 
 #[test]
-fn perf_output_includes_slow_frames() {
+fn perf_output_counts_the_recorded_frames_and_take_frames_drains_them() {
     let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
     let ctx = app.ctx().clone();
-    assert_eq!(call(&mut app, &ctx, "ui.inspect", json!({}))["result"]["perf"]["slowFrames"], json!([]));
-    app.slow_frames.set_threshold_ms(0.0);
+    let probe = |app: &mut PhotocraftApp| call(app, &ctx, "ui.inspect", json!({}))["result"]["perf"]["frames"].clone();
+    let take = |app: &mut PhotocraftApp| call(app, &ctx, "ui.perf.takeFrames", json!({}));
+    assert_eq!(probe(&mut app), Value::Null);
+    assert_eq!(take(&mut app)["error"], "the frame probe is off: turn it on with ui.set {\"frameProbe\": true}");
+    assert_eq!(call(&mut app, &ctx, "ui.set", json!({"frameProbe": true}))["ok"], true);
+    assert_eq!(probe(&mut app), json!({"count": 0, "dropped": 0}));
     app.run("file.new", json!({"width": 64, "height": 32})).unwrap();
     app.finish_frame(&ctx, 1.0);
-    let frames = call(&mut app, &ctx, "ui.inspect", json!({}))["result"]["perf"]["slowFrames"].clone();
-    let last = frames.as_array().and_then(|f| f.last()).expect("a slow frame").clone();
+    assert_eq!(probe(&mut app), json!({"count": 1, "dropped": 0}));
+    let taken = take(&mut app)["result"].clone();
+    assert_eq!((taken["frames"].as_array().map(Vec::len), taken["dropped"].clone()), (Some(1), json!(0)), "{taken}");
+    let last = taken["frames"][0].clone();
     assert_eq!(last["command"], "file.new", "{last}");
-    for key in ["t", "frameMs", "inputMs", "commandMs", "damageMs", "compositeMs", "uploadMs", "gpuMs", "presentMs", "refresh", "refreshPx", "path"] {
+    for key in [
+        "t",
+        "frameMs",
+        "inputMs",
+        "buildMs",
+        "commandMs",
+        "damageMs",
+        "compositeMs",
+        "uploadMs",
+        "gpuMs",
+        "presentMs",
+        "refresh",
+        "refreshPx",
+        "path",
+        "latencyMs",
+    ] {
         assert!(last.get(key).is_some(), "{key} in {last}");
     }
+    assert_eq!(probe(&mut app), json!({"count": 0, "dropped": 0}));
+    let commands_run = app.commands_run;
+    take(&mut app);
+    assert_eq!(app.commands_run, commands_run, "taking the frames is a read, not a command run");
     // A nested run (`actions.play` → its view steps through `App::run`) is inside the outer
     // call's time: the frame counts the outer command once, not the steps again.
     app.session.actions.list.push(action("Zoom", vec![("view.zoomIn", json!({})), ("view.zoomOut", json!({}))])).unwrap();
@@ -118,11 +143,13 @@ fn perf_output_includes_slow_frames() {
     assert_eq!(played["ran"], 2, "{played}");
     let outer_ms = app.perf.command_ms;
     app.finish_frame(&ctx, 1.0);
-    let frames = call(&mut app, &ctx, "ui.inspect", json!({}))["result"]["perf"]["slowFrames"].clone();
-    let last = frames.as_array().and_then(|f| f.last()).expect("a slow frame").clone();
+    let last = take(&mut app)["result"]["frames"][0].clone();
     assert_eq!(last["command"], "actions.play", "{last}");
     let command_ms = last["commandMs"].as_f64().unwrap();
     assert!((command_ms - outer_ms).abs() < 1e-9, "the outer run's {outer_ms} ms, once: {last}");
+    assert_eq!(call(&mut app, &ctx, "ui.set", json!({"frameProbe": false}))["ok"], true);
+    assert_eq!(probe(&mut app), Value::Null);
+    assert_eq!(call(&mut app, &ctx, "ui.set", json!({"frameProbe": "on"}))["error"], "frameProbe must be a boolean");
 }
 
 #[test]
