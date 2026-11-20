@@ -13,6 +13,10 @@ const TEST_ID: &str = "CONF-calibrate";
 const ABBA: [Arm; 4] = [Arm::A, Arm::AA, Arm::AA, Arm::A];
 const WORKLOADS: [&str; 2] = ["hover", "paint"];
 const LONG_STALL_FLOOR_NS: u128 = 50_000_000;
+const DEFAULT_REFRESH_HZ: NonZeroU32 = match NonZeroU32::new(60) {
+    Some(hz) => hz,
+    None => NonZeroU32::MIN,
+};
 const RECORDS: &str = "pair.records";
 const SUMMARY: &str = "pair-summary.md";
 
@@ -20,9 +24,8 @@ const SUMMARY: &str = "pair-summary.md";
 #[serde(rename_all = "camelCase")]
 pub struct Frame {
     pub t: f64,
-    pub frame_ms: f64,
     pub input_ms: f64,
-    pub ui_ms: f64,
+    pub build_ms: f64,
     pub command_ms: f64,
     pub damage_ms: f64,
     pub composite_ms: f64,
@@ -70,7 +73,7 @@ impl Stage {
     fn of(self, frame: &Frame) -> f64 {
         match self {
             Stage::Input => frame.input_ms,
-            Stage::UiBuild => frame.ui_ms,
+            Stage::UiBuild => frame.build_ms,
             Stage::Command => frame.command_ms,
             Stage::Damage => frame.damage_ms,
             Stage::Composite => frame.composite_ms,
@@ -87,11 +90,11 @@ pub enum Cadence {
 }
 
 pub fn cadence(interval: Duration, refresh_hz: NonZeroU32) -> Cadence {
-    let period = 1_000_000_000 / u128::from(refresh_hz.get());
     let interval = interval.as_nanos();
-    if interval > (4 * period).max(LONG_STALL_FLOOR_NS) {
+    let periods = interval * u128::from(refresh_hz.get());
+    if periods > 4_000_000_000 && interval > LONG_STALL_FLOOR_NS {
         Cadence::LongStall
-    } else if 2 * interval > 3 * period {
+    } else if 2 * periods > 3_000_000_000 {
         Cadence::Missed
     } else {
         Cadence::OnTime
@@ -118,10 +121,13 @@ impl Probe {
     pub fn of(frames: &[Frame], refresh_hz: NonZeroU32) -> Self {
         let mut probe = Probe::default();
         for frame in frames {
+            let mut cpu = Duration::ZERO;
             for (hist, stage) in probe.stages.iter_mut().zip(Stage::ALL) {
-                hist.record(duration(stage.of(frame)).unwrap_or_default());
+                let took = duration(stage.of(frame)).unwrap_or_default();
+                hist.record(took);
+                cpu = cpu.saturating_add(took);
             }
-            probe.cpu.record(duration(frame.frame_ms).unwrap_or_default());
+            probe.cpu.record(cpu);
             if let Some(latency) = frame.latency_ms.and_then(duration) {
                 probe.latency.record(latency);
             }
@@ -187,13 +193,13 @@ pub fn ident(text: &str) -> Result<Ident, String> {
     Ident::new(text).ok_or_else(|| format!("`{text}` is not a record identity: 1 to 128 of A-Z a-z 0-9 . _ : / + @ -"))
 }
 
-pub fn workload(name: &str, context: &Context) -> Result<Workload, String> {
+pub fn workload(name: &str, context: &Context, load: &str) -> Result<Workload, String> {
     let fixture = crate::sha256::hex(format!("{BENCH}:{name}").as_bytes());
     Ok(Workload {
         fixture_hash: ident(fixture.get(..16).unwrap_or(&fixture))?,
         mode: ident("native")?,
         backend: ident(&context.backend)?,
-        load: ident("idle")?,
+        load: ident(load)?,
         scale: ident(&context.scale)?,
     })
 }
@@ -302,15 +308,7 @@ fn positive<T: std::str::FromStr + PartialOrd + Default>(value: Option<&&str>, f
 }
 
 fn parse_opts(rest: &[&str]) -> Result<Opts, String> {
-    let mut o = Opts {
-        workloads: Vec::new(),
-        units: 3,
-        frames: 3600,
-        refresh_hz: NonZeroU32::MIN.saturating_add(59),
-        night: None,
-        runner_image: None,
-        skip_build: false,
-    };
+    let mut o = Opts { workloads: Vec::new(), units: 3, frames: 3600, refresh_hz: DEFAULT_REFRESH_HZ, night: None, runner_image: None, skip_build: false };
     let mut it = rest.iter();
     while let Some(a) = it.next() {
         match *a {
@@ -326,6 +324,9 @@ fn parse_opts(rest: &[&str]) -> Result<Opts, String> {
             "--skip-build" => o.skip_build = true,
             other => return Err(format!("perf --pair: unknown option `{other}`")),
         }
+    }
+    if o.frames < 2 {
+        return Err("--frames needs at least 2: an interval is between two frames".into());
     }
     if o.workloads.is_empty() {
         o.workloads = WORKLOADS.iter().map(|w| (*w).to_owned()).collect();
@@ -359,33 +360,34 @@ struct Measured {
     records: Vec<RunRecord>,
 }
 
-struct Bench<'a> {
-    exe: std::path::PathBuf,
-    dir: std::path::PathBuf,
-    root: &'a Path,
-    opts: &'a Opts,
+fn measure(exe: &Path, dir: &Path, root: &Path, o: &Opts, name: &str, block: Block) -> Result<(Context, Probe), String> {
+    let json = dir.join(format!("{name}-{}-{}.json", block.unit, block.position));
+    let args = ["--workload", name, "--frames", &o.frames.to_string(), "--refresh-hz", &o.refresh_hz.to_string()].map(str::to_owned);
+    let mut c = Command::new(exe);
+    c.current_dir(root).args(&args).arg("--json").arg(&json);
+    crate::run(c, &format!("{BENCH} {} --json {} ({:?}, unit {})", args.join(" "), json.display(), block.arm, block.unit))?;
+    let text = std::fs::read_to_string(&json).map_err(|e| format!("{}: {e}", json.display()))?;
+    let report: Report = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", json.display()))?;
+    if report.context.workload != name {
+        return Err(format!("{}: ran workload `{}`, not `{name}`", json.display(), report.context.workload));
+    }
+    Ok((report.context, Probe::of(&report.frames, o.refresh_hz)))
 }
 
-impl Bench<'_> {
-    fn measure(&self, name: &str, block: Block) -> Result<(Workload, Probe), String> {
-        let json = self.dir.join(format!("{name}-{}-{}.json", block.unit, block.position));
-        let _ = std::fs::remove_file(&json);
-        let args = ["--workload", name, "--frames", &self.opts.frames.to_string(), "--refresh-hz", &self.opts.refresh_hz.to_string()].map(str::to_owned);
-        let mut c = Command::new(&self.exe);
-        c.current_dir(self.root).args(&args).arg("--json").arg(&json);
-        crate::run(c, &format!("{BENCH} {} --json {} ({:?}, unit {})", args.join(" "), json.display(), block.arm, block.unit))?;
-        let text = std::fs::read_to_string(&json).map_err(|e| format!("{}: {e}", json.display()))?;
-        let report: Report = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", json.display()))?;
-        if report.context.workload != name {
-            return Err(format!("{}: ran workload `{}`, not `{name}`", json.display(), report.context.workload));
-        }
-        Ok((workload(name, &report.context)?, Probe::of(&report.frames, self.opts.refresh_hz)))
+pub fn load_label(contended: bool) -> &'static str {
+    if contended { "contended" } else { "idle" }
+}
+
+fn clear(path: &Path) -> Result<(), String> {
+    match std::fs::remove_file(path).or_else(|_| std::fs::remove_dir_all(path)) {
+        Err(e) if path.exists() => Err(format!("remove {}: {e}", path.display())),
+        _ => Ok(()),
     }
 }
 
-fn header(id: &Identity, o: &Opts, records: &Path) -> String {
+fn header(id: &Identity, o: &Opts, load: &str, records: &Path) -> String {
     format!(
-        "## Paired frame probe: A/AA calibration (`{TEST_ID}`)\n\n- Night `{}`, runner image `{}`, os `{}`, app `{}`, framework `{}`\n- {} ABBA units of {} frames per block at {} Hz; records in `{}`\n\n",
+        "## Paired frame probe: A/AA calibration (`{TEST_ID}`)\n\n- Night `{}`, runner image `{}`, os `{}`, app `{}`, framework `{}`, load `{load}`\n- {} ABBA units of {} frames per block at {} Hz; records in `{}`\n\n",
         id.night,
         id.runner_image,
         id.os,
@@ -400,25 +402,29 @@ fn header(id: &Identity, o: &Opts, records: &Path) -> String {
 
 pub fn run(root: &Path, rest: &[&str]) -> Result<(), String> {
     let o = parse_opts(rest)?;
+    let budgets = std::fs::read_to_string(root.join(super::BUDGETS)).map_err(|e| format!("read {}: {e}", super::BUDGETS))?;
+    let max_load_per_core = super::parse_budgets(&budgets)?.settings.max_load_per_core;
+    let cores = std::thread::available_parallelism().map(|n| n.get()).ok();
+    let load = load_label(super::contended(super::load_avg(), cores, max_load_per_core));
     let target = crate::target_dir()?;
     let out_dir = target.join("perf");
+    let dir = out_dir.join("pair");
+    for stale in [out_dir.join(RECORDS), out_dir.join(SUMMARY), dir.clone()] {
+        clear(&stale)?;
+    }
     if !o.skip_build {
         let mut c = crate::cargo();
         c.args(["build", "--release", "-p", PACKAGE, "--example", BENCH]);
         crate::run(c, &format!("cargo build --release -p {PACKAGE} --example {BENCH}"))?;
     }
-    let bench = Bench {
-        exe: target.join("release").join("examples").join(format!("{BENCH}{}", std::env::consts::EXE_SUFFIX)),
-        dir: out_dir.join("pair"),
-        root,
-        opts: &o,
-    };
-    std::fs::create_dir_all(&bench.dir).map_err(|e| format!("create {}: {e}", bench.dir.display()))?;
+    let exe = target.join("release").join("examples").join(format!("{BENCH}{}", std::env::consts::EXE_SUFFIX));
+    std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
     let id = identity(root, &o)?;
     let mut measured: BTreeMap<&str, Measured> = BTreeMap::new();
     for block in blocks(o.units) {
         for name in &o.workloads {
-            let (workload, probe) = bench.measure(name, block)?;
+            let (context, probe) = measure(&exe, &dir, root, &o, name, block)?;
+            let workload = workload(name, &context, load)?;
             let block_records = records(&id, name, &workload, block, &probe)?;
             let m = measured.entry(name).or_insert_with(|| Measured { workload: workload.clone(), probe: Probe::default(), records: Vec::new() });
             if m.workload != workload {
@@ -431,7 +437,7 @@ pub fn run(root: &Path, rest: &[&str]) -> Result<(), String> {
     let all: Vec<RunRecord> = measured.values().flat_map(|m| m.records.iter().cloned()).collect();
     let records_path = out_dir.join(RECORDS);
     super::write(&records_path, &pair::print_records(&all))?;
-    let mut summary = header(&id, &o, &records_path);
+    let mut summary = header(&id, &o, load, &records_path);
     for (name, m) in &measured {
         summary.push_str(&render_workload(name, &m.workload, &m.probe, &verdicts(&m.records)?));
         summary.push('\n');
@@ -449,10 +455,10 @@ mod tests {
     const FIXTURE: &str = r#"{
         "context": {"workload": "paint", "backend": "cpu", "scale": "3000x2000@1920x1080"},
         "frames": [
-            {"t": 0.0, "frameMs": 2.0, "inputMs": 0.5, "uiMs": 1.5, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 1.0, "uploadMs": 0.25, "latencyMs": null, "path": "cpu"},
-            {"t": 16.667, "frameMs": 3.0, "inputMs": 0.5, "uiMs": 2.5, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 2.0, "uploadMs": 0.25, "latencyMs": 12.0, "path": "cpu"},
-            {"t": 33.333, "frameMs": 3.0, "inputMs": 0.5, "uiMs": 2.5, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 2.0, "uploadMs": 0.25, "latencyMs": null, "path": "cpu"},
-            {"t": 75.0, "frameMs": 40.0, "inputMs": 0.5, "uiMs": 39.5, "commandMs": 30.0, "damageMs": 1.0, "compositeMs": 6.0, "uploadMs": 0.5, "latencyMs": null, "path": "cpu"}
+            {"t": 0.0, "frameMs": 2.0, "inputMs": 0.5, "uiMs": 1.5, "buildMs": 0.25, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 1.0, "uploadMs": 0.25, "latencyMs": null, "path": "cpu"},
+            {"t": 16.667, "frameMs": 3.0, "inputMs": 0.5, "uiMs": 2.5, "buildMs": 0.25, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 2.0, "uploadMs": 0.25, "latencyMs": 12.0, "path": "cpu"},
+            {"t": 33.333, "frameMs": 3.0, "inputMs": 0.5, "uiMs": 2.5, "buildMs": 0.25, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 2.0, "uploadMs": 0.25, "latencyMs": null, "path": "cpu"},
+            {"t": 75.0, "frameMs": 40.0, "inputMs": 0.5, "uiMs": 39.5, "buildMs": 2.0, "commandMs": 30.0, "damageMs": 1.0, "compositeMs": 6.0, "uploadMs": 0.5, "latencyMs": null, "path": "cpu"}
         ]
     }"#;
 
@@ -479,7 +485,7 @@ mod tests {
     fn fixture_records(block: Block) -> Vec<RunRecord> {
         let report: Report = serde_json::from_str(FIXTURE).unwrap();
         let probe = Probe::of(&report.frames, hz(60));
-        let workload = workload(&report.context.workload, &report.context).unwrap();
+        let workload = workload(&report.context.workload, &report.context, "idle").unwrap();
         records(&identity(), "paint", &workload, block, &probe).unwrap()
     }
 
@@ -488,29 +494,23 @@ mod tests {
         let at = |hz_: u32, interval: f64| cadence(ms(interval), hz(hz_));
         assert_eq!(at(60, 16.667), Cadence::OnTime);
         assert_eq!(at(60, 24.999_999), Cadence::OnTime);
-        assert_eq!(at(60, 25.0), Cadence::Missed);
-        assert_eq!(at(60, 66.666_664), Cadence::Missed);
-        assert_eq!(at(60, 66.666_665), Cadence::LongStall);
-        assert_eq!(at(120, 12.5), Cadence::Missed);
+        assert_eq!(at(60, 25.0), Cadence::OnTime);
+        assert_eq!(at(60, 25.000_001), Cadence::Missed);
+        assert_eq!(at(60, 66.666_666), Cadence::Missed);
+        assert_eq!(at(60, 66.666_667), Cadence::LongStall);
+        assert_eq!(at(120, 12.5), Cadence::OnTime);
+        assert_eq!(at(120, 12.500_001), Cadence::Missed);
         assert_eq!(at(120, 50.0), Cadence::Missed);
         assert_eq!(at(120, 50.000_001), Cadence::LongStall);
+        assert_eq!(at(240, 49.0), Cadence::Missed);
         assert_eq!(at(30, 60.0), Cadence::Missed);
-        assert_eq!(at(30, 133.333_333), Cadence::LongStall);
+        assert_eq!(at(30, 133.333_333), Cadence::Missed);
+        assert_eq!(at(30, 133.333_334), Cadence::LongStall);
     }
 
     #[test]
     fn a_probe_counts_missed_frames_and_long_stalls_over_its_intervals() {
-        let frame = |t: f64| Frame {
-            t,
-            frame_ms: 1.0,
-            input_ms: 0.0,
-            ui_ms: 0.0,
-            command_ms: 0.0,
-            damage_ms: 0.0,
-            composite_ms: 0.0,
-            upload_ms: 0.0,
-            latency_ms: None,
-        };
+        let frame = |t: f64| Frame { t, input_ms: 1.0, build_ms: 0.0, command_ms: 0.0, damage_ms: 0.0, composite_ms: 0.0, upload_ms: 0.0, latency_ms: None };
         let frames: Vec<Frame> = [0.0, 16.0, 32.0, 60.0, 76.0, 176.0].into_iter().map(frame).collect();
         let probe = Probe::of(&frames, hz(60));
         assert_eq!((probe.intervals, probe.missed, probe.stalls), (5, 2, 1));
@@ -587,6 +587,26 @@ source = "git+https://github.com/storytold/craft-libs?rev=bafb4522#bafb4522"
     }
 
     #[test]
+    fn the_load_label_follows_the_contention_check() {
+        let label = |one_minute: f64| load_label(super::super::contended(Some([one_minute, 0.0, 0.0]), Some(8), 1.0));
+        assert_eq!((label(8.0), label(8.5)), ("idle", "contended"));
+    }
+
+    #[test]
+    fn clearing_removes_stale_records_and_block_reports() {
+        let dir = tempfile::tempdir().unwrap();
+        let records = dir.path().join(RECORDS);
+        let blocks = dir.path().join("pair");
+        std::fs::write(&records, "craft-pair/1 stale\n").unwrap();
+        std::fs::create_dir_all(&blocks).unwrap();
+        std::fs::write(blocks.join("paint-1-0.json"), "{}").unwrap();
+        for stale in [&records, &blocks, &dir.path().join(SUMMARY)] {
+            clear(stale).unwrap();
+        }
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
+
+    #[test]
     fn options() {
         let o = parse_opts(&[]).unwrap();
         assert_eq!((o.workloads, o.units, o.frames, o.refresh_hz.get(), o.skip_build), (vec!["hover".to_owned(), "paint".to_owned()], 3, 3600, 60, false));
@@ -608,7 +628,7 @@ source = "git+https://github.com/storytold/craft-libs?rev=bafb4522#bafb4522"
         .unwrap();
         assert_eq!((o.workloads, o.units, o.frames, o.refresh_hz.get()), (vec!["paint".to_owned()], 5, 600, 120));
         assert_eq!((o.night.as_deref(), o.runner_image.as_deref(), o.skip_build), (Some("n1"), Some("img"), true));
-        for bad in [&["--units", "0"][..], &["--frames", "x"], &["--refresh-hz", "0"], &["--workload", "scroll"], &["--quick"]] {
+        for bad in [&["--units", "0"][..], &["--frames", "x"], &["--frames", "1"], &["--refresh-hz", "0"], &["--workload", "scroll"], &["--quick"]] {
             assert!(parse_opts(bad).is_err(), "{bad:?}");
         }
     }

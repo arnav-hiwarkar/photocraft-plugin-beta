@@ -638,23 +638,38 @@ bench `--json` support through `photocraft_testkit::perf::{row, report, write_re
 `[[scenario]]` to `perf/budgets.toml` and run `cargo xtask scorecard`.
 
 **Paired runs.** `cargo xtask perf --pair` measures what a user feels through the frame probe
-(`frame_stages.rs`) instead of a bench row: C, the UI-thread time of each stage (input, ui_build,
-command, damage, composite, upload) and of the whole frame; I, the interval between raw input
-hooks, where a frame is missed when I > 1.5 × the refresh period and a long stall when
-I > max(4 × period, 50 ms); and L, from a synthetic input request to the end of the frame that
-takes it. It builds `frame_probe_bench` in release, which runs the real `PhotocraftApp` in an
-offscreen CPU harness (a 3000×2000 document in a 1920×1080 window), sends one synthetic input
-request a frame through the control methods (`--workload hover`: pointer moves; `paint`: Brush
-strokes of 120 steps; both by default) and steps frames on a `--refresh-hz` grid (60) as a
-display's vsync would. It runs `--units` ABBA units (3) of `--frames` frames a block (3600, a
-minute at 60 Hz), each block its own process, labelled A and AA: the same binary in both arms,
-which is the A/A calibration `CONF-calibrate`. It writes a `craft-pair/1` record per gate, arm and
-block to `target/perf/pair.records` (`OverheadCpu` from the frame's C, `OverheadInterval`,
-`UiEqMissed` and `UiEqLongStalls` from I, `UiEqLatency` from L), writes the per-stage p50/p95/p99
-and each gate's A/AA verdict from `craft_testkit::pair` to `target/perf/pair-summary.md`, and
-prints them. Records name the night (`--night`, default the UTC date) and the runner image
-(`--runner-image`, default `$ImageOS-$ImageVersion` on a hosted runner, else `local`). The plain
-`perf` run and its 15 % p50 gate are unchanged.
+(`frame_stages.rs`) instead of a bench row: C, the UI thread's wall time in each stage (input,
+ui_build, command, damage, composite, upload; the stages do not overlap, ui_build leaves out the
+commands and canvas work the UI build runs, and the frame-rate cap's sleep is in none of them);
+I, the interval between raw input hooks, where a frame is missed when 2 × I × hz > 3 s and a long
+stall when I × hz > 4 s and I > 50 ms; and L, from a synthetic input request to the end of the
+frame that takes it. It builds `frame_probe_bench` in release, which runs the real
+`PhotocraftApp` in an offscreen CPU harness (a 3000×2000 document in a 1920×1080 window), sends
+at most one synthetic input request a frame through the control methods, right after the
+previous frame and only once the earlier request's input was taken, and steps frames on a
+`--refresh-hz` grid (60) as a display's vsync would. It runs `--units` ABBA units (3) of
+`--frames` frames a block (3600, a minute at 60 Hz, at least 2), each block its own process,
+labelled A and AA: the same binary in both arms, which is the A/A calibration `CONF-calibrate`.
+Each run first deletes the previous run's records, summary and block reports. It writes a
+`craft-pair/1` record per gate, arm and block to `target/perf/pair.records` (`OverheadCpu` from
+the sum of a frame's C stages, `OverheadInterval`, `UiEqMissed` and `UiEqLongStalls` from I,
+`UiEqLatency` from L), writes the per-stage p50/p95/p99 and each gate's A/AA verdict from
+`craft_testkit::pair` to `target/perf/pair-summary.md`, and prints them. Records name the night
+(`--night`, default the UTC date), the runner image (`--runner-image`, default
+`$ImageOS-$ImageVersion` on a hosted runner, else `local`) and the load: `contended` when the
+1-minute load at the start is above `settings.max_load_per_core` per core, as plain `perf` judges
+it, else `idle`, so contended and idle records never pool. The plain `perf` run and its 15 % p50
+gate are unchanged.
+
+The harness has limits to keep in mind when reading its numbers:
+- Nothing is presented. The bench waits for the next tick of its grid after each frame
+  (`Display::present`), so I is C rounded up to whole display periods: it shows frames that
+  overran a period, not a compositor's or a GPU's own delays.
+- L starts right after the previous frame ended, so it is the wait for the next tick plus the
+  frame that takes the input.
+- `hover` is pointer moves with no button held, not a continuous drag. `paint` is a continuous
+  Brush drag: the press, then a move a frame, released and pressed again every 120 requests.
+- The canvas is on the CPU: kittest has no wgpu here, so `backend` is `cpu`.
 
 **CI.** `ci.yml` runs `cargo xtask scorecard --check`. `perf-nightly.yml` runs `cargo xtask perf`
 on a fixed macOS runner every night (and on demand), posts the table as the job summary, uploads
