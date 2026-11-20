@@ -2,17 +2,16 @@ use std::collections::BTreeMap;
 use std::num::NonZeroU32;
 use std::path::Path;
 use std::process::Command;
-use std::time::Duration;
 
-use craft_testkit::pair::{self, Arm, Count, Gate, Hist, Ident, Quantile, Reading, RunRecord, Samples, Verdict, Workload};
+use craft_testkit::pair::frames::{self, Block, Heading, Identity, Probe, Section};
+use craft_testkit::pair::{self, Gate, Ident, RunRecord, Workload};
 use serde::Deserialize;
 
 const BENCH: &str = "frame_probe_bench";
 const PACKAGE: &str = "photocraft-ui-egui";
-const TEST_ID: &str = "CONF-calibrate";
-const ABBA: [Arm; 4] = [Arm::A, Arm::AA, Arm::AA, Arm::A];
 const WORKLOADS: [&str; 2] = ["hover", "paint"];
-const LONG_STALL_FLOOR_NS: u128 = 50_000_000;
+const STAGES: [&str; 6] = ["input", "ui_build", "command", "damage", "composite", "upload"];
+const GATES: [Gate; 5] = [Gate::OverheadCpu, Gate::OverheadInterval, Gate::UiEqMissed, Gate::UiEqLongStalls, Gate::UiEqLatency];
 const DEFAULT_REFRESH_HZ: NonZeroU32 = match NonZeroU32::new(60) {
     Some(hz) => hz,
     None => NonZeroU32::MIN,
@@ -33,6 +32,19 @@ pub struct Frame {
     pub latency_ms: Option<f64>,
 }
 
+impl Frame {
+    fn sample(&self) -> frames::Frame<6> {
+        let took = |ms: f64| frames::millis(ms).unwrap_or_default();
+        frames::Frame {
+            start: took(self.t),
+            stages: [self.input_ms, self.build_ms, self.command_ms, self.damage_ms, self.composite_ms, self.upload_ms].map(took),
+            latency: self.latency_ms.and_then(frames::millis),
+            playback: pair::Count::default(),
+            seek: None,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Report {
     pub context: Context,
@@ -46,151 +58,12 @@ pub struct Context {
     pub scale: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Stage {
-    Input,
-    UiBuild,
-    Command,
-    Damage,
-    Composite,
-    Upload,
-}
-
-impl Stage {
-    pub const ALL: [Stage; 6] = [Stage::Input, Stage::UiBuild, Stage::Command, Stage::Damage, Stage::Composite, Stage::Upload];
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Stage::Input => "input",
-            Stage::UiBuild => "ui_build",
-            Stage::Command => "command",
-            Stage::Damage => "damage",
-            Stage::Composite => "composite",
-            Stage::Upload => "upload",
-        }
-    }
-
-    fn of(self, frame: &Frame) -> f64 {
-        match self {
-            Stage::Input => frame.input_ms,
-            Stage::UiBuild => frame.build_ms,
-            Stage::Command => frame.command_ms,
-            Stage::Damage => frame.damage_ms,
-            Stage::Composite => frame.composite_ms,
-            Stage::Upload => frame.upload_ms,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Cadence {
-    OnTime,
-    Missed,
-    LongStall,
-}
-
-pub fn cadence(interval: Duration, refresh_hz: NonZeroU32) -> Cadence {
-    let interval = interval.as_nanos();
-    let periods = interval * u128::from(refresh_hz.get());
-    if periods > 4_000_000_000 && interval > LONG_STALL_FLOOR_NS {
-        Cadence::LongStall
-    } else if 2 * periods > 3_000_000_000 {
-        Cadence::Missed
-    } else {
-        Cadence::OnTime
-    }
-}
-
-fn duration(ms: f64) -> Option<Duration> {
-    let nanos = (ms * 1e6).round();
-    (nanos.is_finite() && nanos >= 0.0 && nanos < u64::MAX as f64).then(|| Duration::from_nanos(nanos as u64))
-}
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Probe {
-    pub stages: [Hist; 6],
-    pub cpu: Hist,
-    pub interval: Hist,
-    pub latency: Hist,
-    pub intervals: u64,
-    pub missed: u64,
-    pub stalls: u64,
-}
-
-impl Probe {
-    pub fn of(frames: &[Frame], refresh_hz: NonZeroU32) -> Self {
-        let mut probe = Probe::default();
-        for frame in frames {
-            let mut cpu = Duration::ZERO;
-            for (hist, stage) in probe.stages.iter_mut().zip(Stage::ALL) {
-                let took = duration(stage.of(frame)).unwrap_or_default();
-                hist.record(took);
-                cpu = cpu.saturating_add(took);
-            }
-            probe.cpu.record(cpu);
-            if let Some(latency) = frame.latency_ms.and_then(duration) {
-                probe.latency.record(latency);
-            }
-        }
-        for interval in frames.windows(2).filter_map(|w| duration(w[1].t - w[0].t)) {
-            probe.interval.record(interval);
-            probe.intervals += 1;
-            match cadence(interval, refresh_hz) {
-                Cadence::OnTime => {}
-                Cadence::Missed => probe.missed += 1,
-                Cadence::LongStall => {
-                    probe.missed += 1;
-                    probe.stalls += 1;
-                }
-            }
-        }
-        probe
-    }
-
-    fn merge(&mut self, other: &Probe) {
-        for (hist, more) in self.stages.iter_mut().zip(&other.stages) {
-            hist.merge(more);
-        }
-        self.cpu.merge(&other.cpu);
-        self.interval.merge(&other.interval);
-        self.latency.merge(&other.latency);
-        self.intervals += other.intervals;
-        self.missed += other.missed;
-        self.stalls += other.stalls;
-    }
-
-    fn samples(&self) -> [(Gate, Samples); 5] {
-        let count = |events| Samples::Count(Count::new(events, self.intervals).unwrap_or_default());
-        [
-            (Gate::OverheadCpu, Samples::Latency(self.cpu.clone())),
-            (Gate::OverheadInterval, Samples::Latency(self.interval.clone())),
-            (Gate::UiEqMissed, count(self.missed)),
-            (Gate::UiEqLongStalls, count(self.stalls)),
-            (Gate::UiEqLatency, Samples::Latency(self.latency.clone())),
-        ]
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Identity {
-    pub run: String,
-    pub app_pin: Ident,
-    pub fw_rev: Ident,
-    pub os: Ident,
-    pub runner_image: Ident,
-    pub night: Ident,
-    pub refresh_hz: NonZeroU32,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Block {
-    pub unit: u32,
-    pub position: usize,
-    pub arm: Arm,
-}
-
 pub fn ident(text: &str) -> Result<Ident, String> {
-    Ident::new(text).ok_or_else(|| format!("`{text}` is not a record identity: 1 to 128 of A-Z a-z 0-9 . _ : / + @ -"))
+    frames::ident(text).map_err(|e| e.to_string())
+}
+
+pub fn probe(frames: &[Frame], refresh_hz: NonZeroU32) -> Probe<6> {
+    Probe::of(&frames.iter().map(Frame::sample).collect::<Vec<_>>(), refresh_hz)
 }
 
 pub fn workload(name: &str, context: &Context, load: &str) -> Result<Workload, String> {
@@ -204,40 +77,8 @@ pub fn workload(name: &str, context: &Context, load: &str) -> Result<Workload, S
     })
 }
 
-pub fn records(id: &Identity, name: &str, workload: &Workload, block: Block, probe: &Probe) -> Result<Vec<RunRecord>, String> {
-    probe
-        .samples()
-        .into_iter()
-        .map(|(gate, samples)| {
-            Ok(RunRecord {
-                test_id: ident(TEST_ID)?,
-                run_id: ident(&format!("{}.{name}.{}.{}.{gate:?}", id.run, block.unit, block.position))?,
-                app_pin: id.app_pin.clone(),
-                fw_rev: id.fw_rev.clone(),
-                os: id.os.clone(),
-                runner_image: id.runner_image.clone(),
-                night: id.night.clone(),
-                workload: workload.clone(),
-                block: block.unit,
-                arm: block.arm,
-                gate,
-                refresh_hz: id.refresh_hz,
-                samples,
-            })
-        })
-        .collect()
-}
-
-pub fn blocks(units: u32) -> impl Iterator<Item = Block> {
-    (1..=units).flat_map(|unit| ABBA.into_iter().enumerate().map(move |(position, arm)| Block { unit, position, arm }))
-}
-
-pub fn verdicts(records: &[RunRecord]) -> Result<Vec<(Gate, Verdict)>, String> {
-    let mut pools: BTreeMap<Gate, Vec<RunRecord>> = BTreeMap::new();
-    for record in records {
-        pools.entry(record.gate).or_default().push(record.clone());
-    }
-    pools.into_iter().map(|(gate, pool)| pair::calibration_verdict(&pool).map(|v| (gate, v)).map_err(|e| format!("{gate:?}: {e:?}"))).collect()
+pub fn records(id: &Identity, name: &str, workload: &Workload, block: Block, probe: &Probe<6>) -> Result<Vec<RunRecord>, String> {
+    frames::records(id, name, workload, block, probe, &GATES).map_err(|e| e.to_string())
 }
 
 pub fn framework_rev(lock: &str) -> Option<String> {
@@ -250,46 +91,6 @@ pub fn framework_rev(lock: &str) -> Option<String> {
         .as_str()?
         .rsplit_once('#')
         .map(|(_, rev)| rev.to_owned())
-}
-
-fn reading(hist: &Hist, quantile: Quantile) -> String {
-    match hist.quantile(quantile) {
-        None => "–".into(),
-        Some(Reading::Below) => "< 0.001".into(),
-        Some(Reading::Above) => "> 60000".into(),
-        Some(Reading::At(at)) => super::fmt_num(at.as_secs_f64() * 1000.0),
-    }
-}
-
-fn row(name: &str, hist: &Hist) -> String {
-    format!("| {name} | {} | {} | {} | {} |\n", hist.count(), reading(hist, Quantile::P50), reading(hist, Quantile::P95), reading(hist, Quantile::P99))
-}
-
-fn verdict_word(verdict: Verdict) -> String {
-    match verdict {
-        Verdict::Pass => "Pass".into(),
-        Verdict::Fail => "**Fail**".into(),
-        Verdict::Inconclusive(doubt) => format!("Inconclusive ({doubt:?})"),
-    }
-}
-
-pub fn render_workload(name: &str, workload: &Workload, probe: &Probe, verdicts: &[(Gate, Verdict)]) -> String {
-    let mut s =
-        format!("### {name} ({} canvas, {})\n\n| Metric | n | p50 ms | p95 ms | p99 ms |\n|---|---:|---:|---:|---:|\n", workload.backend, workload.scale);
-    for (stage, hist) in Stage::ALL.into_iter().zip(&probe.stages) {
-        s.push_str(&row(&format!("C {}", stage.name()), hist));
-    }
-    s.push_str(&row("C frame", &probe.cpu));
-    s.push_str(&row("I", &probe.interval));
-    s.push_str(&row("L", &probe.latency));
-    s.push_str(&format!(
-        "\nMissed frames: {} of {}. Long stalls: {} of {}.\n\n| Gate | A/AA verdict |\n|---|---|\n",
-        probe.missed, probe.intervals, probe.stalls, probe.intervals
-    ));
-    for (gate, verdict) in verdicts {
-        s.push_str(&format!("| {gate:?} | {} |\n", verdict_word(*verdict)));
-    }
-    s
 }
 
 #[derive(Debug, PartialEq)]
@@ -356,11 +157,11 @@ fn identity(root: &Path, o: &Opts) -> Result<Identity, String> {
 
 struct Measured {
     workload: Workload,
-    probe: Probe,
+    probe: Probe<6>,
     records: Vec<RunRecord>,
 }
 
-fn measure(exe: &Path, dir: &Path, root: &Path, o: &Opts, name: &str, block: Block) -> Result<(Context, Probe), String> {
+fn measure(exe: &Path, dir: &Path, root: &Path, o: &Opts, name: &str, block: Block) -> Result<(Context, Probe<6>), String> {
     let json = dir.join(format!("{name}-{}-{}.json", block.unit, block.position));
     let args = ["--workload", name, "--frames", &o.frames.to_string(), "--refresh-hz", &o.refresh_hz.to_string()].map(str::to_owned);
     let mut c = Command::new(exe);
@@ -371,7 +172,8 @@ fn measure(exe: &Path, dir: &Path, root: &Path, o: &Opts, name: &str, block: Blo
     if report.context.workload != name {
         return Err(format!("{}: ran workload `{}`, not `{name}`", json.display(), report.context.workload));
     }
-    Ok((report.context, Probe::of(&report.frames, o.refresh_hz)))
+    let probe = probe(&report.frames, o.refresh_hz);
+    Ok((report.context, probe))
 }
 
 pub fn load_label(contended: bool) -> &'static str {
@@ -383,21 +185,6 @@ fn clear(path: &Path) -> Result<(), String> {
         Err(e) if path.exists() => Err(format!("remove {}: {e}", path.display())),
         _ => Ok(()),
     }
-}
-
-fn header(id: &Identity, o: &Opts, load: &str, records: &Path) -> String {
-    format!(
-        "## Paired frame probe: A/AA calibration (`{TEST_ID}`)\n\n- Night `{}`, runner image `{}`, os `{}`, app `{}`, framework `{}`, load `{load}`\n- {} ABBA units of {} frames per block at {} Hz; records in `{}`\n\n",
-        id.night,
-        id.runner_image,
-        id.os,
-        id.app_pin,
-        id.fw_rev,
-        o.units,
-        o.frames,
-        id.refresh_hz,
-        records.display()
-    )
 }
 
 pub fn run(root: &Path, rest: &[&str]) -> Result<(), String> {
@@ -421,7 +208,7 @@ pub fn run(root: &Path, rest: &[&str]) -> Result<(), String> {
     std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
     let id = identity(root, &o)?;
     let mut measured: BTreeMap<&str, Measured> = BTreeMap::new();
-    for block in blocks(o.units) {
+    for block in frames::blocks(o.units) {
         for name in &o.workloads {
             let (context, probe) = measure(&exe, &dir, root, &o, name, block)?;
             let workload = workload(name, &context, load)?;
@@ -437,10 +224,12 @@ pub fn run(root: &Path, rest: &[&str]) -> Result<(), String> {
     let all: Vec<RunRecord> = measured.values().flat_map(|m| m.records.iter().cloned()).collect();
     let records_path = out_dir.join(RECORDS);
     super::write(&records_path, &pair::print_records(&all))?;
-    let mut summary = header(&id, &o, load, &records_path);
+    let shown = records_path.display().to_string();
+    let mut summary = Heading { id: &id, load, units: o.units, frames: o.frames, records: &shown }.to_string();
     for (name, m) in &measured {
-        summary.push_str(&render_workload(name, &m.workload, &m.probe, &verdicts(&m.records)?));
-        summary.push('\n');
+        let verdicts = frames::verdicts(&m.records).map_err(|e| e.to_string())?;
+        let section = Section { name, workload: &m.workload, stages: STAGES, probe: &m.probe, verdicts: &verdicts };
+        summary.push_str(&format!("{section}\n"));
     }
     super::write(&out_dir.join(SUMMARY), &summary)?;
     println!("\n{summary}");
@@ -450,6 +239,8 @@ pub fn run(root: &Path, rest: &[&str]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use craft_testkit::pair::Arm;
+
     use super::*;
 
     const FIXTURE: &str = r#"{
@@ -466,10 +257,6 @@ mod tests {
         NonZeroU32::new(n).unwrap()
     }
 
-    fn ms(n: f64) -> Duration {
-        duration(n).unwrap()
-    }
-
     fn identity() -> Identity {
         Identity {
             run: "r1".into(),
@@ -484,37 +271,9 @@ mod tests {
 
     fn fixture_records(block: Block) -> Vec<RunRecord> {
         let report: Report = serde_json::from_str(FIXTURE).unwrap();
-        let probe = Probe::of(&report.frames, hz(60));
+        let probe = probe(&report.frames, hz(60));
         let workload = workload(&report.context.workload, &report.context, "idle").unwrap();
         records(&identity(), "paint", &workload, block, &probe).unwrap()
-    }
-
-    #[test]
-    fn missed_frames_and_long_stalls_follow_the_refresh_period() {
-        let at = |hz_: u32, interval: f64| cadence(ms(interval), hz(hz_));
-        assert_eq!(at(60, 16.667), Cadence::OnTime);
-        assert_eq!(at(60, 24.999_999), Cadence::OnTime);
-        assert_eq!(at(60, 25.0), Cadence::OnTime);
-        assert_eq!(at(60, 25.000_001), Cadence::Missed);
-        assert_eq!(at(60, 66.666_666), Cadence::Missed);
-        assert_eq!(at(60, 66.666_667), Cadence::LongStall);
-        assert_eq!(at(120, 12.5), Cadence::OnTime);
-        assert_eq!(at(120, 12.500_001), Cadence::Missed);
-        assert_eq!(at(120, 50.0), Cadence::Missed);
-        assert_eq!(at(120, 50.000_001), Cadence::LongStall);
-        assert_eq!(at(240, 49.0), Cadence::Missed);
-        assert_eq!(at(30, 60.0), Cadence::Missed);
-        assert_eq!(at(30, 133.333_333), Cadence::Missed);
-        assert_eq!(at(30, 133.333_334), Cadence::LongStall);
-    }
-
-    #[test]
-    fn a_probe_counts_missed_frames_and_long_stalls_over_its_intervals() {
-        let frame = |t: f64| Frame { t, input_ms: 1.0, build_ms: 0.0, command_ms: 0.0, damage_ms: 0.0, composite_ms: 0.0, upload_ms: 0.0, latency_ms: None };
-        let frames: Vec<Frame> = [0.0, 16.0, 32.0, 60.0, 76.0, 176.0].into_iter().map(frame).collect();
-        let probe = Probe::of(&frames, hz(60));
-        assert_eq!((probe.intervals, probe.missed, probe.stalls), (5, 2, 1));
-        assert_eq!((probe.interval.count(), probe.cpu.count(), probe.latency.count()), (5, 6, 0));
     }
 
     #[test]
@@ -533,38 +292,6 @@ mod tests {
         ]
         .concat();
         assert_eq!(text, expected);
-    }
-
-    #[test]
-    fn records_round_trip_through_the_pair_reader() {
-        let records: Vec<RunRecord> = blocks(2).flat_map(fixture_records).collect();
-        assert_eq!(records.len(), 40);
-        assert_eq!(pair::parse_records(&pair::print_records(&records)), Ok(records));
-    }
-
-    #[test]
-    fn identical_arms_pass_the_latency_gates_and_three_frames_leave_rates_inconclusive() {
-        let records: Vec<RunRecord> = blocks(3).flat_map(fixture_records).collect();
-        let noisy = Verdict::Inconclusive(pair::Doubt::Noisy);
-        assert_eq!(
-            verdicts(&records),
-            Ok(vec![
-                (Gate::UiEqLatency, Verdict::Pass),
-                (Gate::UiEqMissed, noisy),
-                (Gate::UiEqLongStalls, noisy),
-                (Gate::OverheadCpu, Verdict::Pass),
-                (Gate::OverheadInterval, Verdict::Pass),
-            ])
-        );
-    }
-
-    #[test]
-    fn abba_blocks_label_the_same_binary_a_and_aa() {
-        let labels: Vec<(u32, usize, Arm)> = blocks(2).map(|b| (b.unit, b.position, b.arm)).collect();
-        assert_eq!(
-            labels,
-            [(1, 0, Arm::A), (1, 1, Arm::AA), (1, 2, Arm::AA), (1, 3, Arm::A), (2, 0, Arm::A), (2, 1, Arm::AA), (2, 2, Arm::AA), (2, 3, Arm::A)]
-        );
     }
 
     #[test]

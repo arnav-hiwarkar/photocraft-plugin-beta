@@ -653,8 +653,10 @@ labelled A and AA: the same binary in both arms, which is the A/A calibration `C
 Each run first deletes the previous run's records, summary and block reports. It writes a
 `craft-pair/1` record per gate, arm and block to `target/perf/pair.records` (`OverheadCpu` from
 the sum of a frame's C stages, `OverheadInterval`, `UiEqMissed` and `UiEqLongStalls` from I,
-`UiEqLatency` from L), writes the per-stage p50/p95/p99 and each gate's A/AA verdict from
-`craft_testkit::pair` to `target/perf/pair-summary.md`, and prints them. Records name the night
+`UiEqLatency` from L), writes the per-stage p50/p95/p99 and each gate's A/AA verdict to
+`target/perf/pair-summary.md`, and prints them. The frame-series logic (cadence classes, records,
+ABBA blocks, verdicts and the summary) is `craft_testkit::pair::frames`, shared with EffectCraft;
+the xtask only reads the bench's JSON into it. Records name the night
 (`--night`, default the UTC date), the runner image (`--runner-image`, default
 `$ImageOS-$ImageVersion` on a hosted runner, else `local`) and the load: `contended` when the
 1-minute load at the start is above `settings.max_load_per_core` per core, as plain `perf` judges
