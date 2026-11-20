@@ -95,6 +95,7 @@ const INPUT_OR_READ: &[&str] = &[
     "ui.key",
     "ui.menu.list",
     "ui.move",
+    "ui.perf.takeFrames",
     "ui.pointer",
     "ui.release",
     "ui.screenshot",

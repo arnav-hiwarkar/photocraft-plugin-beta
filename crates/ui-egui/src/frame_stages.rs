@@ -49,6 +49,7 @@ pub struct FrameStages {
     /// "gpu" or "cpu": who drew the canvas.
     pub path: &'static str,
     /// Building the UI (`App::ui`, every egui pass of the frame), the canvas refresh included.
+    #[serde(skip)]
     pub ui_ms: f64,
     pub build_ms: f64,
     pub latency_ms: Option<f64>,

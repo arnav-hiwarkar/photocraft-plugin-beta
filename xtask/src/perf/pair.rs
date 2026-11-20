@@ -455,10 +455,10 @@ mod tests {
     const FIXTURE: &str = r#"{
         "context": {"workload": "paint", "backend": "cpu", "scale": "3000x2000@1920x1080"},
         "frames": [
-            {"t": 0.0, "frameMs": 2.0, "inputMs": 0.5, "uiMs": 1.5, "buildMs": 0.25, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 1.0, "uploadMs": 0.25, "latencyMs": null, "path": "cpu"},
-            {"t": 16.667, "frameMs": 3.0, "inputMs": 0.5, "uiMs": 2.5, "buildMs": 0.25, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 2.0, "uploadMs": 0.25, "latencyMs": 12.0, "path": "cpu"},
-            {"t": 33.333, "frameMs": 3.0, "inputMs": 0.5, "uiMs": 2.5, "buildMs": 0.25, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 2.0, "uploadMs": 0.25, "latencyMs": null, "path": "cpu"},
-            {"t": 75.0, "frameMs": 40.0, "inputMs": 0.5, "uiMs": 39.5, "buildMs": 2.0, "commandMs": 30.0, "damageMs": 1.0, "compositeMs": 6.0, "uploadMs": 0.5, "latencyMs": null, "path": "cpu"}
+            {"t": 0.0, "frameMs": 2.0, "inputMs": 0.5, "buildMs": 0.25, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 1.0, "uploadMs": 0.25, "latencyMs": null, "path": "cpu"},
+            {"t": 16.667, "frameMs": 3.0, "inputMs": 0.5, "buildMs": 0.25, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 2.0, "uploadMs": 0.25, "latencyMs": 12.0, "path": "cpu"},
+            {"t": 33.333, "frameMs": 3.0, "inputMs": 0.5, "buildMs": 0.25, "commandMs": 0.0, "damageMs": 0.0, "compositeMs": 2.0, "uploadMs": 0.25, "latencyMs": null, "path": "cpu"},
+            {"t": 75.0, "frameMs": 40.0, "inputMs": 0.5, "buildMs": 2.0, "commandMs": 30.0, "damageMs": 1.0, "compositeMs": 6.0, "uploadMs": 0.5, "latencyMs": null, "path": "cpu"}
         ]
     }"#;
 
