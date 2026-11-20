@@ -118,7 +118,6 @@ fn perf_output_counts_the_recorded_frames_and_take_frames_drains_them() {
         "t",
         "frameMs",
         "inputMs",
-        "uiMs",
         "buildMs",
         "commandMs",
         "damageMs",
@@ -134,6 +133,9 @@ fn perf_output_counts_the_recorded_frames_and_take_frames_drains_them() {
         assert!(last.get(key).is_some(), "{key} in {last}");
     }
     assert_eq!(probe(&mut app), json!({"count": 0, "dropped": 0}));
+    let commands_run = app.commands_run;
+    take(&mut app);
+    assert_eq!(app.commands_run, commands_run, "taking the frames is a read, not a command run");
     // A nested run (`actions.play` → its view steps through `App::run`) is inside the outer
     // call's time: the frame counts the outer command once, not the steps again.
     app.session.actions.list.push(action("Zoom", vec![("view.zoomIn", json!({})), ("view.zoomOut", json!({}))])).unwrap();
