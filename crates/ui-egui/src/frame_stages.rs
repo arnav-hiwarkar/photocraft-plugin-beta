@@ -50,6 +50,7 @@ pub struct FrameStages {
     pub path: &'static str,
     /// Building the UI (`App::ui`, every egui pass of the frame), the canvas refresh included.
     pub ui_ms: f64,
+    pub build_ms: f64,
     pub latency_ms: Option<f64>,
     /// Rendering stroke points (the stroke trace's `stroke`).
     #[serde(skip)]
@@ -66,6 +67,10 @@ pub struct FrameStages {
     pub cpu_prev_ms: Option<f64>,
     #[serde(skip)]
     pub injected: bool,
+    #[serde(skip)]
+    capped_ms: f64,
+    #[serde(skip)]
+    nested_before_ui_ms: f64,
     /// The raw input hook ran for this frame.
     #[serde(skip)]
     started: bool,
@@ -80,6 +85,15 @@ impl FrameStages {
         self.t = now;
         self.moves = moves;
         self.started = true;
+        self.capped_ms = 0.0;
+    }
+
+    pub fn capped(&mut self, ms: f64) {
+        self.capped_ms += ms;
+    }
+
+    fn nested_ms(&self) -> f64 {
+        self.command_ms + self.damage_ms + self.composite_ms + self.upload_ms
     }
 
     /// The UI build starts at `now`; `cpu_prev` is eframe's CPU time for the previous frame, in s.
@@ -92,7 +106,8 @@ impl FrameStages {
         if !self.started {
             self.start(now, 0);
         }
-        self.input_ms = (now - self.t - self.command_ms).max(0.0);
+        self.nested_before_ui_ms = self.nested_ms();
+        self.input_ms = (now - self.t - self.capped_ms - self.nested_before_ui_ms).max(0.0);
         self.cpu_prev_ms = cpu_prev.map(|s| f64::from(s) * 1000.0);
     }
 
@@ -112,7 +127,7 @@ impl FrameStages {
 
     /// The stages that make up `frame_ms` (`present_ms` belongs to the previous frame).
     pub fn stage_ms(&self) -> f64 {
-        self.input_ms + self.command_ms + self.damage_ms + self.composite_ms + self.upload_ms
+        self.input_ms + self.build_ms + self.nested_ms()
     }
 
     /// The frame ends at `now`.
@@ -120,7 +135,8 @@ impl FrameStages {
         if !self.started {
             self.t = now;
         }
-        self.frame_ms = (now - self.t).max(self.stage_ms());
+        self.build_ms = (self.ui_ms - (self.nested_ms() - self.nested_before_ui_ms)).max(0.0);
+        self.frame_ms = (now - self.t - self.capped_ms).max(self.stage_ms());
     }
 
     /// One line for the log.
@@ -155,7 +171,14 @@ pub struct FrameProbe {
 #[derive(Debug, Default)]
 struct Recording {
     frames: Vec<FrameStages>,
+    dropped: u64,
     injected_at: Option<f64>,
+}
+
+#[derive(Debug, Default, PartialEq, serde::Serialize)]
+pub struct Recorded {
+    pub frames: Vec<FrameStages>,
+    pub dropped: u64,
 }
 
 impl Recording {
@@ -165,6 +188,8 @@ impl Recording {
         }
         if self.frames.len() < RECORDED_FRAMES {
             self.frames.push(s.clone());
+        } else {
+            self.dropped = self.dropped.saturating_add(1);
         }
     }
 }
@@ -178,13 +203,13 @@ impl FrameProbe {
         self.recording.as_ref().map(|r| r.frames.as_slice()).unwrap_or_default()
     }
 
-    pub fn take_frames(&mut self) -> Vec<FrameStages> {
-        self.recording.as_mut().map(|r| std::mem::take(&mut r.frames)).unwrap_or_default()
+    pub fn take(&mut self) -> Option<Recorded> {
+        self.recording.as_mut().map(|r| Recorded { frames: std::mem::take(&mut r.frames), dropped: std::mem::take(&mut r.dropped) })
     }
 
     pub fn input_injected(&mut self, now: impl FnOnce() -> f64) {
         if let Some(r) = &mut self.recording {
-            r.injected_at.get_or_insert_with(now);
+            r.injected_at = Some(now());
         }
     }
 
@@ -226,10 +251,12 @@ impl FrameProbe {
 
 impl serde::Serialize for FrameProbe {
     fn serialize<S: serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
-        match &self.recording {
-            Some(r) => ser.collect_seq(r.frames.iter()),
-            None => ser.serialize_none(),
-        }
+        use serde::ser::SerializeStruct;
+        let Some(r) = &self.recording else { return ser.serialize_none() };
+        let mut out = ser.serialize_struct("FrameProbe", 2)?;
+        out.serialize_field("count", &r.frames.len())?;
+        out.serialize_field("dropped", &r.dropped)?;
+        out.end()
     }
 }
 
@@ -248,7 +275,7 @@ mod tests {
     }
 
     #[test]
-    fn a_recording_probe_keeps_every_frame_with_its_input_latency() {
+    fn a_recording_probe_keeps_every_frame_with_the_latency_of_the_last_injection() {
         let mut p = FrameProbe::default();
         p.set_recording(true);
         p.finish(frame(0.0, 2.0), 16.0, false, None);
@@ -260,13 +287,43 @@ mod tests {
         let mut later = frame(50.0, 2.0);
         later.injected = true;
         p.finish(later, 60.0, false, None);
-        let json = serde_json::to_value(&p).unwrap();
-        let read = |key: &str| json.as_array().unwrap().iter().map(|f| f[key].clone()).collect::<Vec<_>>();
+        assert_eq!(serde_json::to_value(&p).unwrap(), json!({"count": 3, "dropped": 0}));
+        let recorded = p.take().unwrap();
+        let read = |key: &str| recorded.frames.iter().map(|f| serde_json::to_value(f).unwrap()[key].clone()).collect::<Vec<_>>();
         assert_eq!(read("t"), [json!(0.0), json!(33.0), json!(50.0)]);
         assert_eq!(read("frameMs"), [json!(16.0), json!(8.5), json!(10.0)]);
-        assert_eq!(read("latencyMs"), [Value::Null, json!(21.5), Value::Null]);
-        assert_eq!(p.take_frames().len(), 3);
-        assert_eq!(serde_json::to_value(&p).unwrap(), json!([]));
+        assert_eq!(read("latencyMs"), [Value::Null, json!(16.5), Value::Null]);
+        assert_eq!(serde_json::to_value(&p).unwrap(), json!({"count": 0, "dropped": 0}));
+    }
+
+    #[test]
+    fn input_injected_after_a_withdrawal_is_timed_from_its_own_injection() {
+        let mut p = FrameProbe::default();
+        p.set_recording(true);
+        p.input_injected(|| 10.0);
+        p.finish(frame(16.0, 2.0), 30.0, false, None);
+        p.input_injected(|| 40.0);
+        let mut consumed = frame(41.0, 2.0);
+        consumed.injected = true;
+        let consumed = p.finish(consumed, 45.0, false, None);
+        assert_eq!(consumed.latency_ms, Some(5.0));
+        assert!(consumed.latency_ms < Some(1000.0 / 60.0));
+    }
+
+    #[test]
+    fn the_frame_cap_sleep_is_in_no_stage_and_the_ui_build_excludes_what_it_nests() {
+        let mut s = FrameStages::default();
+        s.start(0.0, 1);
+        s.capped(10.0);
+        s.command("view.zoomIn", 0.5);
+        s.ui_start(12.0, None);
+        s.damage_ms += 0.5;
+        s.refresh("rect", 64, 3.0, 1.0);
+        s.command("layer.setProps", 1.5);
+        s.ui_ms = 8.0;
+        let s = FrameProbe::default().finish(s, 21.0, false, None);
+        assert_eq!((s.input_ms, s.build_ms, s.command_ms, s.frame_ms), (1.5, 2.0, 2.0, 11.0));
+        assert_eq!(s.stage_ms(), 10.0);
     }
 
     #[test]
@@ -288,7 +345,7 @@ mod tests {
         };
         let mut off = FrameProbe::default();
         let closed_off = run(&mut off);
-        assert_eq!((reads.get(), off.frames().len(), off.take_frames().capacity()), (0, 0, 0));
+        assert_eq!((reads.get(), off.frames().len(), off.take()), (0, 0, None));
         assert_eq!(serde_json::to_value(&off).unwrap(), Value::Null);
         assert_eq!(closed_off.iter().map(|s| (s.frame_ms, s.latency_ms)).next_back(), Some((8.0, None)));
         let mut on = FrameProbe::default();
@@ -299,14 +356,16 @@ mod tests {
     }
 
     #[test]
-    fn recording_stops_keeping_frames_at_its_cap() {
+    fn frames_past_the_cap_count_as_dropped() {
         let mut p = FrameProbe::default();
         p.set_recording(true);
         for k in 0..RECORDED_FRAMES + 5 {
             p.finish(FrameStages::default(), k as f64, false, None);
         }
-        assert_eq!(p.frames().len(), 131_072);
-        assert_eq!(p.frames().last().map(|f| f.t), Some(131_071.0));
+        assert_eq!(serde_json::to_value(&p).unwrap(), json!({"count": 131_072, "dropped": 5}));
+        let recorded = p.take().unwrap();
+        assert_eq!((recorded.frames.len(), recorded.frames.last().map(|f| f.t), recorded.dropped), (131_072, Some(131_071.0), 5));
+        assert_eq!(serde_json::to_value(&p).unwrap(), json!({"count": 0, "dropped": 0}));
     }
 
     #[test]
@@ -364,9 +423,12 @@ mod tests {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod app_tests {
+    use craft::ui::runtime::windows::WindowHost;
     use serde_json::json;
 
     use crate::PhotocraftApp;
+
+    const STALE_MS: u64 = 200;
 
     /// One frame of `passes` egui passes of `pass_ms` each, through the app's hooks: the raw input
     /// hook starts the record once, and each pass's UI build ends in `finish_frame`. Every pass but
@@ -399,7 +461,7 @@ mod app_tests {
         app.frame_probe.set_recording(true);
         let ctx = app.ctx().clone();
         let first_input_ms = frame(&mut app, &ctx, 2, 30, false);
-        let frames = app.frame_probe.take_frames();
+        let frames = app.frame_probe.take().unwrap().frames;
         assert_eq!(frames.len(), 1, "{frames:?}");
         let f = &frames[0];
         assert!(f.frame_ms >= 60.0 && f.ui_ms >= 60.0, "both passes: {f:?}");
@@ -474,7 +536,7 @@ mod app_tests {
     }
 
     #[test]
-    fn the_frame_that_consumes_a_synthetic_move_records_its_latency() {
+    fn a_synthetic_move_after_a_withdrawn_one_is_timed_from_its_own_injection() {
         let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(800.0, 600.0)).with_max_steps(4).build_eframe(|cc| {
             PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
             PhotocraftApp::with_context(cc.egui_ctx.clone(), photocraft_engine::Session::new(), crate::Services::default())
@@ -482,12 +544,19 @@ mod app_tests {
         harness.run_steps(2);
         harness.state_mut().frame_probe.set_recording(true);
         let ctx = harness.ctx.clone();
-        let (req, _reply) = crate::ControlRequest::new("ui.move", json!({"x": 200, "y": 150}));
-        assert!(matches!(crate::control::handle(harness.state_mut(), &ctx, &req), crate::control::Reply::AfterInput));
+        let move_to = |harness: &mut egui_kittest::Harness<'static, Box<PhotocraftApp>>, x: f64| {
+            let (req, _reply) = crate::ControlRequest::new("ui.move", json!({"x": x, "y": 150}));
+            assert!(matches!(crate::control::handle(harness.state_mut(), &ctx, &req), crate::control::Reply::AfterInput));
+        };
+        move_to(&mut harness, 200.0);
+        assert!(WindowHost::of(&harness.ctx).cancel_injected(), "the first move was still queued");
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(STALE_MS));
+        move_to(&mut harness, 240.0);
         harness.run_steps(4);
-        let frames = harness.state_mut().frame_probe.take_frames();
+        let frames = harness.state_mut().frame_probe.take().unwrap().frames;
         let measured: Vec<f64> = frames.iter().filter_map(|f| f.latency_ms).collect();
         assert_eq!(measured.len(), 1, "{frames:?}");
-        assert!(measured.iter().all(|ms| ms.is_finite() && *ms > 0.0), "{measured:?}");
+        assert!(measured.iter().all(|ms| *ms > 0.0 && *ms < STALE_MS as f64), "{measured:?}");
     }
 }

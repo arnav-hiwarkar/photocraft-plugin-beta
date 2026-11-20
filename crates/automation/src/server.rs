@@ -407,7 +407,8 @@ pub struct UiSetParams {
     /// or "none") and smart (a list of "linked", "missing" and "embedded") for the Layers panel
     /// filter). strokeTrace (true, false, "stderr" or "off": the stroke latency trace at runtime; a
     /// CSV file is set at launch with --stroke-trace, not over this channel). frameProbe (bool:
-    /// record every frame's stages and input latency in `ui.inspect` `perf.frames`). updatesOpen
+    /// record every frame's stages and input latency; `ui.inspect` `perf.frames` counts them and
+    /// `ui.perf.takeFrames` returns them). updatesOpen
     /// (bool, the Help › Check for Updates window).
     /// histogramPanel (an object patching view ("compact", "expanded" or "allChannels"), channel
     /// ("composite", "red", "green", "blue", "cyan", "magenta", "yellow", "black", "a", "b",

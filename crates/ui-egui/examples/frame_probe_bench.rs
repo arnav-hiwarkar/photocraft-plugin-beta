@@ -72,8 +72,8 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
         Some(v) => v.parse::<u32>().ok().filter(|n| *n > 0).ok_or(format!("{name} needs a whole number above 0")),
     };
     let frames = number("--frames", 3600)?;
-    if usize::try_from(frames).unwrap_or(usize::MAX) > RECORDED_FRAMES {
-        return Err(format!("--frames is at most {RECORDED_FRAMES}, what the frame probe keeps"));
+    if frames < 2 || usize::try_from(frames).unwrap_or(usize::MAX) > RECORDED_FRAMES {
+        return Err(format!("--frames is 2 to {RECORDED_FRAMES}: an interval needs two frames, and the frame probe keeps {RECORDED_FRAMES}"));
     }
     Ok(Args {
         workload: Workload::parse(value(args, "--workload").unwrap_or("hover"))?,
@@ -142,7 +142,11 @@ fn run(args: &Args) -> Result<Value, String> {
         display.present(&mut h);
     }
     let app = h.state_mut();
-    let frames = app.frame_probe.take_frames();
+    let recorded = app.frame_probe.take().ok_or("the frame probe stopped recording")?;
+    if recorded.dropped > 0 {
+        return Err(format!("the frame probe dropped {} frames past its cap", recorded.dropped));
+    }
+    let frames = recorded.frames;
     let backend = if app.perf.gpu { "gpu" } else { "cpu" };
     let measured = frames.iter().filter(|f| f.latency_ms.is_some()).count();
     eprintln!("{}: {} frames, {measured} with input latency, {step} requests, {backend} canvas", args.workload.name(), frames.len());

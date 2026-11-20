@@ -38,6 +38,7 @@
 //! - `ui.screenshot {path?, focus?, window?}`: capture the main window, or the document window `window` (PNG).
 //!   Raises the window first (default) because occluded macOS windows stop rendering
 //! - `ui.focus`: bring the main window to the front
+//! - `ui.perf.takeFrames`: the frames the frame probe recorded since the last take, and how many it dropped
 //! - `app.open {path}` / `app.save {path}`: relative file I/O under the automation roots; reply with `warnings`
 //! - `app.quit`
 //! - `jobs.list` / `jobs.cancel {job?}`: background jobs (#210) with progress; cancel one (or all).
@@ -142,6 +143,7 @@ pub(super) const METHODS: &[&str] = &[
     "ui.menu.list",
     "ui.move",
     "ui.notice.post",
+    "ui.perf.takeFrames",
     "ui.pointer",
     "ui.release",
     "ui.resize",

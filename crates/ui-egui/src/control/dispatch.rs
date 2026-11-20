@@ -200,6 +200,13 @@ fn cancel_each(app: &mut PhotocraftApp, ids: Vec<JobId>) -> CancelReport {
 
 // ---- the shell: view state, windows, GPU, focus, screenshots, notices ----
 
+fn take_frames(app: &mut PhotocraftApp) -> Reply {
+    match app.frame_probe.take() {
+        Some(recorded) => Reply::from_result(serde_json::to_value(recorded).map_err(|e| e.to_string())),
+        None => err("the frame probe is off: turn it on with ui.set {\"frameProbe\": true}"),
+    }
+}
+
 fn shell_methods(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest) -> Option<Reply> {
     let p = &req.params;
     Some(match req.method.as_str() {
@@ -224,6 +231,7 @@ fn shell_methods(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequ
             ok(Value::Null)
         }
         "ui.gpu.simulateLoss" => simulate_gpu_loss(app, ctx, p),
+        "ui.perf.takeFrames" => take_frames(app),
         "ui.focus" => {
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
             // The window host sends `Minimized(false)` first and asks for attention where the platform cannot focus.

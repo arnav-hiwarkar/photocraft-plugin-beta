@@ -31,9 +31,11 @@ impl PhotocraftApp {
     fn cap_frame_rate(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(min) = self.min_frame_ms.filter(|m| m.is_finite() && *m > 0.0) {
-            let wait = min.min(100.0) - (gpu_canvas::now_ms() - self.last_frame_start_ms);
+            let now = gpu_canvas::now_ms();
+            let wait = min.min(100.0) - (now - self.last_frame_start_ms);
             if wait > 0.0 {
                 std::thread::sleep(std::time::Duration::from_secs_f64(wait / 1000.0));
+                self.perf.stage.capped(gpu_canvas::now_ms() - now);
             }
         }
         self.last_frame_start_ms = gpu_canvas::now_ms();
