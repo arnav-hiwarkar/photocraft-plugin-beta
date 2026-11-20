@@ -72,11 +72,29 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Git dependencies come from github.com/storytold, and Cargo.lock is complete and up to date.
+  # Git dependencies come from github.com/storytold or the plugin platform's craft-libs fork, and
+  # Cargo.lock is complete and up to date. The shared check takes one prefix, so it verifies the
+  # lockfile and overrides with the github.com prefix and the next step narrows the sources.
   git-sources:
     if: github.event_name != 'schedule' && (github.event.action != 'labeled' || github.event.label.name == 'full-ci')
-    # Tracks @main so suite-wide CI fixes reach every app without a PR in each repository.
-    uses: storytold/craft-common-actions/.github/workflows/git-sources.yml@main
+    name: Git dependencies come from storytold or the platform fork
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: storytold/craft-common-actions/actions/check-git-sources@main
+        with:
+          allowed-prefix: "git+https://github.com/"
+      - name: Only storytold and the platform craft-libs fork
+        run: |
+          disallowed=$(grep -E '^source = "git\+' Cargo.lock | grep -vE '^source = "git\+https://github\.com/(storytold/|arnav-hiwarkar/craft-libs-plugin-beta[?#])' || true)
+          if [ -n "$disallowed" ]; then echo "$disallowed"; exit 1; fi
 
   # Whether the Windows legs and the web build run. main, manual runs and PRs labelled `full-ci`
   # get both. Other PRs get Windows when they touch code whose behaviour differs by platform: the
