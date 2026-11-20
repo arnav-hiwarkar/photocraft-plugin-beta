@@ -18,6 +18,7 @@ toml = "1"
 craft-i18n = { workspace = true }
 # `egui-fork` checks Cargo.lock against `craft::egui_fork`.
 craft = { workspace = true }
+craft-testkit = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

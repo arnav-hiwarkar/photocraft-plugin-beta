@@ -196,7 +196,7 @@ pub fn inspect(app: &PhotocraftApp, ctx: &egui::Context) -> Value {
             "timings": app.perf,
             "strokeTrace": app.stroke_trace.last,
             "renderPath": crate::render_path::inspect(app),
-            "slowFrames": app.slow_frames,
+            "frames": app.frame_probe,
         },
         "brush": {"size": app.session.tools.brush.size, "hardness": app.session.tools.brush.hardness, "opacity": app.session.tools.brush.opacity},
         "distort": app.distort.describe(),

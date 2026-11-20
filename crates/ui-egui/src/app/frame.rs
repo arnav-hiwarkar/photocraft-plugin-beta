@@ -8,8 +8,8 @@ use craft::ui::runtime::windows::WindowHost;
 use craft::ui::shell::{AppShell, slots};
 
 impl PhotocraftApp {
-    /// Close this frame's stage record (`frame_stages`): keep it if it was slow, and hand it to
-    /// the stroke trace. `ui_ms` is this pass's UI build. A pass egui will run again
+    /// Close this frame's stage record (`frame_stages`): the probe keeps it while it records,
+    /// and the stroke trace gets it. `ui_ms` is this pass's UI build. A pass egui will run again
     /// (`request_discard`, such as a sizing pass) leaves the record open, so a frame is one
     /// record across all its passes.
     pub(crate) fn finish_frame(&mut self, ctx: &egui::Context, ui_ms: f64) {
@@ -19,7 +19,7 @@ impl PhotocraftApp {
             return;
         }
         let stages = std::mem::take(&mut self.perf.stage);
-        let stages = self.slow_frames.finish(stages, gpu_canvas::now_ms(), self.perf.gpu, self.perf.gpu_ms);
+        let stages = self.frame_probe.finish(stages, gpu_canvas::now_ms(), self.perf.gpu, self.perf.gpu_ms);
         let info = &self.perf.gpu_info;
         self.stroke_trace.frame(&stages, stages.stroking, || {
             let gpu = format!("{} {}", info.backend, info.adapter).trim().to_string();
@@ -153,6 +153,7 @@ impl PhotocraftApp {
         self.note_capture_pass(&ctx);
         // A pass whose input carries an injected step acts for the automation client.
         self.automation_input = WindowHost::of(&ctx).injected_pass();
+        self.perf.stage.injected |= self.automation_input;
         self.hover_layer = None;
         // The contextual task bar reports itself again if this frame draws it (#10890).
         self.ui.task_bar_shown = None;

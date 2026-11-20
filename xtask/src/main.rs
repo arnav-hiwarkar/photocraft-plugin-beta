@@ -70,6 +70,9 @@ commands:
   perf [--quick] [--update-baseline] [--threshold PCT] [--bench NAME]... [--skip-build] [--reuse]
                   run the release benches, merge them by scenario id into target/perf/results.json,
                   check perf/budgets.toml and perf/baseline.json (non-zero on a broken budget or regression)
+  perf --pair [--workload hover|paint]... [--units N] [--frames N] [--refresh-hz HZ] [--night ID] [--runner-image ID] [--skip-build]
+                  run frame_probe_bench in ABBA blocks (A and AA: the same binary), write craft-pair/1 records to
+                  target/perf/pair.records and print the A/AA calibration verdict per gate
   scorecard [--check]
                   regenerate docs/scorecard.md (--check: fail if it is stale)
   version [set X.Y.Z[-pre]]
