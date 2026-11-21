@@ -1,0 +1,5525 @@
+format = 1
+
+[[entry]]
+id = "actions.allowToolRecording"
+class = "query"
+
+[[entry]]
+id = "actions.assignSet"
+class = "query"
+
+[[entry]]
+id = "actions.clearAll"
+class = "query"
+
+[[entry]]
+id = "actions.conditional"
+class = "command"
+args = "1a1d0c6838fa0184"
+
+[[entry]]
+id = "actions.delete"
+class = "query"
+
+[[entry]]
+id = "actions.dialog"
+class = "query"
+
+[[entry]]
+id = "actions.duplicate"
+class = "query"
+
+[[entry]]
+id = "actions.get"
+class = "query"
+
+[[entry]]
+id = "actions.insert"
+class = "query"
+
+[[entry]]
+id = "actions.insertMenuItem"
+class = "query"
+
+[[entry]]
+id = "actions.insertPath"
+class = "query"
+
+[[entry]]
+id = "actions.list"
+class = "query"
+
+[[entry]]
+id = "actions.load"
+class = "query"
+
+[[entry]]
+id = "actions.menuItem"
+class = "command"
+args = "320ba3183e7a5b03"
+
+[[entry]]
+id = "actions.move"
+class = "query"
+
+[[entry]]
+id = "actions.newSet"
+class = "query"
+
+[[entry]]
+id = "actions.photoshopStep"
+class = "command"
+args = "0d013c55b3c45655"
+
+[[entry]]
+id = "actions.play"
+class = "query"
+
+[[entry]]
+id = "actions.record"
+class = "query"
+
+[[entry]]
+id = "actions.recordAgain"
+class = "query"
+
+[[entry]]
+id = "actions.rename"
+class = "query"
+
+[[entry]]
+id = "actions.replace"
+class = "query"
+
+[[entry]]
+id = "actions.reset"
+class = "query"
+
+[[entry]]
+id = "actions.save"
+class = "query"
+
+[[entry]]
+id = "actions.setColor"
+class = "query"
+
+[[entry]]
+id = "actions.setHistory"
+class = "query"
+
+[[entry]]
+id = "actions.setPlayback"
+class = "query"
+
+[[entry]]
+id = "actions.stop"
+class = "query"
+
+[[entry]]
+id = "actions.stopMessage"
+class = "command"
+args = "9c6683fa88164a49"
+
+[[entry]]
+id = "actions.toggle"
+class = "query"
+
+[[entry]]
+id = "actions.undoLibrary"
+class = "query"
+
+[[entry]]
+id = "brush.defineFromSelection"
+class = "command"
+args = "f80b1fa820d95a87"
+
+[[entry]]
+id = "brush.get"
+class = "query"
+
+[[entry]]
+id = "brush.mixer.autoClean"
+class = "command"
+args = "b6ac5bc39377e44e"
+
+[[entry]]
+id = "brush.mixer.autoLoad"
+class = "command"
+args = "b6ac5bc39377e44e"
+
+[[entry]]
+id = "brush.mixer.clean"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "brush.mixer.load"
+class = "command"
+args = "a89feb52a8ba15ad"
+
+[[entry]]
+id = "brush.mixer.sample"
+class = "command"
+args = "299ac57044948cc7"
+
+[[entry]]
+id = "brush.mixer.sampleAllLayers"
+class = "command"
+args = "b6ac5bc39377e44e"
+
+[[entry]]
+id = "brush.presets.delete"
+class = "command"
+args = "f80b1fa820d95a87"
+
+[[entry]]
+id = "brush.presets.deleteGroup"
+class = "command"
+args = "dc2b227ee8c31f87"
+
+[[entry]]
+id = "brush.presets.importAbr"
+class = "command"
+args = "0d81e1cfc566d4c4"
+
+[[entry]]
+id = "brush.presets.importImage"
+class = "command"
+args = "4be647f39f376f15"
+
+[[entry]]
+id = "brush.presets.list"
+class = "query"
+
+[[entry]]
+id = "brush.presets.move"
+class = "command"
+args = "d0aa82ae516541ca"
+
+[[entry]]
+id = "brush.presets.moveGroup"
+class = "command"
+args = "ebe82e8165fc0aeb"
+
+[[entry]]
+id = "brush.presets.rename"
+class = "command"
+args = "1589d6ee7567d691"
+
+[[entry]]
+id = "brush.presets.renameGroup"
+class = "command"
+args = "5532006b5cdaa4ca"
+
+[[entry]]
+id = "brush.presets.save"
+class = "command"
+args = "e3addd9cad931827"
+
+[[entry]]
+id = "brush.presets.setCurrent"
+class = "command"
+args = "f80b1fa820d95a87"
+
+[[entry]]
+id = "brush.presets.update"
+class = "command"
+args = "9d98b7e7cd59575e"
+
+[[entry]]
+id = "brush.texturePattern"
+class = "command"
+args = "8d2751399a27cea6"
+
+[[entry]]
+id = "channel.delete"
+class = "command"
+args = "dec2a5245eb7a58a"
+
+[[entry]]
+id = "channel.duplicate"
+class = "command"
+args = "750bab21ec48072c"
+
+[[entry]]
+id = "channel.list"
+class = "query"
+
+[[entry]]
+id = "channel.merge"
+class = "command"
+args = "d6415cd0d6369f89"
+
+[[entry]]
+id = "channel.mergeSpot"
+class = "command"
+args = "dec2a5245eb7a58a"
+
+[[entry]]
+id = "channel.move"
+class = "command"
+args = "0ecfc3a081474c98"
+
+[[entry]]
+id = "channel.new"
+class = "command"
+args = "5845927cb5868834"
+
+[[entry]]
+id = "channel.newSpot"
+class = "command"
+args = "5a01bbb546cde6e1"
+
+[[entry]]
+id = "channel.options"
+class = "command"
+args = "a73057b534380b76"
+
+[[entry]]
+id = "channel.rename"
+class = "command"
+args = "99e090340f594f05"
+
+[[entry]]
+id = "channel.setVisible"
+class = "command"
+args = "91c9a237ca373328"
+
+[[entry]]
+id = "channel.split"
+class = "command"
+args = "437cadde3acb7146"
+
+[[entry]]
+id = "channel.target"
+class = "command"
+args = "243f282b9669a342"
+
+[[entry]]
+id = "channel.target.composite"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "channel.target.layerMask"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "channel.target.slot3"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "channel.target.slot4"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "channel.target.slot5"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "channel.target.slot6"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "channel.target.slot7"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "channel.target.slot8"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "channel.target.slot9"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "cloneSource.list"
+class = "query"
+
+[[entry]]
+id = "cloneSource.overlay"
+class = "command"
+args = "a7dd7dde9af41749"
+
+[[entry]]
+id = "cloneSource.resetTransform"
+class = "command"
+args = "f816b480f87144ec"
+
+[[entry]]
+id = "cloneSource.select"
+class = "command"
+args = "f816b480f87144ec"
+
+[[entry]]
+id = "cloneSource.set"
+class = "command"
+args = "07d3355a7a6dd87f"
+
+[[entry]]
+id = "color.profileMismatch"
+class = "command"
+args = "c8d5009c6f5c64ea"
+
+[[entry]]
+id = "command.list"
+class = "query"
+
+[[entry]]
+id = "count.add"
+class = "command"
+args = "060daac77828864a"
+
+[[entry]]
+id = "count.clear"
+class = "command"
+args = "d5ffcfd21db4d419"
+
+[[entry]]
+id = "count.deleteGroup"
+class = "command"
+args = "d5ffcfd21db4d419"
+
+[[entry]]
+id = "count.move"
+class = "command"
+args = "8a2717189718c52a"
+
+[[entry]]
+id = "count.newGroup"
+class = "command"
+args = "b3f40599f7ebfa56"
+
+[[entry]]
+id = "count.remove"
+class = "command"
+args = "f9d0c9df19ccf7ca"
+
+[[entry]]
+id = "count.setGroup"
+class = "command"
+args = "302e080ddb4b6b1f"
+
+[[entry]]
+id = "document.activate"
+class = "command"
+args = "dee2bdf03415fed1"
+
+[[entry]]
+id = "document.inspect"
+class = "query"
+
+[[entry]]
+id = "document.move"
+class = "query"
+
+[[entry]]
+id = "document.pixel"
+class = "query"
+
+[[entry]]
+id = "document.presets.delete"
+class = "command"
+args = "f80b1fa820d95a87"
+
+[[entry]]
+id = "document.presets.get"
+class = "query"
+
+[[entry]]
+id = "document.presets.list"
+class = "query"
+
+[[entry]]
+id = "document.presets.rename"
+class = "command"
+args = "1589d6ee7567d691"
+
+[[entry]]
+id = "document.presets.save"
+class = "command"
+args = "15ea52cf106d2254"
+
+[[entry]]
+id = "document.recent.add"
+class = "query"
+
+[[entry]]
+id = "document.recent.list"
+class = "query"
+
+[[entry]]
+id = "document.sampleColor"
+class = "query"
+
+[[entry]]
+id = "edit.assignProfile"
+class = "command"
+args = "2b2c81bb82ef3e90"
+
+[[entry]]
+id = "edit.autoAlignLayers"
+class = "command"
+args = "ba92169229d0029a"
+
+[[entry]]
+id = "edit.autoBlendLayers"
+class = "command"
+args = "1e8840bd96ae8bec"
+
+[[entry]]
+id = "edit.checkSpelling"
+class = "command"
+args = "fddd986562d21b40"
+
+[[entry]]
+id = "edit.clear"
+class = "command"
+args = "c5d9c99d8192151f"
+
+[[entry]]
+id = "edit.colorSettings"
+class = "command"
+args = "63d0acc344965f5c"
+
+[[entry]]
+id = "edit.contentAwareFill"
+class = "command"
+args = "35157930d9974b25"
+
+[[entry]]
+id = "edit.contentAwareScale"
+class = "command"
+args = "45b4f1b3066dc05f"
+
+[[entry]]
+id = "edit.convertToProfile"
+class = "command"
+args = "7236684d28c725a6"
+
+[[entry]]
+id = "edit.copy"
+class = "command"
+args = "c5d9c99d8192151f"
+
+[[entry]]
+id = "edit.copyMerged"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.cut"
+class = "command"
+args = "c5d9c99d8192151f"
+
+[[entry]]
+id = "edit.defineBrushPreset"
+class = "command"
+args = "f80b1fa820d95a87"
+
+[[entry]]
+id = "edit.defineCustomShape"
+class = "command"
+args = "3967030f72c60a26"
+
+[[entry]]
+id = "edit.definePattern"
+class = "command"
+args = "a3e82e8b9eed49da"
+
+[[entry]]
+id = "edit.deleteAndFillSelection"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.fade"
+class = "command"
+args = "92fa1cbb1218a532"
+
+[[entry]]
+id = "edit.fill"
+class = "command"
+args = "bdfe2c1d832b54d8"
+
+[[entry]]
+id = "edit.fillBackground"
+class = "command"
+args = "11293e0c94b854b9"
+
+[[entry]]
+id = "edit.fillBackgroundPreserve"
+class = "command"
+args = "11293e0c94b854b9"
+
+[[entry]]
+id = "edit.fillForeground"
+class = "command"
+args = "11293e0c94b854b9"
+
+[[entry]]
+id = "edit.fillForegroundPreserve"
+class = "command"
+args = "11293e0c94b854b9"
+
+[[entry]]
+id = "edit.fillHistory"
+class = "command"
+args = "9d007ed81c87281c"
+
+[[entry]]
+id = "edit.findAndReplaceText"
+class = "command"
+args = "79a48b94278a5b27"
+
+[[entry]]
+id = "edit.freeTransform"
+class = "shell"
+
+[[entry]]
+id = "edit.freeTransformCopy"
+class = "shell"
+
+[[entry]]
+id = "edit.installedProfiles"
+class = "query"
+
+[[entry]]
+id = "edit.keyboardShortcuts"
+class = "command"
+args = "f05e10c58fec5950"
+
+[[entry]]
+id = "edit.menus"
+class = "command"
+args = "d726489acab265bf"
+
+[[entry]]
+id = "edit.paste"
+class = "command"
+args = "b8de1a36318102c6"
+
+[[entry]]
+id = "edit.pasteSpecial.pasteInPlace"
+class = "command"
+args = "60bfba3e505a264d"
+
+[[entry]]
+id = "edit.pasteSpecial.pasteInto"
+class = "command"
+args = "749f4ff1b21fd29b"
+
+[[entry]]
+id = "edit.pasteSpecial.pasteOutside"
+class = "command"
+args = "749f4ff1b21fd29b"
+
+[[entry]]
+id = "edit.perspectiveWarp"
+class = "command"
+args = "017f22efd9829608"
+
+[[entry]]
+id = "edit.preferences.cursors"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.enhancedControls"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.export"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.fileHandling"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.general"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.guidesGridAndSlices"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.historyLog"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.integrations"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.interface"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.performance"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.plugIns"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.rawDefaults"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.scratchDisks"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.tools"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.transparencyAndGamut"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.type"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.unitsAndRulers"
+class = "query"
+
+[[entry]]
+id = "edit.preferences.workspace"
+class = "query"
+
+[[entry]]
+id = "edit.presets.exportImportPresets"
+class = "command"
+args = "881b2b0fa458c4b9"
+
+[[entry]]
+id = "edit.presets.migratePresets"
+class = "query"
+
+[[entry]]
+id = "edit.presets.presetManager"
+class = "command"
+args = "f18694de9badd0fe"
+
+[[entry]]
+id = "edit.profileInfo"
+class = "query"
+
+[[entry]]
+id = "edit.puppetWarp"
+class = "command"
+args = "963250ae48d3f9b2"
+
+[[entry]]
+id = "edit.purge.all"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.purge.clipboard"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.purge.histories"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.purge.undo"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.purge.videoCache"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.redo"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.search"
+class = "shell"
+
+[[entry]]
+id = "edit.stroke"
+class = "command"
+args = "5c74210b5e75a0ea"
+
+[[entry]]
+id = "edit.toggleLastState"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.toolbar"
+class = "command"
+args = "89728eed9d716050"
+
+[[entry]]
+id = "edit.transform"
+class = "command"
+args = "6c6fd82bcdb0ffea"
+
+[[entry]]
+id = "edit.transform.again"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.transform.againCopy"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "edit.transform.distort"
+class = "shell"
+
+[[entry]]
+id = "edit.transform.flipHorizontal"
+class = "command"
+args = "60bfba3e505a264d"
+
+[[entry]]
+id = "edit.transform.flipVertical"
+class = "command"
+args = "60bfba3e505a264d"
+
+[[entry]]
+id = "edit.transform.perspective"
+class = "shell"
+
+[[entry]]
+id = "edit.transform.removeWarpSplit"
+class = "command"
+args = "9f69dbf0e35cbe44"
+
+[[entry]]
+id = "edit.transform.rotate"
+class = "shell"
+
+[[entry]]
+id = "edit.transform.rotate180"
+class = "command"
+args = "60bfba3e505a264d"
+
+[[entry]]
+id = "edit.transform.rotate90Ccw"
+class = "command"
+args = "60bfba3e505a264d"
+
+[[entry]]
+id = "edit.transform.rotate90Cw"
+class = "command"
+args = "60bfba3e505a264d"
+
+[[entry]]
+id = "edit.transform.scale"
+class = "shell"
+
+[[entry]]
+id = "edit.transform.skew"
+class = "shell"
+
+[[entry]]
+id = "edit.transform.splitWarpCrosswise"
+class = "command"
+args = "9f69dbf0e35cbe44"
+
+[[entry]]
+id = "edit.transform.splitWarpHorizontally"
+class = "command"
+args = "9f69dbf0e35cbe44"
+
+[[entry]]
+id = "edit.transform.splitWarpVertically"
+class = "command"
+args = "9f69dbf0e35cbe44"
+
+[[entry]]
+id = "edit.transform.warp"
+class = "command"
+args = "502bf4fd4bb54a73"
+
+[[entry]]
+id = "edit.transform.warpGrid"
+class = "command"
+args = "c371bde2a01e40db"
+
+[[entry]]
+id = "edit.undo"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.approveMemory"
+class = "query"
+
+[[entry]]
+id = "file.automate.batch"
+class = "command"
+args = "9f7a26ae93c7e110"
+
+[[entry]]
+id = "file.automate.conditionalModeChange"
+class = "command"
+args = "a7f11a1f338c66fd"
+
+[[entry]]
+id = "file.automate.contactSheetII"
+class = "command"
+args = "24017df729c585bd"
+
+[[entry]]
+id = "file.automate.createDroplet"
+class = "command"
+args = "7cfe2c082b619308"
+
+[[entry]]
+id = "file.automate.cropAndStraightenPhotos"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.automate.fitImage"
+class = "command"
+args = "4dda56ab39cf6d06"
+
+[[entry]]
+id = "file.automate.lensCorrection"
+class = "command"
+args = "408362556156f520"
+
+[[entry]]
+id = "file.automate.mergeToHdrPro"
+class = "command"
+args = "f91e40f33deb546f"
+
+[[entry]]
+id = "file.automate.photomerge"
+class = "command"
+args = "d523663a9d6b6c0d"
+
+[[entry]]
+id = "file.automate.runDroplet"
+class = "command"
+args = "d8cae072710e0d17"
+
+[[entry]]
+id = "file.close"
+class = "command"
+args = "63ecd0ce9bf2bf68"
+
+[[entry]]
+id = "file.closeAll"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.closeOthers"
+class = "command"
+args = "7aac4c0884d2c896"
+
+[[entry]]
+id = "file.exit"
+class = "shell"
+
+[[entry]]
+id = "file.export.artboardsToFiles"
+class = "command"
+args = "1a71c41b6779cb0d"
+
+[[entry]]
+id = "file.export.artboardsToPdf"
+class = "command"
+args = "455df603014779ed"
+
+[[entry]]
+id = "file.export.colorLookupTables"
+class = "command"
+args = "4146e8f7360e478d"
+
+[[entry]]
+id = "file.export.dataSetsAsFiles"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.export.exportAs"
+class = "shell"
+
+[[entry]]
+id = "file.export.exportPreferences"
+class = "command"
+args = "91ad4669b42293d4"
+
+[[entry]]
+id = "file.export.layerCompsToFiles"
+class = "command"
+args = "8686194dac61924f"
+
+[[entry]]
+id = "file.export.layersToFiles"
+class = "command"
+args = "514f2cae67c7154b"
+
+[[entry]]
+id = "file.export.pathsToIllustrator"
+class = "command"
+args = "8902e5816479e485"
+
+[[entry]]
+id = "file.export.presets.delete"
+class = "query"
+
+[[entry]]
+id = "file.export.presets.get"
+class = "query"
+
+[[entry]]
+id = "file.export.presets.list"
+class = "query"
+
+[[entry]]
+id = "file.export.presets.rename"
+class = "query"
+
+[[entry]]
+id = "file.export.presets.save"
+class = "query"
+
+[[entry]]
+id = "file.export.quickExport"
+class = "command"
+args = "d8a68357f4070585"
+
+[[entry]]
+id = "file.export.quickExportAsPng"
+class = "shell"
+
+[[entry]]
+id = "file.export.renderVideo"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.export.saveForWebLegacy"
+class = "command"
+args = "535b5037d94cd79c"
+
+[[entry]]
+id = "file.exrParts"
+class = "command"
+args = "d8a68357f4070585"
+
+[[entry]]
+id = "file.fileInfo"
+class = "command"
+args = "20c5f4d6981926f9"
+
+[[entry]]
+id = "file.generate.imageAssets"
+class = "command"
+args = "2cf52d04585d6965"
+
+[[entry]]
+id = "file.import.notes"
+class = "command"
+args = "d8a68357f4070585"
+
+[[entry]]
+id = "file.import.variableDataSets"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.import.videoFramesToLayers"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.import.wiaSupport"
+class = "query"
+
+[[entry]]
+id = "file.new"
+class = "command"
+args = "a6f2994f04d4fac1"
+
+[[entry]]
+id = "file.newFromClipboard"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.open"
+class = "shell"
+
+[[entry]]
+id = "file.openAs"
+class = "command"
+args = "b45e2e783c31208d"
+
+[[entry]]
+id = "file.openAsSmartObject"
+class = "command"
+args = "1fbaf4b6d25efffa"
+
+[[entry]]
+id = "file.openExrParts"
+class = "command"
+args = "5861114dfc741e2c"
+
+[[entry]]
+id = "file.package"
+class = "command"
+args = "81ecc1d9139ecdec"
+
+[[entry]]
+id = "file.placeEmbedded"
+class = "command"
+args = "659d8d0f9d3c6fa5"
+
+[[entry]]
+id = "file.placeLinked"
+class = "command"
+args = "bb03ff051f1d968e"
+
+[[entry]]
+id = "file.print"
+class = "command"
+args = "23cca24d095f5ac8"
+
+[[entry]]
+id = "file.print.page"
+class = "query"
+
+[[entry]]
+id = "file.print.printers"
+class = "query"
+
+[[entry]]
+id = "file.printOneCopy"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.printers"
+class = "query"
+
+[[entry]]
+id = "file.revealInFinder"
+class = "command"
+args = "08516de1b4808b63"
+
+[[entry]]
+id = "file.revert"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.save"
+class = "shell"
+
+[[entry]]
+id = "file.saveACopy"
+class = "command"
+args = "6fce16f4ba667695"
+
+[[entry]]
+id = "file.saveAs"
+class = "shell"
+
+[[entry]]
+id = "file.scripts.browse"
+class = "command"
+args = "16982ae9133b2467"
+
+[[entry]]
+id = "file.scripts.deleteAllEmptyLayers"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.scripts.flattenAllLayerEffects"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.scripts.flattenAllMasks"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "file.scripts.imageProcessor"
+class = "command"
+args = "4182c8d2fb5d88cb"
+
+[[entry]]
+id = "file.scripts.loadFilesIntoStack"
+class = "command"
+args = "89fe0d21901be766"
+
+[[entry]]
+id = "file.scripts.scriptEventsManager"
+class = "command"
+args = "768c7213b53f68ef"
+
+[[entry]]
+id = "file.scripts.statistics"
+class = "command"
+args = "d94aa37c668807b3"
+
+[[entry]]
+id = "filter.adaptiveWideAngle"
+class = "command"
+args = "c46e8fe147f9e52e"
+
+[[entry]]
+id = "filter.blur.average"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.blur.blur"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.blur.blurMore"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.blur.boxBlur"
+class = "command"
+args = "4beb769940bfba9d"
+
+[[entry]]
+id = "filter.blur.gaussianBlur"
+class = "command"
+args = "4beb769940bfba9d"
+
+[[entry]]
+id = "filter.blur.lensBlur"
+class = "command"
+args = "93742a583d44e77e"
+
+[[entry]]
+id = "filter.blur.motionBlur"
+class = "command"
+args = "5915bd502be0df94"
+
+[[entry]]
+id = "filter.blur.radialBlur"
+class = "command"
+args = "e887018cbd535508"
+
+[[entry]]
+id = "filter.blur.shapeBlur"
+class = "command"
+args = "481a86ca1e3fe0e1"
+
+[[entry]]
+id = "filter.blur.smartBlur"
+class = "command"
+args = "6e116c288c3f3f0c"
+
+[[entry]]
+id = "filter.blur.surfaceBlur"
+class = "command"
+args = "88e15a11b3e9e71f"
+
+[[entry]]
+id = "filter.blurGallery.fieldBlur"
+class = "command"
+args = "a77721f5a40a7da0"
+
+[[entry]]
+id = "filter.blurGallery.irisBlur"
+class = "command"
+args = "6bd8450855b46cd4"
+
+[[entry]]
+id = "filter.blurGallery.pathBlur"
+class = "command"
+args = "528cda651bee577a"
+
+[[entry]]
+id = "filter.blurGallery.spinBlur"
+class = "command"
+args = "eecf3a370dcbafc9"
+
+[[entry]]
+id = "filter.blurGallery.tiltShift"
+class = "command"
+args = "155172df99042d03"
+
+[[entry]]
+id = "filter.cameraRaw"
+class = "command"
+args = "37f1ed4b61b9c566"
+
+[[entry]]
+id = "filter.convertForSmartFilters"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "filter.distort.displace"
+class = "command"
+args = "92c9873b4ffe962d"
+
+[[entry]]
+id = "filter.distort.pinch"
+class = "command"
+args = "ab25233eea4733d0"
+
+[[entry]]
+id = "filter.distort.polarCoordinates"
+class = "command"
+args = "e9879ca1f8679a02"
+
+[[entry]]
+id = "filter.distort.ripple"
+class = "command"
+args = "33db5b3fe3d5e2e3"
+
+[[entry]]
+id = "filter.distort.shear"
+class = "command"
+args = "30b33b46c3da44f5"
+
+[[entry]]
+id = "filter.distort.spherize"
+class = "command"
+args = "f863b8aa4b69a6d4"
+
+[[entry]]
+id = "filter.distort.twirl"
+class = "command"
+args = "7480999dafeff49e"
+
+[[entry]]
+id = "filter.distort.wave"
+class = "command"
+args = "9754fa8b95d69ed4"
+
+[[entry]]
+id = "filter.distort.zigZag"
+class = "command"
+args = "0590a2011bb544d2"
+
+[[entry]]
+id = "filter.filterGallery"
+class = "command"
+args = "ef455bf68fc7ff41"
+
+[[entry]]
+id = "filter.gallery.accentedEdges"
+class = "command"
+args = "e8324a7a07339266"
+
+[[entry]]
+id = "filter.gallery.angledStrokes"
+class = "command"
+args = "d07d998237666fd0"
+
+[[entry]]
+id = "filter.gallery.basRelief"
+class = "command"
+args = "a3bcf616392a995f"
+
+[[entry]]
+id = "filter.gallery.chalkCharcoal"
+class = "command"
+args = "0e2346a5b990da76"
+
+[[entry]]
+id = "filter.gallery.charcoal"
+class = "command"
+args = "8282f7a5d27060d0"
+
+[[entry]]
+id = "filter.gallery.chrome"
+class = "command"
+args = "aa69dec7398ce316"
+
+[[entry]]
+id = "filter.gallery.coloredPencil"
+class = "command"
+args = "ab68e4b77b5e21af"
+
+[[entry]]
+id = "filter.gallery.conteCrayon"
+class = "command"
+args = "6cba6e5fcd75f12a"
+
+[[entry]]
+id = "filter.gallery.craquelure"
+class = "command"
+args = "7541c55d486bfe79"
+
+[[entry]]
+id = "filter.gallery.crosshatch"
+class = "command"
+args = "e6490b9c6aee9bdf"
+
+[[entry]]
+id = "filter.gallery.cutout"
+class = "command"
+args = "b3364d0e3bfc20b2"
+
+[[entry]]
+id = "filter.gallery.darkStrokes"
+class = "command"
+args = "4d80f5290ea7c75b"
+
+[[entry]]
+id = "filter.gallery.diffuseGlow"
+class = "command"
+args = "3fc39b5253e75ff0"
+
+[[entry]]
+id = "filter.gallery.dryBrush"
+class = "command"
+args = "d5cf036ea0386837"
+
+[[entry]]
+id = "filter.gallery.filmGrain"
+class = "command"
+args = "6ece05b567aa47d0"
+
+[[entry]]
+id = "filter.gallery.fresco"
+class = "command"
+args = "d5cf036ea0386837"
+
+[[entry]]
+id = "filter.gallery.glass"
+class = "command"
+args = "e6e7d09de4850024"
+
+[[entry]]
+id = "filter.gallery.glowingEdges"
+class = "command"
+args = "e8324a7a07339266"
+
+[[entry]]
+id = "filter.gallery.grain"
+class = "command"
+args = "bee76410829e06c6"
+
+[[entry]]
+id = "filter.gallery.graphicPen"
+class = "command"
+args = "9e0080ab3fb468bc"
+
+[[entry]]
+id = "filter.gallery.halftonePattern"
+class = "command"
+args = "00eb5704e46f2e72"
+
+[[entry]]
+id = "filter.gallery.inkOutlines"
+class = "command"
+args = "c660ba9f62bc4867"
+
+[[entry]]
+id = "filter.gallery.mosaicTiles"
+class = "command"
+args = "dd6d79a8486bbe74"
+
+[[entry]]
+id = "filter.gallery.neonGlow"
+class = "command"
+args = "8900d10742f27ded"
+
+[[entry]]
+id = "filter.gallery.notePaper"
+class = "command"
+args = "733b997ece35ac18"
+
+[[entry]]
+id = "filter.gallery.oceanRipple"
+class = "command"
+args = "54c45cdd4c35bd31"
+
+[[entry]]
+id = "filter.gallery.paintDaubs"
+class = "command"
+args = "aeb752575665148b"
+
+[[entry]]
+id = "filter.gallery.paletteKnife"
+class = "command"
+args = "cf88e6d3b95357d8"
+
+[[entry]]
+id = "filter.gallery.patchwork"
+class = "command"
+args = "2e37761ce406c20d"
+
+[[entry]]
+id = "filter.gallery.photocopy"
+class = "command"
+args = "238ce062551ea6e8"
+
+[[entry]]
+id = "filter.gallery.plaster"
+class = "command"
+args = "5466e2f395d23430"
+
+[[entry]]
+id = "filter.gallery.plasticWrap"
+class = "command"
+args = "9bd9e4040eb57a9c"
+
+[[entry]]
+id = "filter.gallery.posterEdges"
+class = "command"
+args = "9407d5d982a6673b"
+
+[[entry]]
+id = "filter.gallery.reticulation"
+class = "command"
+args = "a5f485737f554547"
+
+[[entry]]
+id = "filter.gallery.roughPastels"
+class = "command"
+args = "2d27e0b8fbb0d49b"
+
+[[entry]]
+id = "filter.gallery.smudgeStick"
+class = "command"
+args = "1ce960c0ae63b697"
+
+[[entry]]
+id = "filter.gallery.spatter"
+class = "command"
+args = "6ee2c53e27e74201"
+
+[[entry]]
+id = "filter.gallery.sponge"
+class = "command"
+args = "5241c54ca7f80db0"
+
+[[entry]]
+id = "filter.gallery.sprayedStrokes"
+class = "command"
+args = "835d08f06e3ee29f"
+
+[[entry]]
+id = "filter.gallery.stainedGlass"
+class = "command"
+args = "a104a7099f95dced"
+
+[[entry]]
+id = "filter.gallery.stamp"
+class = "command"
+args = "58d30773ec511798"
+
+[[entry]]
+id = "filter.gallery.sumiE"
+class = "command"
+args = "9b048c90aac3d2ed"
+
+[[entry]]
+id = "filter.gallery.texturizer"
+class = "command"
+args = "4b91b3d9f7a3c086"
+
+[[entry]]
+id = "filter.gallery.tornEdges"
+class = "command"
+args = "35efd04a0292e448"
+
+[[entry]]
+id = "filter.gallery.underpainting"
+class = "command"
+args = "30a05950153042b5"
+
+[[entry]]
+id = "filter.gallery.waterPaper"
+class = "command"
+args = "89d79afd391c9b4d"
+
+[[entry]]
+id = "filter.gallery.watercolor"
+class = "command"
+args = "94d9757d768c654e"
+
+[[entry]]
+id = "filter.lastFilter"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.lensCorrection"
+class = "command"
+args = "dfd246d1f220b067"
+
+[[entry]]
+id = "filter.liquify"
+class = "command"
+args = "f3351b947834d27d"
+
+[[entry]]
+id = "filter.noise.addNoise"
+class = "command"
+args = "c2739acd2382ef14"
+
+[[entry]]
+id = "filter.noise.despeckle"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.noise.dustAndScratches"
+class = "command"
+args = "88e15a11b3e9e71f"
+
+[[entry]]
+id = "filter.noise.median"
+class = "command"
+args = "4beb769940bfba9d"
+
+[[entry]]
+id = "filter.noise.reduceNoise"
+class = "command"
+args = "5b0ea9f0bbda638d"
+
+[[entry]]
+id = "filter.other.colorToAlpha"
+class = "command"
+args = "6d00e88ee1161e87"
+
+[[entry]]
+id = "filter.other.custom"
+class = "command"
+args = "8952a6226b4033f3"
+
+[[entry]]
+id = "filter.other.highPass"
+class = "command"
+args = "4beb769940bfba9d"
+
+[[entry]]
+id = "filter.other.hsbHsl"
+class = "command"
+args = "1435cc22b1385abf"
+
+[[entry]]
+id = "filter.other.maximum"
+class = "command"
+args = "149f9471c6620c4b"
+
+[[entry]]
+id = "filter.other.minimum"
+class = "command"
+args = "149f9471c6620c4b"
+
+[[entry]]
+id = "filter.other.offset"
+class = "command"
+args = "988f82a6cb155b67"
+
+[[entry]]
+id = "filter.pixelate.colorHalftone"
+class = "command"
+args = "ee55fb85a9f3b2f4"
+
+[[entry]]
+id = "filter.pixelate.crystallize"
+class = "command"
+args = "53b622817f825d1f"
+
+[[entry]]
+id = "filter.pixelate.facet"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.pixelate.fragment"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.pixelate.mezzotint"
+class = "command"
+args = "bb34d4a542a77163"
+
+[[entry]]
+id = "filter.pixelate.mosaic"
+class = "command"
+args = "eb4688a88d42426a"
+
+[[entry]]
+id = "filter.pixelate.pointillize"
+class = "command"
+args = "75d6f3aa17659d17"
+
+[[entry]]
+id = "filter.render.clouds"
+class = "command"
+args = "ccd4c8b50b71ada5"
+
+[[entry]]
+id = "filter.render.differenceClouds"
+class = "command"
+args = "ccd4c8b50b71ada5"
+
+[[entry]]
+id = "filter.render.fibers"
+class = "command"
+args = "937cb60a8b6c8c87"
+
+[[entry]]
+id = "filter.render.flame"
+class = "command"
+args = "75fc5ed97b7553cf"
+
+[[entry]]
+id = "filter.render.lensFlare"
+class = "command"
+args = "df6cc8856127f3f3"
+
+[[entry]]
+id = "filter.render.lightingEffects"
+class = "command"
+args = "992fc68e63bf0773"
+
+[[entry]]
+id = "filter.render.pictureFrame"
+class = "command"
+args = "bf46c7f39e8b9dd6"
+
+[[entry]]
+id = "filter.render.relight"
+class = "command"
+args = "497f53d978be2a72"
+
+[[entry]]
+id = "filter.render.tree"
+class = "command"
+args = "b9a258e61b999766"
+
+[[entry]]
+id = "filter.sharpen.sharpen"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.sharpen.sharpenEdges"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.sharpen.sharpenMore"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.sharpen.smartSharpen"
+class = "command"
+args = "68de875630b21ec5"
+
+[[entry]]
+id = "filter.sharpen.unsharpMask"
+class = "command"
+args = "dbd80cff349f1913"
+
+[[entry]]
+id = "filter.stylize.diffuse"
+class = "command"
+args = "2801a5445f8d1c1c"
+
+[[entry]]
+id = "filter.stylize.emboss"
+class = "command"
+args = "8e615010ad8315ef"
+
+[[entry]]
+id = "filter.stylize.extrude"
+class = "command"
+args = "847ceadc187058d9"
+
+[[entry]]
+id = "filter.stylize.findEdges"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.stylize.oilPaint"
+class = "command"
+args = "8eccc46f3c4a3d57"
+
+[[entry]]
+id = "filter.stylize.solarize"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "filter.stylize.tiles"
+class = "command"
+args = "ffef06e2d529ed75"
+
+[[entry]]
+id = "filter.stylize.traceContour"
+class = "command"
+args = "50d71298098395b3"
+
+[[entry]]
+id = "filter.stylize.wind"
+class = "command"
+args = "712aef632bc7b75a"
+
+[[entry]]
+id = "filter.vanishingPoint"
+class = "command"
+args = "4054bd560e73c0c0"
+
+[[entry]]
+id = "filter.video.deInterlace"
+class = "command"
+args = "14cd3411a527dbde"
+
+[[entry]]
+id = "filter.video.ntscColors"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "gradient.fill.create"
+class = "command"
+args = "9a62f0d217baf79c"
+
+[[entry]]
+id = "gradient.fill.get"
+class = "query"
+
+[[entry]]
+id = "gradient.fill.set"
+class = "command"
+args = "a33da583275fe515"
+
+[[entry]]
+id = "gradient.fill.stop"
+class = "command"
+args = "37248b39af06948b"
+
+[[entry]]
+id = "gradient.presets.apply"
+class = "command"
+args = "924e737aeeb44c57"
+
+[[entry]]
+id = "gradient.presets.edit"
+class = "command"
+args = "1b8479347f06cd04"
+
+[[entry]]
+id = "gradient.presets.importGrd"
+class = "command"
+args = "0dc772dd16119292"
+
+[[entry]]
+id = "gradient.presets.list"
+class = "query"
+
+[[entry]]
+id = "gradient.presets.new"
+class = "command"
+args = "0514f1bf96cd26b0"
+
+[[entry]]
+id = "gradient.presets.reset"
+class = "command"
+args = "3239242cc85d99ba"
+
+[[entry]]
+id = "gradient.presets.select"
+class = "command"
+args = "4084af27951d284c"
+
+[[entry]]
+id = "gradient.presets.stop"
+class = "command"
+args = "5008f71617a20a69"
+
+[[entry]]
+id = "help.about"
+class = "shell"
+
+[[entry]]
+id = "help.artcraftWebsite"
+class = "shell"
+
+[[entry]]
+id = "help.checkForUpdates"
+class = "shell"
+
+[[entry]]
+id = "help.discord"
+class = "shell"
+
+[[entry]]
+id = "help.github"
+class = "shell"
+
+[[entry]]
+id = "help.reportIssue"
+class = "shell"
+
+[[entry]]
+id = "help.systemInfo"
+class = "shell"
+
+[[entry]]
+id = "help.website"
+class = "shell"
+
+[[entry]]
+id = "history.clear"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "history.deleteSnapshot"
+class = "command"
+args = "827eeab94f7421c6"
+
+[[entry]]
+id = "history.deleteState"
+class = "command"
+args = "927489cb2fcdb32e"
+
+[[entry]]
+id = "history.newDocument"
+class = "command"
+args = "53e1cda94abf1dc5"
+
+[[entry]]
+id = "history.newSnapshot"
+class = "command"
+args = "a8041fbbdd01069c"
+
+[[entry]]
+id = "history.options"
+class = "query"
+
+[[entry]]
+id = "history.redo"
+class = "query"
+
+[[entry]]
+id = "history.renameSnapshot"
+class = "command"
+args = "01c5a0cd12dce2e6"
+
+[[entry]]
+id = "history.selectSnapshot"
+class = "command"
+args = "827eeab94f7421c6"
+
+[[entry]]
+id = "history.selectState"
+class = "command"
+args = "927489cb2fcdb32e"
+
+[[entry]]
+id = "history.setSource"
+class = "command"
+args = "5f0a1c987845f839"
+
+[[entry]]
+id = "history.stepBackward"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "history.stepForward"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "history.undo"
+class = "query"
+
+[[entry]]
+id = "image.adjustments.blackWhite"
+class = "command"
+args = "b6155277805efad9"
+
+[[entry]]
+id = "image.adjustments.blackWhite.auto"
+class = "query"
+
+[[entry]]
+id = "image.adjustments.brightnessContrast"
+class = "command"
+args = "d43154bc86aec3eb"
+
+[[entry]]
+id = "image.adjustments.channelMixer"
+class = "command"
+args = "072b59fa05e88b9d"
+
+[[entry]]
+id = "image.adjustments.colorBalance"
+class = "command"
+args = "855ce6bfbe88f2d7"
+
+[[entry]]
+id = "image.adjustments.colorLookup"
+class = "command"
+args = "050deaf03888c742"
+
+[[entry]]
+id = "image.adjustments.colorLookup.list"
+class = "query"
+
+[[entry]]
+id = "image.adjustments.curves"
+class = "command"
+args = "25380f5cc084c13c"
+
+[[entry]]
+id = "image.adjustments.desaturate"
+class = "command"
+args = "c5d9c99d8192151f"
+
+[[entry]]
+id = "image.adjustments.equalize"
+class = "command"
+args = "b9de1240c2b6e8b9"
+
+[[entry]]
+id = "image.adjustments.exposure"
+class = "command"
+args = "b0a075bf5a4ef50d"
+
+[[entry]]
+id = "image.adjustments.gradientMap"
+class = "command"
+args = "8d6006db298545e1"
+
+[[entry]]
+id = "image.adjustments.hdrToning"
+class = "command"
+args = "1ed8603a89d35eae"
+
+[[entry]]
+id = "image.adjustments.hueSaturation"
+class = "command"
+args = "265671d2b67f27e2"
+
+[[entry]]
+id = "image.adjustments.invert"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.adjustments.levels"
+class = "command"
+args = "c919708ded37a615"
+
+[[entry]]
+id = "image.adjustments.matchColor"
+class = "command"
+args = "948a11f8218023be"
+
+[[entry]]
+id = "image.adjustments.photoFilter"
+class = "command"
+args = "e53cae8c508e35c2"
+
+[[entry]]
+id = "image.adjustments.posterize"
+class = "command"
+args = "6f51d81501d9764c"
+
+[[entry]]
+id = "image.adjustments.replaceColor"
+class = "command"
+args = "e59628221ad364cd"
+
+[[entry]]
+id = "image.adjustments.selectiveColor"
+class = "command"
+args = "3b6ade5efe7d7b6a"
+
+[[entry]]
+id = "image.adjustments.shadowsHighlights"
+class = "command"
+args = "d3da4e31adf00262"
+
+[[entry]]
+id = "image.adjustments.threshold"
+class = "command"
+args = "1ee8d98a8c2f4131"
+
+[[entry]]
+id = "image.adjustments.vibrance"
+class = "command"
+args = "576cb126ad3bf4f6"
+
+[[entry]]
+id = "image.analysis.countTool"
+class = "query"
+
+[[entry]]
+id = "image.analysis.info"
+class = "query"
+
+[[entry]]
+id = "image.analysis.placeScaleMarker"
+class = "command"
+args = "fe76f6c2dc418ffe"
+
+[[entry]]
+id = "image.analysis.recordMeasurements"
+class = "command"
+args = "b8bb034f9b63bd02"
+
+[[entry]]
+id = "image.analysis.rulerTool"
+class = "command"
+args = "4d90300ad9c81a5b"
+
+[[entry]]
+id = "image.analysis.selectDataPoints"
+class = "command"
+args = "3f7bb58b10c66258"
+
+[[entry]]
+id = "image.analysis.setMeasurementScale"
+class = "command"
+args = "1b175147a208fb52"
+
+[[entry]]
+id = "image.analysis.straightenLayer"
+class = "command"
+args = "099234f400f25584"
+
+[[entry]]
+id = "image.applyDataSet"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.applyImage"
+class = "command"
+args = "3b6a8a5571e5e688"
+
+[[entry]]
+id = "image.autoColor"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.autoContrast"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.autoTone"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.calculations"
+class = "command"
+args = "9151d23e133032ab"
+
+[[entry]]
+id = "image.canvasSize"
+class = "command"
+args = "91fb6497ec710e72"
+
+[[entry]]
+id = "image.crop"
+class = "command"
+args = "f4d9f5ad7ac938ed"
+
+[[entry]]
+id = "image.detectFaces"
+class = "query"
+
+[[entry]]
+id = "image.duplicate"
+class = "command"
+args = "103eab7ed4c9124d"
+
+[[entry]]
+id = "image.imageRotation.180"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.imageRotation.90ccw"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.imageRotation.90cw"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.imageRotation.flipCanvasHorizontal"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.imageRotation.flipCanvasVertical"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.imageSize"
+class = "command"
+args = "6cd1925ee7c8b8a8"
+
+[[entry]]
+id = "image.mode.bitmap"
+class = "command"
+args = "b7a1fc8d6e530d52"
+
+[[entry]]
+id = "image.mode.bits16"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.mode.bits32"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.mode.bits8"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.mode.cmyk"
+class = "command"
+args = "0f40596addafefec"
+
+[[entry]]
+id = "image.mode.colorTable"
+class = "command"
+args = "f53361092fbf4e3b"
+
+[[entry]]
+id = "image.mode.duotone"
+class = "command"
+args = "afd5f131d04080cc"
+
+[[entry]]
+id = "image.mode.grayscale"
+class = "command"
+args = "0f40596addafefec"
+
+[[entry]]
+id = "image.mode.indexedColor"
+class = "command"
+args = "06775ac158323aeb"
+
+[[entry]]
+id = "image.mode.lab"
+class = "command"
+args = "0f40596addafefec"
+
+[[entry]]
+id = "image.mode.multichannel"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.mode.rgb"
+class = "command"
+args = "0f40596addafefec"
+
+[[entry]]
+id = "image.perspectiveCrop"
+class = "command"
+args = "0ddb2714cb6aa14f"
+
+[[entry]]
+id = "image.revealAll"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.rotation.arbitrary"
+class = "command"
+args = "a27c5584ffa82498"
+
+[[entry]]
+id = "image.trap"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.trim"
+class = "command"
+args = "74f6d6cf30ea27c1"
+
+[[entry]]
+id = "image.variables.dataSets"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "image.variables.define"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "jobs.cancel"
+class = "query"
+
+[[entry]]
+id = "jobs.list"
+class = "query"
+
+[[entry]]
+id = "layer.addAboveToSelection"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.addBelowToSelection"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.align.bottomEdges"
+class = "command"
+args = "5095479ddbb38fa7"
+
+[[entry]]
+id = "layer.align.horizontalCenters"
+class = "command"
+args = "5095479ddbb38fa7"
+
+[[entry]]
+id = "layer.align.leftEdges"
+class = "command"
+args = "5095479ddbb38fa7"
+
+[[entry]]
+id = "layer.align.rightEdges"
+class = "command"
+args = "5095479ddbb38fa7"
+
+[[entry]]
+id = "layer.align.topEdges"
+class = "command"
+args = "5095479ddbb38fa7"
+
+[[entry]]
+id = "layer.align.verticalCenters"
+class = "command"
+args = "5095479ddbb38fa7"
+
+[[entry]]
+id = "layer.arrange.bringForward"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.arrange.bringToFront"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.arrange.reverse"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.arrange.sendBackward"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.arrange.sendToBack"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.artboard.addBeside"
+class = "command"
+args = "f6d516d2dea2d9f0"
+
+[[entry]]
+id = "layer.artboard.set"
+class = "command"
+args = "2b43d83a01137748"
+
+[[entry]]
+id = "layer.combineShapes.excludeOverlappingShapes"
+class = "command"
+args = "b719c96363edfefd"
+
+[[entry]]
+id = "layer.combineShapes.intersectShapeAreas"
+class = "command"
+args = "b719c96363edfefd"
+
+[[entry]]
+id = "layer.combineShapes.mergeShapeComponents"
+class = "command"
+args = "6144e6c369f23927"
+
+[[entry]]
+id = "layer.combineShapes.subtractFrontShape"
+class = "command"
+args = "b719c96363edfefd"
+
+[[entry]]
+id = "layer.combineShapes.unite"
+class = "command"
+args = "b719c96363edfefd"
+
+[[entry]]
+id = "layer.copyCSS"
+class = "query"
+
+[[entry]]
+id = "layer.copyToDocument"
+class = "command"
+args = "d6b380bd917cb1a3"
+
+[[entry]]
+id = "layer.createClippingMask"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.delete"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.delete.hiddenLayers"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.distribute.bottomEdges"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.distribute.horizontalCenters"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.distribute.horizontally"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.distribute.leftEdges"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.distribute.rightEdges"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.distribute.topEdges"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.distribute.verticalCenters"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.distribute.vertically"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.duplicate"
+class = "command"
+args = "6e1589a0201eb0ec"
+
+[[entry]]
+id = "layer.exportAs"
+class = "command"
+args = "1c14fcf0b1395ef3"
+
+[[entry]]
+id = "layer.fill.pattern.set"
+class = "command"
+args = "10e22c0b47cc6a25"
+
+[[entry]]
+id = "layer.fill.solidColor.set"
+class = "command"
+args = "a812af2de8a0a446"
+
+[[entry]]
+id = "layer.flattenImage"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.frame.convert"
+class = "command"
+args = "8c04f84a1e541020"
+
+[[entry]]
+id = "layer.frame.fit"
+class = "command"
+args = "9fa4f864deab7673"
+
+[[entry]]
+id = "layer.frame.info"
+class = "query"
+
+[[entry]]
+id = "layer.frame.set"
+class = "command"
+args = "992e1d2617436bb7"
+
+[[entry]]
+id = "layer.frame.setContent"
+class = "command"
+args = "1a2c63d3cc9ce6dd"
+
+[[entry]]
+id = "layer.groupLayers"
+class = "command"
+args = "48720266183b8e43"
+
+[[entry]]
+id = "layer.hideLayers"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerContentOptions"
+class = "query"
+
+[[entry]]
+id = "layer.layerMask.apply"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerMask.delete"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerMask.edit"
+class = "command"
+args = "dc290ba57fd13d1f"
+
+[[entry]]
+id = "layer.layerMask.enabled"
+class = "command"
+args = "abbea1a149fd6caa"
+
+[[entry]]
+id = "layer.layerMask.fromTransparency"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerMask.hideAll"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerMask.hideSelection"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerMask.linked"
+class = "command"
+args = "16be2c233579a171"
+
+[[entry]]
+id = "layer.layerMask.moveTo"
+class = "command"
+args = "342dd1618aab8fe8"
+
+[[entry]]
+id = "layer.layerMask.revealAll"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerMask.revealSelection"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerStyle.bevelEmboss"
+class = "command"
+args = "8555874fc178c237"
+
+[[entry]]
+id = "layer.layerStyle.blendingOptions"
+class = "command"
+args = "3d3a77d27c7e5b85"
+
+[[entry]]
+id = "layer.layerStyle.clear"
+class = "command"
+args = "ab48c00c68f04c10"
+
+[[entry]]
+id = "layer.layerStyle.colorOverlay"
+class = "command"
+args = "1fe60e2b3d56d0c9"
+
+[[entry]]
+id = "layer.layerStyle.contours.delete"
+class = "command"
+args = "f80b1fa820d95a87"
+
+[[entry]]
+id = "layer.layerStyle.contours.list"
+class = "query"
+
+[[entry]]
+id = "layer.layerStyle.contours.load"
+class = "command"
+args = "c77b0a2f08365646"
+
+[[entry]]
+id = "layer.layerStyle.contours.new"
+class = "command"
+args = "a73b9d14ec0e9c84"
+
+[[entry]]
+id = "layer.layerStyle.contours.save"
+class = "query"
+
+[[entry]]
+id = "layer.layerStyle.copyLayerStyle"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerStyle.createLayer"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.layerStyle.defaultFor"
+class = "query"
+
+[[entry]]
+id = "layer.layerStyle.dropShadow"
+class = "command"
+args = "a6f13848e60c8461"
+
+[[entry]]
+id = "layer.layerStyle.globalLight"
+class = "command"
+args = "68bc614454c326a7"
+
+[[entry]]
+id = "layer.layerStyle.gradientOverlay"
+class = "command"
+args = "3e1f92b5f0fdc071"
+
+[[entry]]
+id = "layer.layerStyle.hideAllEffects"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.layerStyle.innerGlow"
+class = "command"
+args = "22143af17db34e9d"
+
+[[entry]]
+id = "layer.layerStyle.innerShadow"
+class = "command"
+args = "6c097790f45cb758"
+
+[[entry]]
+id = "layer.layerStyle.makeDefault"
+class = "query"
+
+[[entry]]
+id = "layer.layerStyle.outerGlow"
+class = "command"
+args = "32043429a73e5362"
+
+[[entry]]
+id = "layer.layerStyle.pasteLayerStyle"
+class = "command"
+args = "9dd06d14e51ccace"
+
+[[entry]]
+id = "layer.layerStyle.patternOverlay"
+class = "command"
+args = "2fd85dc74b2b27cb"
+
+[[entry]]
+id = "layer.layerStyle.replace"
+class = "command"
+args = "7d7852ee1c968638"
+
+[[entry]]
+id = "layer.layerStyle.satin"
+class = "command"
+args = "fd3072cf292ebfa9"
+
+[[entry]]
+id = "layer.layerStyle.scaleEffects"
+class = "command"
+args = "45512e60fb8efd1d"
+
+[[entry]]
+id = "layer.layerStyle.showAllEffects"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.layerStyle.stroke"
+class = "command"
+args = "012ed3c7b7295b30"
+
+[[entry]]
+id = "layer.layerStyle.transferEffects"
+class = "command"
+args = "55f1b70ea5bc1b52"
+
+[[entry]]
+id = "layer.linkLayers"
+class = "command"
+args = "922e77203577a854"
+
+[[entry]]
+id = "layer.list"
+class = "query"
+
+[[entry]]
+id = "layer.lockLayers"
+class = "command"
+args = "18b4a26e0a1f19e9"
+
+[[entry]]
+id = "layer.maskAllObjects"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.matting.colorDecontaminate"
+class = "command"
+args = "9a5060b4a4b0a18b"
+
+[[entry]]
+id = "layer.matting.defringe"
+class = "command"
+args = "0a681aa04321dc3e"
+
+[[entry]]
+id = "layer.matting.removeBlackMatte"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.matting.removeWhiteMatte"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.mergeDown"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.mergeGroup"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.mergeLayers"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.mergeVisible"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.moveTo"
+class = "command"
+args = "7ade3dea6676c9c8"
+
+[[entry]]
+id = "layer.new.artboard"
+class = "command"
+args = "b251165961b6dfba"
+
+[[entry]]
+id = "layer.new.artboardFromGroup"
+class = "command"
+args = "266c157506ffda14"
+
+[[entry]]
+id = "layer.new.artboardFromLayers"
+class = "command"
+args = "7042fdb56b2056da"
+
+[[entry]]
+id = "layer.new.backgroundFromLayer"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.new.frame"
+class = "command"
+args = "31f03ef14cadfbf3"
+
+[[entry]]
+id = "layer.new.frameFromLayers"
+class = "command"
+args = "510c64188fd4147d"
+
+[[entry]]
+id = "layer.new.group"
+class = "command"
+args = "b6b4ef916fd7bcd0"
+
+[[entry]]
+id = "layer.new.groupFromLayers"
+class = "command"
+args = "48720266183b8e43"
+
+[[entry]]
+id = "layer.new.layer"
+class = "command"
+args = "2c7e5a894ab0b2f2"
+
+[[entry]]
+id = "layer.new.layerFromBackground"
+class = "command"
+args = "532b5866bcf58d42"
+
+[[entry]]
+id = "layer.new.layerViaCopy"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.new.layerViaCut"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.blackWhite"
+class = "command"
+args = "1ba6cc0f93b15944"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.brightnessContrast"
+class = "command"
+args = "71eab5b83d1c2742"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.channelMixer"
+class = "command"
+args = "24df2ff5bb54a224"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.colorBalance"
+class = "command"
+args = "7cd346d1a821e445"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.colorLookup"
+class = "command"
+args = "6165488638a020b3"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.curves"
+class = "command"
+args = "a1555e9b314e6cb4"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.exposure"
+class = "command"
+args = "6f45c40d7c7f773b"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.gradientMap"
+class = "command"
+args = "dd0196cc5b5bb87c"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.hueSaturation"
+class = "command"
+args = "1df0970a29ac5471"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.invert"
+class = "command"
+args = "b334b634532be31e"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.levels"
+class = "command"
+args = "d2c8a78d4be6fdef"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.photoFilter"
+class = "command"
+args = "0eb0748323b30df3"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.posterize"
+class = "command"
+args = "e0c27df13854a6f8"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.selectiveColor"
+class = "command"
+args = "319121aafffdf10c"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.threshold"
+class = "command"
+args = "7f0d6f095c62fedb"
+
+[[entry]]
+id = "layer.newAdjustmentLayer.vibrance"
+class = "command"
+args = "04237018ec31131a"
+
+[[entry]]
+id = "layer.newFillLayer.gradient"
+class = "command"
+args = "365b2682abd57034"
+
+[[entry]]
+id = "layer.newFillLayer.pattern"
+class = "command"
+args = "e0dc7664949b539d"
+
+[[entry]]
+id = "layer.newFillLayer.solidColor"
+class = "command"
+args = "178965d456c31944"
+
+[[entry]]
+id = "layer.newLayerBasedSlice"
+class = "command"
+args = "ea2d265a197bf9da"
+
+[[entry]]
+id = "layer.pickAt"
+class = "query"
+
+[[entry]]
+id = "layer.quickExportAsPng"
+class = "command"
+args = "a7f6491e965982c6"
+
+[[entry]]
+id = "layer.rasterize.allLayers"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.rasterize.fillContent"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.rasterize.layer"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.rasterize.layerStyle"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.rasterize.shape"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.rasterize.smartObject"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.rasterize.type"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.rasterize.vectorMask"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.rasterize.video"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.releaseClippingMask"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.removeBackground"
+class = "command"
+args = "41339e634042c497"
+
+[[entry]]
+id = "layer.renameLayer"
+class = "command"
+args = "510c64188fd4147d"
+
+[[entry]]
+id = "layer.select"
+class = "command"
+args = "60d628fb6d646801"
+
+[[entry]]
+id = "layer.selectAbove"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.selectBelow"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.selectBottom"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.selectInRect"
+class = "command"
+args = "eabdc3bf548e3186"
+
+[[entry]]
+id = "layer.selectLinkedLayers"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.selectTop"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.selectUnderCursor"
+class = "shell"
+
+[[entry]]
+id = "layer.setAdjustment"
+class = "command"
+args = "b702a4740361062d"
+
+[[entry]]
+id = "layer.setEffectsExpanded"
+class = "query"
+
+[[entry]]
+id = "layer.setEffectsVisible"
+class = "command"
+args = "b351d7d6314cc20c"
+
+[[entry]]
+id = "layer.setExpanded"
+class = "query"
+
+[[entry]]
+id = "layer.setLabelColor"
+class = "command"
+args = "184dc8964a6fce3f"
+
+[[entry]]
+id = "layer.setProps"
+class = "command"
+args = "580955770a738823"
+
+[[entry]]
+id = "layer.showLayers"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.showOnly"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartFilter.blendingOptions"
+class = "command"
+args = "3826cbf1f01439da"
+
+[[entry]]
+id = "layer.smartFilter.clearSmartFilters"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartFilter.delete"
+class = "command"
+args = "bcdc8f27eb56ea04"
+
+[[entry]]
+id = "layer.smartFilter.deleteFilterMask"
+class = "command"
+args = "fa7aa3ee7898af02"
+
+[[entry]]
+id = "layer.smartFilter.disableFilterMask"
+class = "command"
+args = "abbea1a149fd6caa"
+
+[[entry]]
+id = "layer.smartFilter.disableSmartFilters"
+class = "command"
+args = "abbea1a149fd6caa"
+
+[[entry]]
+id = "layer.smartFilter.move"
+class = "command"
+args = "63e94e6c288aeb03"
+
+[[entry]]
+id = "layer.smartFilter.setParams"
+class = "command"
+args = "c6ee0b8be0540471"
+
+[[entry]]
+id = "layer.smartFilter.setVisible"
+class = "command"
+args = "b351d7d6314cc20c"
+
+[[entry]]
+id = "layer.smartFilter.transfer"
+class = "command"
+args = "824e0ba3b9a1b9f0"
+
+[[entry]]
+id = "layer.smartObjects.convertToEmbedded"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.convertToLayers"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.convertToLinked"
+class = "command"
+args = "a7f6491e965982c6"
+
+[[entry]]
+id = "layer.smartObjects.convertToSmartObject"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.editContents"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.embedAllLinked"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.smartObjects.exportContents"
+class = "command"
+args = "a7f6491e965982c6"
+
+[[entry]]
+id = "layer.smartObjects.exportSvg"
+class = "query"
+
+[[entry]]
+id = "layer.smartObjects.newSmartObjectViaCopy"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.perspectiveWarp"
+class = "command"
+args = "017f22efd9829608"
+
+[[entry]]
+id = "layer.smartObjects.puppetWarp"
+class = "command"
+args = "963250ae48d3f9b2"
+
+[[entry]]
+id = "layer.smartObjects.rasterize"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.relinkToFile"
+class = "command"
+args = "a7f6491e965982c6"
+
+[[entry]]
+id = "layer.smartObjects.replaceContents"
+class = "command"
+args = "a7f6491e965982c6"
+
+[[entry]]
+id = "layer.smartObjects.resetTransform"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.revealInFinder"
+class = "command"
+args = "560606a0331c1f31"
+
+[[entry]]
+id = "layer.smartObjects.saveContents"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.entropy"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.kurtosis"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.maximum"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.mean"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.median"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.minimum"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.none"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.range"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.skewness"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.standardDeviation"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.summation"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.stackMode.variance"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.updateAllModifiedContent"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.smartObjects.updateChanged"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.smartObjects.updateModifiedContent"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.smartObjects.updateSvg"
+class = "query"
+
+[[entry]]
+id = "layer.smartObjects.updateVectorSource"
+class = "query"
+
+[[entry]]
+id = "layer.smartObjects.warp"
+class = "command"
+args = "502bf4fd4bb54a73"
+
+[[entry]]
+id = "layer.stampDown"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.stampVisible"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.toggleLockTransparency"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.toggleMaskOverlay"
+class = "query"
+
+[[entry]]
+id = "layer.translate"
+class = "command"
+args = "70fddfc498100c2d"
+
+[[entry]]
+id = "layer.ungroupLayers"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.vectorMask.add"
+class = "command"
+args = "55906125fbf95570"
+
+[[entry]]
+id = "layer.vectorMask.currentPath"
+class = "command"
+args = "510c64188fd4147d"
+
+[[entry]]
+id = "layer.vectorMask.delete"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.vectorMask.edit"
+class = "command"
+args = "c6c334c63473cfad"
+
+[[entry]]
+id = "layer.vectorMask.enabled"
+class = "command"
+args = "abbea1a149fd6caa"
+
+[[entry]]
+id = "layer.vectorMask.fromPath"
+class = "command"
+args = "510c64188fd4147d"
+
+[[entry]]
+id = "layer.vectorMask.hideAll"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.vectorMask.info"
+class = "query"
+
+[[entry]]
+id = "layer.vectorMask.linked"
+class = "command"
+args = "16be2c233579a171"
+
+[[entry]]
+id = "layer.vectorMask.revealAll"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "layer.videoLayers.deleteFrame"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.duplicateFrame"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.insertBlankFrame"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.interpretFootage"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.newBlankVideoLayer"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.newVideoLayerFromFile"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.rasterize"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.reloadFrame"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.replaceFootage"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.restoreAllFrames"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.restoreFrame"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.videoLayers.showAlteredVideo"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layer.xmpMetadata"
+class = "command"
+args = "e58a0daf878ac520"
+
+[[entry]]
+id = "layerComp.apply"
+class = "command"
+args = "48049921ce833c78"
+
+[[entry]]
+id = "layerComp.delete"
+class = "command"
+args = "f94be41b6b6e3faf"
+
+[[entry]]
+id = "layerComp.duplicate"
+class = "command"
+args = "f94be41b6b6e3faf"
+
+[[entry]]
+id = "layerComp.list"
+class = "query"
+
+[[entry]]
+id = "layerComp.new"
+class = "command"
+args = "7fc250b248f372fc"
+
+[[entry]]
+id = "layerComp.next"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layerComp.previous"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layerComp.rename"
+class = "command"
+args = "2cf0d2fdb20263eb"
+
+[[entry]]
+id = "layerComp.reorder"
+class = "command"
+args = "5f35d5edaaadbe00"
+
+[[entry]]
+id = "layerComp.restoreLastDocumentState"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "layerComp.setComment"
+class = "command"
+args = "8ba4e4dafccbe149"
+
+[[entry]]
+id = "layerComp.setOptions"
+class = "command"
+args = "14050e5c6b4c5c22"
+
+[[entry]]
+id = "layerComp.update"
+class = "command"
+args = "098a6f9cd780f469"
+
+[[entry]]
+id = "layerComp.updateWarnings"
+class = "command"
+args = "b9fa4edfa47bc699"
+
+[[entry]]
+id = "measurementLog.delete"
+class = "command"
+args = "10c1ca7d19322155"
+
+[[entry]]
+id = "measurementLog.export"
+class = "command"
+args = "3e21b69ae9538ed3"
+
+[[entry]]
+id = "measurementLog.list"
+class = "query"
+
+[[entry]]
+id = "notes.add"
+class = "command"
+args = "9d5dbdea7106ef9c"
+
+[[entry]]
+id = "notes.delete"
+class = "command"
+args = "cec4743e85c24725"
+
+[[entry]]
+id = "notes.list"
+class = "query"
+
+[[entry]]
+id = "notes.set"
+class = "command"
+args = "b783039630267bd2"
+
+[[entry]]
+id = "paint.artHistoryBrush"
+class = "command"
+args = "cc9ed010b62711ad"
+
+[[entry]]
+id = "paint.backgroundEraser"
+class = "command"
+args = "bc2116d12520fcc0"
+
+[[entry]]
+id = "paint.blur"
+class = "command"
+args = "f8232fd9fde672c2"
+
+[[entry]]
+id = "paint.bucket"
+class = "command"
+args = "b7e43e2ab07203f2"
+
+[[entry]]
+id = "paint.burn"
+class = "command"
+args = "c39f63d044757164"
+
+[[entry]]
+id = "paint.cloneStamp"
+class = "command"
+args = "371d0df914725121"
+
+[[entry]]
+id = "paint.colorReplacement"
+class = "command"
+args = "aa5a3bb3bb81f008"
+
+[[entry]]
+id = "paint.contentAwareMove"
+class = "command"
+args = "a9c073eb6d4b3c45"
+
+[[entry]]
+id = "paint.dodge"
+class = "command"
+args = "c39f63d044757164"
+
+[[entry]]
+id = "paint.gradient"
+class = "command"
+args = "42327d45266e23e5"
+
+[[entry]]
+id = "paint.healingBrush"
+class = "command"
+args = "2ce1f06896b4794f"
+
+[[entry]]
+id = "paint.historyBrush"
+class = "command"
+args = "79d68d79a23c5364"
+
+[[entry]]
+id = "paint.magicEraser"
+class = "command"
+args = "4b4415600f720a0e"
+
+[[entry]]
+id = "paint.mixerBrush"
+class = "command"
+args = "68cdb3a6cfa2ffe2"
+
+[[entry]]
+id = "paint.mixerLoad"
+class = "command"
+args = "cf8ec7252b3206dd"
+
+[[entry]]
+id = "paint.patch"
+class = "command"
+args = "117736ab39d47dfc"
+
+[[entry]]
+id = "paint.patternStamp"
+class = "command"
+args = "66ff1bcb8eb3f702"
+
+[[entry]]
+id = "paint.pencil"
+class = "command"
+args = "a4b44cfac17d859c"
+
+[[entry]]
+id = "paint.redEye"
+class = "command"
+args = "f75ef4fdcce3b5d3"
+
+[[entry]]
+id = "paint.remove"
+class = "command"
+args = "21aa3e8b46a12cf9"
+
+[[entry]]
+id = "paint.setSymmetry"
+class = "command"
+args = "bcc10a1e1ccbde4a"
+
+[[entry]]
+id = "paint.sharpen"
+class = "command"
+args = "d6e6917d6f5d0c1a"
+
+[[entry]]
+id = "paint.smudge"
+class = "command"
+args = "dbcbba7b7a0d462b"
+
+[[entry]]
+id = "paint.sponge"
+class = "command"
+args = "d009ef38ab3a20ff"
+
+[[entry]]
+id = "paint.spotHealing"
+class = "command"
+args = "e424a5d5f46b8914"
+
+[[entry]]
+id = "paint.stroke"
+class = "command"
+args = "8e018e43fbc679d8"
+
+[[entry]]
+id = "paint.symmetryDisable"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "paint.symmetryFromPath"
+class = "command"
+args = "f80b1fa820d95a87"
+
+[[entry]]
+id = "path.addAnchor"
+class = "command"
+args = "4bf3340c2f092eb2"
+
+[[entry]]
+id = "path.addToSelection"
+class = "command"
+args = "db5d3214c90cbf0d"
+
+[[entry]]
+id = "path.bendSegment"
+class = "command"
+args = "eb3f864899f20f02"
+
+[[entry]]
+id = "path.clippingPath.clear"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "path.clippingPath.set"
+class = "command"
+args = "44ffaf69440702b1"
+
+[[entry]]
+id = "path.convertPoint"
+class = "command"
+args = "13467654e7cf84d8"
+
+[[entry]]
+id = "path.delete"
+class = "command"
+args = "f80b1fa820d95a87"
+
+[[entry]]
+id = "path.deleteAnchor"
+class = "command"
+args = "515d4dd1976ad92d"
+
+[[entry]]
+id = "path.deleteSegment"
+class = "command"
+args = "a84addf04f63d226"
+
+[[entry]]
+id = "path.fill"
+class = "command"
+args = "0bea2cd9ccb43bd8"
+
+[[entry]]
+id = "path.info"
+class = "query"
+
+[[entry]]
+id = "path.intersectWithSelection"
+class = "command"
+args = "db5d3214c90cbf0d"
+
+[[entry]]
+id = "path.list"
+class = "query"
+
+[[entry]]
+id = "path.mergeShapeComponents"
+class = "command"
+args = "d0dd7a95ec927b78"
+
+[[entry]]
+id = "path.moveAnchors"
+class = "command"
+args = "079d5ea683288ba3"
+
+[[entry]]
+id = "path.moveHandle"
+class = "command"
+args = "75b4ca85a4b91ec7"
+
+[[entry]]
+id = "path.rename"
+class = "command"
+args = "20b49e51634ae396"
+
+[[entry]]
+id = "path.set"
+class = "command"
+args = "1f98bb5f38c973d0"
+
+[[entry]]
+id = "path.setOperation"
+class = "command"
+args = "12a20986d5aa6101"
+
+[[entry]]
+id = "path.stroke"
+class = "command"
+args = "4037c88b53c2bc0c"
+
+[[entry]]
+id = "path.style.copyFill"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "path.style.copyStroke"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "path.style.pasteFill"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "path.style.pasteStroke"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "path.subtractFromSelection"
+class = "command"
+args = "db5d3214c90cbf0d"
+
+[[entry]]
+id = "path.toSelection"
+class = "command"
+args = "5086f5d2cd8f41d0"
+
+[[entry]]
+id = "path.toShape"
+class = "command"
+args = "5865f3c78964d349"
+
+[[entry]]
+id = "path.transform"
+class = "command"
+args = "83bbb363d354043d"
+
+[[entry]]
+id = "pattern.delete"
+class = "command"
+args = "29cfafcd1de27164"
+
+[[entry]]
+id = "pattern.export"
+class = "command"
+args = "149f6d24d15d91ca"
+
+[[entry]]
+id = "pattern.import"
+class = "command"
+args = "3a5fa8507a161c54"
+
+[[entry]]
+id = "pattern.list"
+class = "query"
+
+[[entry]]
+id = "pattern.presets.apply"
+class = "command"
+args = "6bde4ef5bc57c0ec"
+
+[[entry]]
+id = "pattern.presets.edit"
+class = "command"
+args = "1b8479347f06cd04"
+
+[[entry]]
+id = "pattern.presets.list"
+class = "query"
+
+[[entry]]
+id = "pattern.presets.new"
+class = "command"
+args = "44cf965b17be1563"
+
+[[entry]]
+id = "pattern.presets.select"
+class = "command"
+args = "ab19b9bfa493d8eb"
+
+[[entry]]
+id = "pattern.rename"
+class = "command"
+args = "2e0b727e1c53cce4"
+
+[[entry]]
+id = "plugin.install"
+class = "query"
+
+[[entry]]
+id = "plugin.list"
+class = "query"
+
+[[entry]]
+id = "plugin.reload"
+class = "query"
+
+[[entry]]
+id = "plugin.remove"
+class = "query"
+
+[[entry]]
+id = "plugin.run"
+class = "command"
+args = "afb76c27a25cb6e8"
+
+[[entry]]
+id = "prefs.get"
+class = "query"
+
+[[entry]]
+id = "prefs.reset"
+class = "query"
+
+[[entry]]
+id = "prefs.set"
+class = "query"
+
+[[entry]]
+id = "select.all"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "select.allLayers"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "select.colorRange"
+class = "command"
+args = "20f1aa2825e29db2"
+
+[[entry]]
+id = "select.convertToShape"
+class = "command"
+args = "4716d540c8a0a82f"
+
+[[entry]]
+id = "select.deselect"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "select.deselectLayers"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "select.drop"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "select.editInQuickMaskMode"
+class = "command"
+args = "b6ac5bc39377e44e"
+
+[[entry]]
+id = "select.findLayers"
+class = "command"
+args = "f80b1fa820d95a87"
+
+[[entry]]
+id = "select.float"
+class = "command"
+args = "9890842af936eeaf"
+
+[[entry]]
+id = "select.focusArea"
+class = "command"
+args = "87473860cf2d0ddb"
+
+[[entry]]
+id = "select.grow"
+class = "command"
+args = "19a253b85491e542"
+
+[[entry]]
+id = "select.inverse"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "select.isolateLayers"
+class = "query"
+
+[[entry]]
+id = "select.lasso"
+class = "command"
+args = "a058193e155b07b0"
+
+[[entry]]
+id = "select.loadLuminosity"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "select.loadSelection"
+class = "command"
+args = "940c066d43e3d4f8"
+
+[[entry]]
+id = "select.magicWand"
+class = "command"
+args = "6cb9e93dd7f43d6e"
+
+[[entry]]
+id = "select.magneticLasso"
+class = "command"
+args = "eec8d1c390380f4b"
+
+[[entry]]
+id = "select.modify.border"
+class = "command"
+args = "4beb769940bfba9d"
+
+[[entry]]
+id = "select.modify.contract"
+class = "command"
+args = "a036954ba02603ed"
+
+[[entry]]
+id = "select.modify.expand"
+class = "command"
+args = "a036954ba02603ed"
+
+[[entry]]
+id = "select.modify.feather"
+class = "command"
+args = "a036954ba02603ed"
+
+[[entry]]
+id = "select.modify.smooth"
+class = "command"
+args = "a036954ba02603ed"
+
+[[entry]]
+id = "select.object"
+class = "command"
+args = "ed02bdc57c8bf33f"
+
+[[entry]]
+id = "select.quick"
+class = "command"
+args = "dfe5270f8833ce44"
+
+[[entry]]
+id = "select.rect"
+class = "command"
+args = "149d9c123c4afeb7"
+
+[[entry]]
+id = "select.refineEdge"
+class = "command"
+args = "0a09bdf8b6fa4502"
+
+[[entry]]
+id = "select.reselect"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "select.saveSelection"
+class = "command"
+args = "b05044fc2280193e"
+
+[[entry]]
+id = "select.selectAndMask"
+class = "shell"
+
+[[entry]]
+id = "select.similar"
+class = "command"
+args = "19a253b85491e542"
+
+[[entry]]
+id = "select.sky"
+class = "command"
+args = "d2bc04c71413d5e2"
+
+[[entry]]
+id = "select.subject"
+class = "command"
+args = "a5c72ff9532c0c84"
+
+[[entry]]
+id = "select.toWorkPath"
+class = "command"
+args = "4716d540c8a0a82f"
+
+[[entry]]
+id = "select.transformSelection"
+class = "command"
+args = "253fa6e09b135e47"
+
+[[entry]]
+id = "session.inspect"
+class = "query"
+
+[[entry]]
+id = "shape.create"
+class = "command"
+args = "1501e108912b876f"
+
+[[entry]]
+id = "shape.edit"
+class = "command"
+args = "f01b5e48ca0a92c9"
+
+[[entry]]
+id = "shape.info"
+class = "query"
+
+[[entry]]
+id = "shape.presets.edit"
+class = "command"
+args = "1b8479347f06cd04"
+
+[[entry]]
+id = "shape.presets.importCsh"
+class = "command"
+args = "00f5529430c378ec"
+
+[[entry]]
+id = "shape.presets.list"
+class = "query"
+
+[[entry]]
+id = "shape.presets.new"
+class = "command"
+args = "187448ca4bd6bb0d"
+
+[[entry]]
+id = "shape.presets.place"
+class = "command"
+args = "0612e0342255e4f2"
+
+[[entry]]
+id = "shape.presets.reset"
+class = "command"
+args = "3239242cc85d99ba"
+
+[[entry]]
+id = "shape.rasterize"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "slice.delete"
+class = "command"
+args = "d032409c86909e6b"
+
+[[entry]]
+id = "slice.divide"
+class = "command"
+args = "fe2bee9efeac52a3"
+
+[[entry]]
+id = "slice.fromGuides"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "slice.list"
+class = "query"
+
+[[entry]]
+id = "slice.new"
+class = "command"
+args = "5d25ea609cd40ab6"
+
+[[entry]]
+id = "slice.promote"
+class = "command"
+args = "17b3e02849716c70"
+
+[[entry]]
+id = "slice.set"
+class = "command"
+args = "131d7e7dc7219ad6"
+
+[[entry]]
+id = "style.presets.apply"
+class = "command"
+args = "d2cd187df0d0f106"
+
+[[entry]]
+id = "style.presets.edit"
+class = "command"
+args = "1b8479347f06cd04"
+
+[[entry]]
+id = "style.presets.exportAsl"
+class = "command"
+args = "3fc9fa5d5f21ad4d"
+
+[[entry]]
+id = "style.presets.importAsl"
+class = "command"
+args = "0dc772dd16119292"
+
+[[entry]]
+id = "style.presets.list"
+class = "query"
+
+[[entry]]
+id = "style.presets.new"
+class = "command"
+args = "d6a5d75c16726849"
+
+[[entry]]
+id = "style.presets.reset"
+class = "command"
+args = "3239242cc85d99ba"
+
+[[entry]]
+id = "swatches.add"
+class = "command"
+args = "11365e153ce863a5"
+
+[[entry]]
+id = "swatches.delete"
+class = "command"
+args = "7637e49c6ecf45e6"
+
+[[entry]]
+id = "swatches.deleteGroup"
+class = "command"
+args = "a9525423518fb057"
+
+[[entry]]
+id = "swatches.export"
+class = "command"
+args = "423cd81131c0fd6d"
+
+[[entry]]
+id = "swatches.import"
+class = "command"
+args = "9e030e3b639e9316"
+
+[[entry]]
+id = "swatches.list"
+class = "query"
+
+[[entry]]
+id = "swatches.move"
+class = "command"
+args = "5a8c0ecf33230776"
+
+[[entry]]
+id = "swatches.moveGroup"
+class = "command"
+args = "e7abe360d9ae7b7b"
+
+[[entry]]
+id = "swatches.newGroup"
+class = "command"
+args = "42606f05c4d2a540"
+
+[[entry]]
+id = "swatches.rename"
+class = "command"
+args = "6e6207e3ff829524"
+
+[[entry]]
+id = "swatches.renameGroup"
+class = "command"
+args = "90e6976c9b891abd"
+
+[[entry]]
+id = "swatches.reset"
+class = "command"
+args = "3239242cc85d99ba"
+
+[[entry]]
+id = "swatches.use"
+class = "command"
+args = "9295c14bae29dee7"
+
+[[entry]]
+id = "timeline.create"
+class = "query"
+
+[[entry]]
+id = "timeline.delete"
+class = "query"
+
+[[entry]]
+id = "timeline.info"
+class = "query"
+
+[[entry]]
+id = "timeline.nextFrame"
+class = "query"
+
+[[entry]]
+id = "timeline.previousFrame"
+class = "query"
+
+[[entry]]
+id = "timeline.setFrame"
+class = "query"
+
+[[entry]]
+id = "timeline.setProps"
+class = "query"
+
+[[entry]]
+id = "tool.presets.edit"
+class = "command"
+args = "ea921104cb612dca"
+
+[[entry]]
+id = "tool.presets.list"
+class = "query"
+
+[[entry]]
+id = "tool.presets.new"
+class = "command"
+args = "97e2edc13be4ac52"
+
+[[entry]]
+id = "tool.presets.reset"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tool.presets.select"
+class = "command"
+args = "a3dc741be67a8c70"
+
+[[entry]]
+id = "tool.reset"
+class = "shell"
+
+[[entry]]
+id = "tool.resetAll"
+class = "shell"
+
+[[entry]]
+id = "tools.decreaseBrushHardness"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.decreaseBrushSize"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.defaultColors"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.firstBrush"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.increaseBrushHardness"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.increaseBrushSize"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.lastBrush"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.nextBrush"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.previousBrush"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.rotateBrush"
+class = "command"
+args = "a98d44e9f8e9f8a4"
+
+[[entry]]
+id = "tools.select.addAnchorPoint"
+class = "tool"
+
+[[entry]]
+id = "tools.select.artHistoryBrush"
+class = "tool"
+
+[[entry]]
+id = "tools.select.artboard"
+class = "tool"
+
+[[entry]]
+id = "tools.select.backgroundEraser"
+class = "tool"
+
+[[entry]]
+id = "tools.select.blur"
+class = "tool"
+
+[[entry]]
+id = "tools.select.brush"
+class = "tool"
+
+[[entry]]
+id = "tools.select.burn"
+class = "tool"
+
+[[entry]]
+id = "tools.select.cloneStamp"
+class = "tool"
+
+[[entry]]
+id = "tools.select.colorReplacement"
+class = "tool"
+
+[[entry]]
+id = "tools.select.colorSampler"
+class = "tool"
+
+[[entry]]
+id = "tools.select.contentAwareMove"
+class = "tool"
+
+[[entry]]
+id = "tools.select.convertPoint"
+class = "tool"
+
+[[entry]]
+id = "tools.select.count"
+class = "tool"
+
+[[entry]]
+id = "tools.select.crop"
+class = "tool"
+
+[[entry]]
+id = "tools.select.curvaturePen"
+class = "tool"
+
+[[entry]]
+id = "tools.select.customShape"
+class = "tool"
+
+[[entry]]
+id = "tools.select.deleteAnchorPoint"
+class = "tool"
+
+[[entry]]
+id = "tools.select.directSelection"
+class = "tool"
+
+[[entry]]
+id = "tools.select.dodge"
+class = "tool"
+
+[[entry]]
+id = "tools.select.ellipseMarquee"
+class = "tool"
+
+[[entry]]
+id = "tools.select.ellipseShape"
+class = "tool"
+
+[[entry]]
+id = "tools.select.eraser"
+class = "tool"
+
+[[entry]]
+id = "tools.select.eyedropper"
+class = "tool"
+
+[[entry]]
+id = "tools.select.frame"
+class = "tool"
+
+[[entry]]
+id = "tools.select.freeformPen"
+class = "tool"
+
+[[entry]]
+id = "tools.select.gradient"
+class = "tool"
+
+[[entry]]
+id = "tools.select.hand"
+class = "tool"
+
+[[entry]]
+id = "tools.select.healing"
+class = "tool"
+
+[[entry]]
+id = "tools.select.historyBrush"
+class = "tool"
+
+[[entry]]
+id = "tools.select.horizontalTypeMask"
+class = "tool"
+
+[[entry]]
+id = "tools.select.lasso"
+class = "tool"
+
+[[entry]]
+id = "tools.select.line"
+class = "tool"
+
+[[entry]]
+id = "tools.select.magicEraser"
+class = "tool"
+
+[[entry]]
+id = "tools.select.magicWand"
+class = "tool"
+
+[[entry]]
+id = "tools.select.magneticLasso"
+class = "tool"
+
+[[entry]]
+id = "tools.select.mixerBrush"
+class = "tool"
+
+[[entry]]
+id = "tools.select.move"
+class = "tool"
+
+[[entry]]
+id = "tools.select.note"
+class = "tool"
+
+[[entry]]
+id = "tools.select.objectSelection"
+class = "tool"
+
+[[entry]]
+id = "tools.select.paintBucket"
+class = "tool"
+
+[[entry]]
+id = "tools.select.patch"
+class = "tool"
+
+[[entry]]
+id = "tools.select.pathSelection"
+class = "tool"
+
+[[entry]]
+id = "tools.select.patternStamp"
+class = "tool"
+
+[[entry]]
+id = "tools.select.pen"
+class = "tool"
+
+[[entry]]
+id = "tools.select.pencil"
+class = "tool"
+
+[[entry]]
+id = "tools.select.perspectiveCrop"
+class = "tool"
+
+[[entry]]
+id = "tools.select.polygon"
+class = "tool"
+
+[[entry]]
+id = "tools.select.polygonLasso"
+class = "tool"
+
+[[entry]]
+id = "tools.select.quickSelection"
+class = "tool"
+
+[[entry]]
+id = "tools.select.rectMarquee"
+class = "tool"
+
+[[entry]]
+id = "tools.select.rectangle"
+class = "tool"
+
+[[entry]]
+id = "tools.select.redEye"
+class = "tool"
+
+[[entry]]
+id = "tools.select.remove"
+class = "tool"
+
+[[entry]]
+id = "tools.select.rotateView"
+class = "tool"
+
+[[entry]]
+id = "tools.select.ruler"
+class = "tool"
+
+[[entry]]
+id = "tools.select.sharpen"
+class = "tool"
+
+[[entry]]
+id = "tools.select.singleColumnMarquee"
+class = "tool"
+
+[[entry]]
+id = "tools.select.singleRowMarquee"
+class = "tool"
+
+[[entry]]
+id = "tools.select.slice"
+class = "tool"
+
+[[entry]]
+id = "tools.select.sliceSelect"
+class = "tool"
+
+[[entry]]
+id = "tools.select.smudge"
+class = "tool"
+
+[[entry]]
+id = "tools.select.sponge"
+class = "tool"
+
+[[entry]]
+id = "tools.select.spotHealing"
+class = "tool"
+
+[[entry]]
+id = "tools.select.star"
+class = "tool"
+
+[[entry]]
+id = "tools.select.triangle"
+class = "tool"
+
+[[entry]]
+id = "tools.select.type"
+class = "tool"
+
+[[entry]]
+id = "tools.select.verticalType"
+class = "tool"
+
+[[entry]]
+id = "tools.select.verticalTypeMask"
+class = "tool"
+
+[[entry]]
+id = "tools.select.zoom"
+class = "tool"
+
+[[entry]]
+id = "tools.setBrush"
+class = "command"
+args = "332d8016744a16eb"
+
+[[entry]]
+id = "tools.setColors"
+class = "command"
+args = "0630b9adf478fa53"
+
+[[entry]]
+id = "tools.swapColors"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "tools.temporary.erase"
+class = "hold"
+
+[[entry]]
+id = "tools.temporary.hand"
+class = "hold"
+
+[[entry]]
+id = "tools.temporary.zoomIn"
+class = "hold"
+
+[[entry]]
+id = "tools.temporary.zoomOut"
+class = "hold"
+
+[[entry]]
+id = "type.antiAlias.crisp"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.antiAlias.none"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.antiAlias.sharp"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.antiAlias.smooth"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.antiAlias.strong"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.antiAlias.windows"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.antiAlias.windowsLcd"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.attachToPath"
+class = "command"
+args = "22e7da304ec322c3"
+
+[[entry]]
+id = "type.caret"
+class = "query"
+
+[[entry]]
+id = "type.characterStyle.apply"
+class = "command"
+args = "1db3e9ed946daab0"
+
+[[entry]]
+id = "type.characterStyle.clearOverride"
+class = "command"
+args = "6ae7f78ec3895e1f"
+
+[[entry]]
+id = "type.characterStyle.delete"
+class = "command"
+args = "984a644ec3b56d32"
+
+[[entry]]
+id = "type.characterStyle.duplicate"
+class = "command"
+args = "984a644ec3b56d32"
+
+[[entry]]
+id = "type.characterStyle.list"
+class = "query"
+
+[[entry]]
+id = "type.characterStyle.new"
+class = "command"
+args = "f1779bdba4b31a8f"
+
+[[entry]]
+id = "type.characterStyle.redefine"
+class = "command"
+args = "304304797b1fa809"
+
+[[entry]]
+id = "type.characterStyle.rename"
+class = "command"
+args = "d34f65e4568f8b25"
+
+[[entry]]
+id = "type.characterStyle.set"
+class = "command"
+args = "1afa6e260e644af3"
+
+[[entry]]
+id = "type.convertToParagraphText"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "type.convertToPointText"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "type.convertToShape"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "type.create"
+class = "command"
+args = "0601608afdaab1fd"
+
+[[entry]]
+id = "type.createSelection"
+class = "command"
+args = "ba82a96f4f3286f1"
+
+[[entry]]
+id = "type.createWorkPath"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "type.decreaseSize"
+class = "command"
+args = "61f28ac63fc4c287"
+
+[[entry]]
+id = "type.decreaseSizeMore"
+class = "command"
+args = "61f28ac63fc4c287"
+
+[[entry]]
+id = "type.detachFromPath"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "type.edit"
+class = "command"
+args = "52bf519f17763279"
+
+[[entry]]
+id = "type.editText"
+class = "shell"
+
+[[entry]]
+id = "type.fillPath"
+class = "command"
+args = "4cf95d18d5f0e0a0"
+
+[[entry]]
+id = "type.font.favorite"
+class = "query"
+
+[[entry]]
+id = "type.font.library"
+class = "query"
+
+[[entry]]
+id = "type.fonts"
+class = "query"
+
+[[entry]]
+id = "type.hitTest"
+class = "query"
+
+[[entry]]
+id = "type.increaseSize"
+class = "command"
+args = "61f28ac63fc4c287"
+
+[[entry]]
+id = "type.increaseSizeMore"
+class = "command"
+args = "61f28ac63fc4c287"
+
+[[entry]]
+id = "type.info"
+class = "query"
+
+[[entry]]
+id = "type.insertText"
+class = "command"
+args = "caede06064e219b1"
+
+[[entry]]
+id = "type.loadDefaultTypeStyles"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.navigate"
+class = "query"
+
+[[entry]]
+id = "type.openType.contextualAlternates"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.discretionaryLigatures"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.fractions"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.numerals.default"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.openType.numerals.lining"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.openType.numerals.oldstyle"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.openType.numerals.proportional"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.openType.numerals.proportionalLining"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.openType.numerals.proportionalOldstyle"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.openType.numerals.tabular"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.openType.numerals.tabularLining"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.openType.numerals.tabularOldstyle"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.openType.oldstyle"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.ordinals"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.ornaments"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.standardLigatures"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticAlternates"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set1"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set10"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set11"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set12"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set13"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set14"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set15"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set16"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set17"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set18"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set19"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set2"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set20"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set3"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set4"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set5"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set6"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set7"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set8"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.stylisticSets.set9"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.swash"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.openType.titlingAlternates"
+class = "command"
+args = "f207b620cc245917"
+
+[[entry]]
+id = "type.orientation.horizontal"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.orientation.vertical"
+class = "command"
+args = "ecdedc73986b09ef"
+
+[[entry]]
+id = "type.paragraphStyle.apply"
+class = "command"
+args = "1db3e9ed946daab0"
+
+[[entry]]
+id = "type.paragraphStyle.clearOverride"
+class = "command"
+args = "6ae7f78ec3895e1f"
+
+[[entry]]
+id = "type.paragraphStyle.delete"
+class = "command"
+args = "984a644ec3b56d32"
+
+[[entry]]
+id = "type.paragraphStyle.duplicate"
+class = "command"
+args = "984a644ec3b56d32"
+
+[[entry]]
+id = "type.paragraphStyle.list"
+class = "query"
+
+[[entry]]
+id = "type.paragraphStyle.new"
+class = "command"
+args = "f1779bdba4b31a8f"
+
+[[entry]]
+id = "type.paragraphStyle.redefine"
+class = "command"
+args = "304304797b1fa809"
+
+[[entry]]
+id = "type.paragraphStyle.rename"
+class = "command"
+args = "d34f65e4568f8b25"
+
+[[entry]]
+id = "type.paragraphStyle.set"
+class = "command"
+args = "1afa6e260e644af3"
+
+[[entry]]
+id = "type.pasteLoremIpsum"
+class = "command"
+args = "46d323003d6da36b"
+
+[[entry]]
+id = "type.rasterize"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "type.rasterizeTypeLayer"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "type.replaceAllMissingFonts"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "type.resolveMissingFonts"
+class = "command"
+args = "9817b74faa734cd7"
+
+[[entry]]
+id = "type.saveDefaultTypeStyles"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "type.setPathPlacement"
+class = "command"
+args = "98719f3de5aef6a7"
+
+[[entry]]
+id = "type.setStyle"
+class = "command"
+args = "ca749e1ad3786c93"
+
+[[entry]]
+id = "type.updateAllTextLayers"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "type.warpText"
+class = "command"
+args = "193d3f5084b3a95c"
+
+[[entry]]
+id = "ui.dock"
+class = "shell"
+
+[[entry]]
+id = "ui.symmetryTransform"
+class = "shell"
+
+[[entry]]
+id = "variables.list"
+class = "query"
+
+[[entry]]
+id = "view.actualPixels"
+class = "shell"
+
+[[entry]]
+id = "view.clearCanvasGuides"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "view.clearGuides"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "view.clearSelectedArtboardGuides"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "view.clearSelectedGuides"
+class = "shell"
+
+[[entry]]
+id = "view.clearSlices"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "view.colorSamplers.add"
+class = "query"
+
+[[entry]]
+id = "view.colorSamplers.clear"
+class = "query"
+
+[[entry]]
+id = "view.colorSamplers.delete"
+class = "query"
+
+[[entry]]
+id = "view.colorSamplers.list"
+class = "query"
+
+[[entry]]
+id = "view.colorSamplers.move"
+class = "query"
+
+[[entry]]
+id = "view.darkenInterface"
+class = "shell"
+
+[[entry]]
+id = "view.deleteGuide"
+class = "command"
+args = "dbf7f8079458267c"
+
+[[entry]]
+id = "view.editGuide"
+class = "command"
+args = "197c32c96c09b8da"
+
+[[entry]]
+id = "view.editSelectedGuides"
+class = "shell"
+
+[[entry]]
+id = "view.extras"
+class = "shell"
+
+[[entry]]
+id = "view.fitOnScreen"
+class = "shell"
+
+[[entry]]
+id = "view.gamutWarning"
+class = "query"
+
+[[entry]]
+id = "view.layerMask"
+class = "query"
+
+[[entry]]
+id = "view.lightenInterface"
+class = "shell"
+
+[[entry]]
+id = "view.lockGuides"
+class = "shell"
+
+[[entry]]
+id = "view.lockSlices"
+class = "command"
+args = "b6ac5bc39377e44e"
+
+[[entry]]
+id = "view.moveGuide"
+class = "command"
+args = "2b50771716e54fe6"
+
+[[entry]]
+id = "view.newGuide"
+class = "command"
+args = "3966b9f71e7bc895"
+
+[[entry]]
+id = "view.newGuideLayout"
+class = "command"
+args = "2a1df46b98a7acf0"
+
+[[entry]]
+id = "view.newGuidesFromShape"
+class = "command"
+args = "4970405cb2a3a461"
+
+[[entry]]
+id = "view.proofColors"
+class = "query"
+
+[[entry]]
+id = "view.proofSetup"
+class = "query"
+
+[[entry]]
+id = "view.proofSetup.colorBlindnessDeuteranopia"
+class = "query"
+
+[[entry]]
+id = "view.proofSetup.colorBlindnessProtanopia"
+class = "query"
+
+[[entry]]
+id = "view.proofSetup.legacyMacintoshRgb"
+class = "query"
+
+[[entry]]
+id = "view.proofSetup.workingBlackPlate"
+class = "query"
+
+[[entry]]
+id = "view.proofSetup.workingCmyPlate"
+class = "query"
+
+[[entry]]
+id = "view.proofSetup.workingCyanPlate"
+class = "query"
+
+[[entry]]
+id = "view.proofSetup.workingMagentaPlate"
+class = "query"
+
+[[entry]]
+id = "view.proofSetup.workingYellowPlate"
+class = "query"
+
+[[entry]]
+id = "view.resetRulerOrigin"
+class = "command"
+args = "e3b0c44298fc1c14"
+
+[[entry]]
+id = "view.resetView"
+class = "shell"
+
+[[entry]]
+id = "view.rotateLeft"
+class = "shell"
+
+[[entry]]
+id = "view.rotateRight"
+class = "shell"
+
+[[entry]]
+id = "view.rotateView"
+class = "shell"
+
+[[entry]]
+id = "view.rulers"
+class = "shell"
+
+[[entry]]
+id = "view.screenMode.cycle"
+class = "shell"
+
+[[entry]]
+id = "view.screenMode.cycleBack"
+class = "shell"
+
+[[entry]]
+id = "view.setRulerOrigin"
+class = "command"
+args = "09834d488008f5f1"
+
+[[entry]]
+id = "view.show.grid"
+class = "shell"
+
+[[entry]]
+id = "view.show.guides"
+class = "shell"
+
+[[entry]]
+id = "view.show.targetPath"
+class = "shell"
+
+[[entry]]
+id = "view.snap"
+class = "shell"
+
+[[entry]]
+id = "view.thirtyTwoBitPreviewOptions"
+class = "query"
+
+[[entry]]
+id = "view.zoomIn"
+class = "shell"
+
+[[entry]]
+id = "view.zoomOut"
+class = "shell"
+
+[[entry]]
+id = "window.newWindowForDocument"
+class = "shell"
+
+[[entry]]
+id = "window.nextDocument"
+class = "shell"
+
+[[entry]]
+id = "window.panel.activate"
+class = "shell"
+
+[[entry]]
+id = "window.panel.close"
+class = "shell"
+
+[[entry]]
+id = "window.panel.closeGroup"
+class = "shell"
+
+[[entry]]
+id = "window.panel.closeOthers"
+class = "shell"
+
+[[entry]]
+id = "window.panel.dock"
+class = "shell"
+
+[[entry]]
+id = "window.panel.float"
+class = "shell"
+
+[[entry]]
+id = "window.panel.group"
+class = "shell"
+
+[[entry]]
+id = "window.panel.iconic"
+class = "shell"
+
+[[entry]]
+id = "window.panel.layout"
+class = "shell"
+
+[[entry]]
+id = "window.panel.minimize"
+class = "shell"
+
+[[entry]]
+id = "window.panel.move"
+class = "shell"
+
+[[entry]]
+id = "window.panel.window"
+class = "shell"
+
+[[entry]]
+id = "window.previousDocument"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.brushSettings"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.brushes"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.color"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.contextualTaskBar"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.dock"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.history"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.layers"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.navigator"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.options"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.properties"
+class = "shell"
+
+[[entry]]
+id = "window.toggle.toolbar"
+class = "shell"
+
+[[entry]]
+id = "window.togglePanels"
+class = "shell"

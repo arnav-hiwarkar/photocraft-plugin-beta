@@ -60,6 +60,7 @@ mod duplicate_layer_comps;
 mod duplicate_slices;
 mod duplicate_variables;
 mod empty_selection_combine;
+mod engine_lock;
 mod eraser_locked;
 mod explicit_layer_target;
 mod export_shape_strokes;

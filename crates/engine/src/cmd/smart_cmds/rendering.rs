@@ -6,6 +6,7 @@ use super::{
     Affine, Arc, BlendMode, Document, EngineError, Homography, JobCtx, Layer, LayerContent, LayerId, PixelFormat, Rect, Result, SmartFilter, SmartObject,
     SmartSource, Stage, StageKey, Surface, Value, affine_homography, other, placement, stack_cache,
 };
+use crate::engine_ids::Site;
 use std::collections::VecDeque;
 use std::sync::{Mutex, Weak};
 
@@ -157,21 +158,34 @@ fn filter_bounds(f: &SmartFilter, placed: &Surface, canvas: Rect) -> Rect {
 }
 
 fn renders_in_object(f: &SmartFilter) -> bool {
-    matches!(f.command.as_str(), "filter.render.clouds" | "filter.render.differenceClouds" | "filter.render.fibers" | "filter.render.lensFlare")
+    crate::engine_ids::current_id(Site::SmartFilter, &f.command)
+        .is_ok_and(|id| matches!(id, "filter.render.clouds" | "filter.render.differenceClouds" | "filter.render.fibers" | "filter.render.lensFlare"))
+}
+
+pub(crate) fn resolved(f: &SmartFilter) -> std::result::Result<(&'static str, Value), crate::engine_ids::Unresolved> {
+    crate::engine_ids::resolve_persisted(Site::SmartFilter, &f.command, f.params.clone())
+}
+
+pub(crate) fn authorize_filters<'a>(filters: impl IntoIterator<Item = &'a SmartFilter>, authorize: impl Fn(&str, &Value) -> Result<()>) -> Result<()> {
+    for (id, params) in filters.into_iter().filter_map(|f| resolved(f).ok()) {
+        authorize(id, &params)?;
+    }
+    Ok(())
 }
 
 /// One visible smart filter over `cur`, blended with its blend mode and opacity. `Err` when the
 /// requesting session's authority denies the filter's params: callers surface the error instead of
 /// rendering (and caching) unfiltered pixels.
 fn apply_smart_filter(f: &SmartFilter, sm: &SmartObject, cur: &Surface, canvas: Rect, extent: Rect, ctx: &JobCtx) -> Result<Surface> {
+    let Ok((command, params)) = resolved(f) else { return Ok(cur.clone()) };
     // Equalize bypasses `apply_filter_to_surface_in` (the gate there), so check the command first.
-    crate::jobs::authorize_render_command(&f.command, &f.params)?;
-    let params = crate::distort_cmds::placed_puppet_params(&f.command, &f.params, sm);
-    let rendered = if f.command == "image.adjustments.equalize" {
+    crate::jobs::authorize_render_command(command, &params)?;
+    let params = crate::distort_cmds::placed_puppet_params(command, &params, sm);
+    let rendered = if command == "image.adjustments.equalize" {
         ctx.check()?;
         crate::adjust_cmds::adjust_as_filter("equalize", &params, cur, sm.filter_mask.as_ref())?
     } else {
-        crate::filters::apply_filter_to_surface_in(&f.command, &params, cur, canvas, None, extent, ctx)?
+        crate::filters::apply_filter_to_surface_in(command, &params, cur, canvas, None, extent, ctx)?
     };
     let out = match rendered {
         // Unknown ids (e.g. Photoshop filters we don't implement) leave the pixels alone.
@@ -490,9 +504,7 @@ pub(super) fn render_in(doc: &Document, sm: &SmartObject, ctx: &JobCtx) -> Resul
 
 fn render_in_with_source(doc: &Document, sm: &SmartObject, ctx: &JobCtx, snapshot: Option<(String, Arc<Vec<u8>>)>) -> Result<Option<Surface>> {
     // A trusted UI render may have populated these stages. Check authority even on a hit.
-    for filter in sm.smart_filters.iter().filter(|f| sm.filters_enabled && f.visible) {
-        crate::jobs::authorize_render_command(&filter.command, &filter.params)?;
-    }
+    authorize_filters(sm.smart_filters.iter().filter(|f| sm.filters_enabled && f.visible), crate::jobs::authorize_render_command)?;
     let Some((name, original)) = snapshot.or_else(|| source_bytes(&doc.metadata, &sm.source)) else { return Ok(None) };
     let bytes = display_source(sm, &original);
     let (fmt, canvas) = (doc.pixel_format(), doc.bounds());
