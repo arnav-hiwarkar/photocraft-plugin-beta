@@ -24,7 +24,7 @@ fn harness(gpu: bool) -> (Harness<'static, Box<PhotocraftApp>>, Writes) {
         export: Some(Box::new(|doc, path, settings| {
             photocraft_io::export(doc, path, &settings.io_options()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string())
         })),
-        write: Some(Box::new(move |_, bytes| {
+        write: Some(crate::unwarned_write(move |_, bytes| {
             captured.borrow_mut().push(bytes.to_vec());
             Ok(())
         })),

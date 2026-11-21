@@ -34,7 +34,8 @@ fn a_psd_save_streams_the_exported_bytes_and_keeps_the_old_file_on_error() {
         let e = write_encoded_atomic(&path, &photocraft_io::Encoded::Psd(file), &|_| {}).unwrap_err();
         assert!(e.contains("32767") && e.contains("not changed"), "{name}: {e}");
         assert!(std::fs::read(&path).unwrap() == want, "{name}: a failed save replaced the file");
-        let temps: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name()).filter(|n| n.to_string_lossy().ends_with(".tmp")).collect();
+        let temps: Vec<_> =
+            std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name()).filter(|n| craft_atomic::temp_owner(&n.to_string_lossy()).is_some()).collect();
         assert!(temps.is_empty(), "{name}: left behind {temps:?}");
     }
     let _ = std::fs::remove_dir_all(&dir);

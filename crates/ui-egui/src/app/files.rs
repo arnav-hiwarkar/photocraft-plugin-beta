@@ -591,9 +591,9 @@ impl PhotocraftApp {
         ensure_memory_to_save(&st.doc, &path)?;
         let (doc, written, previous) = (st.doc.id, st.revision, st.saved_revision);
         let export = self.services.export.as_ref().ok_or("no exporter configured")?;
-        let (bytes, warnings) = export(&st.doc, &path, settings)?;
+        let (bytes, mut warnings) = export(&st.doc, &path, settings)?;
         let write = self.services.write.as_mut().ok_or("no writer configured")?;
-        write(&path, &bytes)?;
+        warnings.extend(write(&path, &bytes)?);
         let revision = saved_revision_after_write(!self.services.write_unconfirmed, written, previous);
         self.saved(doc, revision, &path, &warnings, copy);
         Ok(Some((path, warnings)))

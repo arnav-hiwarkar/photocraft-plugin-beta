@@ -413,7 +413,7 @@ fn save_for_web_downloads_images_and_html_through_the_platform_writer() {
     let mut app = app();
     let downloads = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     let captured = downloads.clone();
-    app.services.write = Some(Box::new(move |path, bytes| {
+    app.services.write = Some(crate::unwarned_write(move |path, bytes| {
         captured.borrow_mut().push((path.to_string(), bytes.to_vec()));
         Ok(())
     }));
@@ -435,7 +435,7 @@ fn save_for_web_downloads_images_and_html_through_the_platform_writer() {
     assert!(files.iter().any(|(path, _)| path.ends_with("spacer.gif")));
     drop(files);
 
-    app.services.write = Some(Box::new(|_, _| Err("download failed".into())));
+    app.services.write = Some(crate::unwarned_write(|_, _| Err("download failed".into())));
     assert_eq!(download_for_web(&mut app, json!({"path": "fail.png", "format": "png24"})).unwrap_err(), "download failed");
     app.services.write = None;
     assert_eq!(download_for_web(&mut app, json!({"path": "missing.png"})).unwrap_err(), "no download service");
@@ -469,7 +469,7 @@ fn save_for_web_authorizes_before_opening_a_picker() {
         } else {
             app.session.authorize = Some(deny);
         }
-        app.services.write = Some(Box::new(|_, _| panic!("denied export must not write")));
+        app.services.write = Some(crate::unwarned_write(|_, _| panic!("denied export must not write")));
         let mut app = press_save(app);
         let ctx = app.ctx().clone();
         take(&mut app, &ctx);
@@ -494,7 +494,7 @@ fn save_for_web_authorizes_generated_palette_before_opening_a_picker() {
         } else {
             app.session.authorize = Some(deny_palette);
         }
-        app.services.write = Some(Box::new(|_, _| panic!("denied palette must not write")));
+        app.services.write = Some(crate::unwarned_write(|_, _| panic!("denied palette must not write")));
         let mut app = press_save(app);
         let ctx = app.ctx().clone();
         take(&mut app, &ctx);
@@ -582,7 +582,7 @@ fn the_web_preview_selects_slices_and_saves_only_the_selected_ones() {
 
     let downloads = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     let captured = downloads.clone();
-    app.services.write = Some(Box::new(move |path, _| {
+    app.services.write = Some(crate::unwarned_write(move |path, _| {
         captured.borrow_mut().push(path.to_string());
         Ok(())
     }));

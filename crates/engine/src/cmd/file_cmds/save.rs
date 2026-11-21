@@ -1,4 +1,4 @@
-use super::paths::{same_file, write_file};
+use super::paths::{same_file, write_saved};
 use super::{Document, EngineError, Layer, LayerContent, Result, Session, Value, f64_param, flattened_checked, json, str_param};
 
 /// Whether saving `doc` as a TIFF writes Photoshop layer data (anything beyond a lone
@@ -283,15 +283,15 @@ pub(crate) fn encode(doc: &Document, path: &str, save: impl Into<SaveOpts>) -> R
 }
 
 pub(crate) fn save_doc(doc: &Document, path: &str, save: impl Into<SaveOpts>) -> Result<Vec<String>> {
-    let (bytes, warnings) = encode(doc, path, save)?;
-    write_file(path, &bytes)?;
+    let (bytes, mut warnings) = encode(doc, path, save)?;
+    write_saved(path, &bytes, &mut warnings)?;
     Ok(warnings)
 }
 
 /// Save Batch bytes in the chosen format even when its naming rules omit or replace the suffix.
 pub(crate) fn save_doc_as(doc: &Document, path: &str, format: &str, save: impl Into<SaveOpts>) -> Result<Vec<String>> {
-    let (bytes, warnings) = encode(doc, format, save)?;
-    write_file(path, &bytes)?;
+    let (bytes, mut warnings) = encode(doc, format, save)?;
+    write_saved(path, &bytes, &mut warnings)?;
     Ok(warnings)
 }
 

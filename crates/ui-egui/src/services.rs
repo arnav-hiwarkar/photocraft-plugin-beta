@@ -283,7 +283,11 @@ pub(crate) fn plain_raster(doc: &Document) -> Option<&photocraft_doc::Layer> {
 /// Encode a document: (file bytes, warnings about anything approximated or dropped).
 pub type ExportFn = Box<dyn Fn(&Document, &str, &ExportSettings) -> Result<(Vec<u8>, Vec<String>), String>>;
 
-pub type WriteFn = Box<dyn FnMut(&str, &[u8]) -> Result<(), String>>;
+pub type WriteFn = Box<dyn FnMut(&str, &[u8]) -> Result<Vec<String>, String>>;
+
+pub fn unwarned_write(mut write: impl FnMut(&str, &[u8]) -> Result<(), String> + 'static) -> WriteFn {
+    Box::new(move |path, bytes| write(path, bytes).map(|()| Vec::new()))
+}
 
 /// What a file on disk looked like when a document last read or wrote it: File › Save asks
 /// before replacing a file another app changed since (#6596).

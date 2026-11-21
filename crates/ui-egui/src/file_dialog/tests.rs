@@ -23,7 +23,7 @@ fn app_with(files: Arc<ScriptedFiles>) -> (Box<PhotocraftApp>, Arc<ScriptedFiles
     let w = written.clone();
     let services = Services {
         export: Some(Box::new(|_: &photocraft_doc::Document, _: &str, _: &crate::ExportSettings| Ok((b"out".to_vec(), Vec::new())))),
-        write: Some(Box::new(move |path: &str, _: &[u8]| {
+        write: Some(crate::unwarned_write(move |path: &str, _: &[u8]| {
             w.borrow_mut().push(path.to_string());
             Ok(())
         })),
@@ -719,7 +719,7 @@ fn failed_deferred_save_preserves_both_identities_and_the_selected_tab() {
     app.save_as(None).unwrap();
     app.run("file.new", json!({"width": 4, "height": 4, "name": "second"})).unwrap();
     let before: Vec<_> = app.session.documents().iter().map(|d| (d.doc.name.clone(), d.path.clone(), d.revision, d.saved_revision)).collect();
-    app.services.write = Some(Box::new(|_, _| Err("disk full".into())));
+    app.services.write = Some(crate::unwarned_write(|_, _| Err("disk full".into())));
     answer(&files, chose("failed.psd"));
     app.poll_file_dialog();
     let after: Vec<_> = app.session.documents().iter().map(|d| (d.doc.name.clone(), d.path.clone(), d.revision, d.saved_revision)).collect();
@@ -1134,7 +1134,7 @@ fn on_disk(app: &mut PhotocraftApp) -> Disk {
     let (read, wrote) = (disk.clone(), disk.clone());
     app.services.file_stamp = Some(Box::new(move |path| read.borrow().get(path).map(|&n| crate::FileStamp { len: n, modified: None })));
     let mut write = app.services.write.take().unwrap();
-    app.services.write = Some(Box::new(move |path, bytes| {
+    app.services.write = Some(crate::unwarned_write(move |path, bytes| {
         write(path, bytes)?;
         *wrote.borrow_mut().entry(path.to_string()).or_default() += 1;
         Ok(())

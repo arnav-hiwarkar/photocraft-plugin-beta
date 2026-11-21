@@ -24,7 +24,7 @@ fn app() -> Box<PhotocraftApp> {
             export: Some(Box::new(|doc, path, _| {
                 photocraft_io::export(doc, path, &Default::default()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string())
             })),
-            write: Some(Box::new(|_, _| Ok(()))),
+            write: Some(crate::unwarned_write(|_, _| Ok(()))),
             automation_write: Some(Box::new(|_, _| Ok(()))),
             ..Default::default()
         },
@@ -115,7 +115,7 @@ fn accepted_psd_keeps_its_source_path_and_uses_the_normal_save_writer() {
     let stored = Rc::new(RefCell::new(recovery_psd::make_psd(true)));
     let original = stored.borrow().clone();
     let destination = stored.clone();
-    app.services.write = Some(Box::new(move |p, bytes| {
+    app.services.write = Some(crate::unwarned_write(move |p, bytes| {
         assert_eq!(p, path);
         *destination.borrow_mut() = bytes.to_vec();
         Ok(())

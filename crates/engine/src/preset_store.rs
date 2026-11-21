@@ -229,7 +229,9 @@ impl PresetBackend for DirBackend {
             return Err(format!("{name}: a symbolic link is not a preset file"));
         }
         // No-follow: a link swapped in after the check above is replaced, never written through.
-        photocraft_format::atomic_write_no_follow(&path, bytes).map_err(|e| format!("{name}: {e}"))
+        photocraft_format::settle(&path, craft_atomic::WriteOptions::default().with_links(craft_atomic::Links::Replace).write(&path, bytes))
+            .map(drop)
+            .map_err(|e| format!("{name}: {e}"))
     }
     fn remove(&self, name: &str) -> Result<(), String> {
         match std::fs::remove_file(self.path(name)?) {

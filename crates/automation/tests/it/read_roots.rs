@@ -98,7 +98,9 @@ fn library_first_open_cannot_overwrite_same_named_work_until_explicit_save_as() 
     assert_eq!(std::fs::read(roots.library.join("same.pcraft")).unwrap(), library);
 
     edit(&mut headless, "Later work edit");
-    assert_eq!(headless.save(None, None, None, &Default::default()).unwrap()["path"], "same.pcraft");
+    let saved = headless.save(None, None, None, &Default::default()).unwrap();
+    assert_eq!(saved["path"], "same.pcraft");
+    assert_eq!(saved["durability"], "durable");
     assert!(!headless.session.active().unwrap().is_dirty());
     assert_eq!(std::fs::read(roots.library.join("same.pcraft")).unwrap(), library);
 

@@ -26,7 +26,7 @@ fn tiff_app(background: &str, to: &str) -> (Prompted, Writes) {
     app.services.export = Some(Box::new(|_, _, s| {
         Ok((asked(tiff_options_ui::compression_name(s.tiff_compression), s.tiff_transparency, s.tiff_pyramid, s.tiff_layers), Vec::new()))
     }));
-    app.services.write = Some(Box::new(move |path, bytes| {
+    app.services.write = Some(crate::unwarned_write(move |path, bytes| {
         written.borrow_mut().push((path.to_string(), bytes.to_vec()));
         Ok(())
     }));

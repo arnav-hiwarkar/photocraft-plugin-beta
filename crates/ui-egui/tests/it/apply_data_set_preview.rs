@@ -432,7 +432,7 @@ fn saving_while_previewing_writes_the_document_itself() {
             log.lock().unwrap().push(d.clone());
             Ok((Vec::new(), Vec::new()))
         })),
-        write: Some(Box::new(|_path: &str, _bytes: &[u8]| Ok(()))),
+        write: Some(photocraft_ui_egui::unwarned_write(|_path: &str, _bytes: &[u8]| Ok(()))),
         ..Default::default()
     };
     let (mut a, l) = app_with(services);

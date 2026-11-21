@@ -1236,7 +1236,7 @@ fn automation_open_and_save_use_the_roots_and_reply_with_warnings() {
     // Without granted roots both fail closed, even with an exporter and an ambient writer.
     let services = crate::Services {
         export: Some(Box::new(|_d: &Document, _p: &str, _s: &crate::ExportSettings| Ok((b"out".to_vec(), Vec::new())))),
-        write: Some(Box::new(|_p: &str, _b: &[u8]| Err("ambient writer used".into()))),
+        write: Some(crate::unwarned_write(|_p: &str, _b: &[u8]| Err("ambient writer used".into()))),
         ..Default::default()
     };
     let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
@@ -1313,7 +1313,7 @@ fn gated_app_recording_writes() -> (Box<PhotocraftApp>, egui::Context, std::rc::
         automation_authorize: Some(deny_ambient_file),
         automation_command: Some(Box::new(|id, params| deny_ambient_file(id, params).map_err(|e| e.to_string()))),
         export: Some(Box::new(|_: &photocraft_doc::Document, _: &str, _: &crate::ExportSettings| Ok((b"out".to_vec(), Vec::new())))),
-        write: Some(Box::new(move |path: &str, _: &[u8]| {
+        write: Some(crate::unwarned_write(move |path: &str, _: &[u8]| {
             w.borrow_mut().push(path.to_string());
             Ok(())
         })),
@@ -1708,7 +1708,7 @@ fn control_edits_nested_embedded_smart_objects_and_converts_an_explicit_target()
         output.borrow_mut().push((path.to_string(), bytes.to_vec()));
         Ok(())
     }));
-    app.services.write = Some(Box::new(|_, _| Err("ambient writer used".into())));
+    app.services.write = Some(crate::unwarned_write(|_, _| Err("ambient writer used".into())));
     let r = call(&mut app, &ctx, "app.save", json!({"path": "out/template.pcraft"}));
     assert_eq!(r["ok"], true, "{r}");
     let written = written.borrow();
@@ -2154,7 +2154,7 @@ fn automation_library_open_requires_explicit_save_as_before_implicit_save() {
             writes.borrow_mut().push(path.to_owned());
             Ok(())
         })),
-        write: Some(Box::new(|_, _| Err("ambient writer used".into()))),
+        write: Some(crate::unwarned_write(|_, _| Err("ambient writer used".into()))),
         ..Default::default()
     };
     let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);

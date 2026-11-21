@@ -27,7 +27,7 @@ fn targa_app(alpha_channel: bool, to: &str) -> (Prompted, Writes) {
     let writes: Writes = Rc::default();
     let written = writes.clone();
     app.services.export = Some(Box::new(|_, _, settings| Ok((asked(settings.tga_bits.map(TgaBits::bits)), Vec::new()))));
-    app.services.write = Some(Box::new(move |path, bytes| {
+    app.services.write = Some(crate::unwarned_write(move |path, bytes| {
         written.borrow_mut().push((path.to_string(), bytes.to_vec()));
         Ok(())
     }));

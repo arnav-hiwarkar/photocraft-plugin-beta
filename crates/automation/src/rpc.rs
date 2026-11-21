@@ -234,8 +234,8 @@ impl Headless {
                 let warnings = self.drain_diagnostics();
                 let mut reply = match str_of(&p, "path") {
                     Some(path) => {
-                        self.write_render(&PathBuf::from(path), &png)?;
-                        json!({"path": path, "bytes": png.len()})
+                        let durability = self.write_render(&PathBuf::from(path), &png)?;
+                        json!({"path": path, "bytes": png.len(), "durability": durability})
                     }
                     None => json!({
                         "mime": "image/png",

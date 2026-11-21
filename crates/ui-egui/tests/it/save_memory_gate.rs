@@ -17,7 +17,7 @@ fn app(writes: Rc<RefCell<u32>>) -> Box<PhotocraftApp> {
             export: Some(Box::new(|doc, path, _| {
                 photocraft_io::export(doc, path, &Default::default()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string())
             })),
-            write: Some(Box::new(move |_, _| {
+            write: Some(photocraft_ui_egui::unwarned_write(move |_, _| {
                 *writes.borrow_mut() += 1;
                 Ok(())
             })),

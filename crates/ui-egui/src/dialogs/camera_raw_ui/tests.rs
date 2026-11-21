@@ -938,7 +938,7 @@ fn a_sidecar_fills_the_dialog_and_open_writes_it_back() {
     type Written = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
     let written: Written = Arc::default();
     let sink = written.clone();
-    app.services.write = Some(Box::new(move |p: &str, b: &[u8]| {
+    app.services.write = Some(crate::unwarned_write(move |p: &str, b: &[u8]| {
         sink.lock().unwrap().push((p.to_string(), b.to_vec()));
         Ok(())
     }));
@@ -1055,7 +1055,7 @@ fn raw_with_sidecar(tag: &str, sidecar: Option<&str>) -> (Box<PhotocraftApp>, Ve
     }
     let written: Written = Default::default();
     let sink = written.clone();
-    app.services.write = Some(Box::new(move |p: &str, b: &[u8]| {
+    app.services.write = Some(crate::unwarned_write(move |p: &str, b: &[u8]| {
         sink.lock().unwrap().push((p.to_string(), b.to_vec()));
         Ok(())
     }));
@@ -1221,7 +1221,7 @@ fn a_control_request_never_writes_the_sidecar() {
 #[test]
 fn a_sidecar_write_error_stays_reported() {
     let (mut app, dng, dir, raw_path, _) = raw_with_sidecar("readonly", None);
-    app.services.write = Some(Box::new(|_: &str, _: &[u8]| Err("read-only volume".to_string())));
+    app.services.write = Some(crate::unwarned_write(|_: &str, _: &[u8]| Err("read-only volume".to_string())));
     let ctx = app.ctx().clone();
     open_dialog_at(&mut app, &ctx, &dng, &raw_path);
     menu(&mut app, &ctx, "filter.cameraRaw", &json!({"ui": {"set": {"exposure": 0.5, "contrast": 15}, "commit": true}})).unwrap().unwrap();
@@ -1350,7 +1350,7 @@ fn save_and_load_settings_round_trip_through_xmp_files() {
             </rdf:RDF></x:xmpmeta>"#;
     let files = Arc::new(ScriptedFiles::answering([Picked::Paths(vec!["/out/Look.xmp".into()])]));
     let services = crate::Services {
-        write: Some(Box::new(move |p: &str, b: &[u8]| {
+        write: Some(crate::unwarned_write(move |p: &str, b: &[u8]| {
             w.lock().unwrap().push((p.to_string(), b.to_vec()));
             Ok(())
         })),
@@ -1446,7 +1446,7 @@ fn done_saves_the_sidecar_and_opens_nothing() {
 fn done_keeps_the_raws_open_when_a_sidecar_write_fails() {
     let (mut app, dng, dir, raw_path, _) = raw_with_sidecar("done-fails", None);
     let ctx = app.ctx().clone();
-    app.services.write = Some(Box::new(|_: &str, _: &[u8]| Err("read-only volume".to_string())));
+    app.services.write = Some(crate::unwarned_write(|_: &str, _: &[u8]| Err("read-only volume".to_string())));
     open_dialog_at(&mut app, &ctx, &dng, &raw_path);
     let docs = app.session.documents().len();
     menu(&mut app, &ctx, "filter.cameraRaw", &json!({"ui": {"set": {"contrast": 20}}})).unwrap().unwrap();

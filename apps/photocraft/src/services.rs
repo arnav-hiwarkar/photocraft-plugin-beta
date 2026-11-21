@@ -3,9 +3,11 @@
 
 use photocraft_doc::Document;
 use photocraft_format::RecoveryStore;
+use photocraft_format::durability::Reasons;
 use photocraft_ui_egui::{Recoverable, Services};
 use std::cell::{Cell, RefCell};
 use std::future::Future;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -100,27 +102,68 @@ fn recovery_dir() -> Option<PathBuf> {
     crate::app_dirs::recovery_dir()
 }
 
-/// Write `bytes` crash-safely (temp file beside the target, fsync, rename, directory fsync; see
-/// [`photocraft_format::atomic`]). Every document write (Save, Save As, Export, Save for Web) and
-/// the preferences go through here, so a failed or interrupted save never destroys the old file.
-fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    photocraft_format::atomic_write(path, bytes).map_err(|e| e.to_string())
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<Vec<String>, String> {
+    let unconfirmed = photocraft_format::write(path, bytes).map_err(|e| e.to_string())?;
+    Ok(unconfirmed.map(|reasons| photocraft_format::unconfirmed_warning(path, reasons)).into_iter().collect())
 }
 
-/// [`write_atomic`] for an encoded save, reporting the fraction written (a background save's
-/// progress, #3389). A PSD/PSB is serialized straight into the temporary file, so the whole file
-/// is never held in memory next to its model (#6607).
-fn write_encoded_atomic(path: &Path, encoded: &photocraft_io::Encoded, progress: &dyn Fn(f32)) -> Result<(), String> {
-    match encoded {
-        photocraft_io::Encoded::Bytes(bytes) => photocraft_format::atomic_write_progress(path, bytes, progress),
-        photocraft_io::Encoded::Psd(_) => {
-            // Only the progress bar's scale: a model whose length can't be worked out fails the
-            // write the same way, through the atomic write's "not changed" error.
-            let len = encoded.encoded_len().unwrap_or(0);
-            photocraft_format::atomic_write_stream_progress(path, len, progress, &mut |w| encoded.write_to(w))
+const WRITE_CHUNK: usize = 8 << 20;
+
+fn write_encoded_atomic(path: &Path, encoded: &photocraft_io::Encoded, progress: &dyn Fn(f32)) -> Result<Option<Reasons>, String> {
+    let fill = |file: &mut std::fs::File| match encoded {
+        photocraft_io::Encoded::Bytes(bytes) => {
+            let mut written = 0usize;
+            for chunk in bytes.chunks(WRITE_CHUNK) {
+                file.write_all(chunk)?;
+                written = written.saturating_add(chunk.len());
+                progress(written as f32 / bytes.len().max(1) as f32);
+            }
+            Ok(())
         }
+        photocraft_io::Encoded::Psd(_) => {
+            let expected = encoded.encoded_len().unwrap_or(0).max(1);
+            let mut counted = Progress { w: std::io::BufWriter::new(file), pos: 0, reached: 0, reported: 0, expected, progress };
+            encoded.write_to(&mut counted)?;
+            counted.w.flush()?;
+            progress(1.0);
+            Ok(())
+        }
+    };
+    photocraft_format::write_with(path, fill).map_err(|e| e.to_string())
+}
+
+struct Progress<'p, W> {
+    w: W,
+    pos: u64,
+    reached: u64,
+    reported: u64,
+    expected: u64,
+    progress: &'p dyn Fn(f32),
+}
+
+impl<W: Write> Write for Progress<'_, W> {
+    fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+        let n = self.w.write(b)?;
+        self.pos = self.pos.saturating_add(n as u64);
+        if self.pos > self.reached {
+            self.reached = self.pos;
+            if self.reached - self.reported >= WRITE_CHUNK as u64 {
+                self.reported = self.reached;
+                (self.progress)((self.reached as f64 / self.expected as f64).min(0.999) as f32);
+            }
+        }
+        Ok(n)
     }
-    .map_err(|e| e.to_string())
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.w.flush()
+    }
+}
+
+impl<W: std::io::Seek> std::io::Seek for Progress<'_, W> {
+    fn seek(&mut self, to: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.pos = self.w.seek(to)?;
+        Ok(self.pos)
+    }
 }
 
 /// Whether `a` and `b` reach the same file: the same device and inode on Unix, the same final path
@@ -178,7 +221,7 @@ fn save_through(
     path: &str,
     settings: &photocraft_ui_egui::ExportSettings,
     ctl: &photocraft_ui_egui::jobs_ui::SaveCtl,
-    write: impl Fn(&str, &photocraft_io::Encoded, &dyn Fn(f32)) -> Result<(), String>,
+    write: impl Fn(&str, &photocraft_io::Encoded, &dyn Fn(f32)) -> Result<Option<Reasons>, String>,
 ) -> Result<Vec<String>, String> {
     ctl.progress(0.0, "Encoding");
     let opts = export_options(settings);
@@ -189,9 +232,11 @@ fn save_through(
     ctl.commit()?;
     ctl.progress(ENCODE_SHARE, "Writing");
     // The last bit is the flush and rename after the last chunk: 100% only once they're done.
-    write(path, &r.encoded, &|f| ctl.progress(ENCODE_SHARE + (0.99 - ENCODE_SHARE) * f, ""))?;
+    let unconfirmed = write(path, &r.encoded, &|f| ctl.progress(ENCODE_SHARE + (0.99 - ENCODE_SHARE) * f, ""))?;
     ctl.progress(1.0, "");
-    Ok(r.warnings)
+    let mut warnings = r.warnings;
+    warnings.extend(unconfirmed.map(|reason| photocraft_format::unconfirmed_warning(Path::new(path), reason)));
+    Ok(warnings)
 }
 
 fn save_file(
@@ -420,7 +465,8 @@ pub fn automation(workspace: Option<photocraft_automation::AuthorizedWorkspace>)
         }) as photocraft_ui_egui::AutomationReadFn
     });
     let write = workspace.clone().map(|workspace| {
-        Box::new(move |path: &str, bytes: &[u8]| workspace.write(path, bytes).map_err(|error| error.to_string())) as photocraft_ui_egui::AutomationWriteFn
+        Box::new(move |path: &str, bytes: &[u8]| workspace.write(path, bytes).map(drop).map_err(|error| error.to_string()))
+            as photocraft_ui_egui::AutomationWriteFn
     });
     let open_pcraft = workspace.clone().map(|workspace| {
         Box::new(move |path: &str| {
@@ -558,7 +604,7 @@ pub fn native(automation: Option<photocraft_automation::AuthorizedWorkspace>, wa
             if text.len() > photocraft_ui_egui::gpu_memo::MAX_GPU_MEMO_BYTES {
                 return Err("GPU compositor memo exceeds 64 KiB".into());
             }
-            write_atomic(&gpu_memo_file().ok_or("no config directory")?, text.as_bytes())
+            write_atomic(&gpu_memo_file().ok_or("no config directory")?, text.as_bytes()).map(drop)
         })),
         shader_compiler: Some(shader_compiler_identity()),
         append_text: Some(Box::new(|path: &str, text: &str| {

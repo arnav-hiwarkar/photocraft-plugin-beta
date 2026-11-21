@@ -162,7 +162,7 @@ pub(super) fn save(s: &mut Session, p: &Value) -> Result<Value> {
 #[cfg(not(target_arch = "wasm32"))]
 fn write_file(path: &str, bytes: &[u8]) -> std::io::Result<()> {
     // Atomic replacement (temporary file + rename): a failed write keeps the previous ATN (#7290).
-    photocraft_format::atomic_write(std::path::Path::new(path), bytes)
+    photocraft_format::write(std::path::Path::new(path), bytes).map(drop)
 }
 
 #[cfg(target_arch = "wasm32")]

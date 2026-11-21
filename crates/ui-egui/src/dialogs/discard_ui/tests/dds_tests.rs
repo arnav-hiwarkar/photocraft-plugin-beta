@@ -24,7 +24,7 @@ fn dds_app(to: &str) -> (Prompted, Writes) {
         *seen.borrow_mut() = settings.dds;
         Ok((Vec::new(), Vec::new()))
     }));
-    app.services.write = Some(Box::new(move |path, _| {
+    app.services.write = Some(crate::unwarned_write(move |path, _| {
         written.borrow_mut().push((path.to_string(), *asked.borrow()));
         Ok(())
     }));

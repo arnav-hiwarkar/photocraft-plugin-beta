@@ -39,15 +39,26 @@ pub(crate) fn read_file_limited(path: &str, _max: u64) -> std::io::Result<Vec<u8
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// Every file the engine writes goes through here: crash-safe (temp file + fsync + rename, see
-/// [`photocraft_format::atomic`]), so a failed save never destroys the previous file.
 pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<()> {
-    photocraft_format::atomic_write(std::path::Path::new(path), bytes).map_err(|e| EngineError::Other(e.to_string()))
+    photocraft_format::write(std::path::Path::new(path), bytes).map(drop).map_err(|e| EngineError::Other(e.to_string()))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn write_saved(path: &str, bytes: &[u8], warnings: &mut Vec<String>) -> Result<()> {
+    let file = std::path::Path::new(path);
+    let unconfirmed = photocraft_format::write(file, bytes).map_err(|e| EngineError::Other(e.to_string()))?;
+    warnings.extend(unconfirmed.map(|reasons| photocraft_format::unconfirmed_warning(file, reasons)));
+    Ok(())
 }
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn write_file(path: &str, _bytes: &[u8]) -> Result<()> {
     Err(EngineError::Other(format!("cannot write {path}: no file system on the web")))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn write_saved(path: &str, bytes: &[u8], _warnings: &mut Vec<String>) -> Result<()> {
+    write_file(path, bytes)
 }
 
 /// Files of a folder that look like images we can open, sorted by name.

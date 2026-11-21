@@ -11,42 +11,42 @@ id = "BUG-203-1"
 target = "Every document write goes through one atomic_write (temp, fsync, rename)"
 status = "done"
 issue = 203
-note = "photocraft_format::atomic_write (format/src/atomic.rs, #230/8227071); every write site routes through it: engine file_cmds.rs write_file and preset_store.rs, automation files.rs/headless.rs/workspace.rs, app services.rs write_atomic, format store.rs and autosave.rs"
+note = "craft-atomic (craft-libs, one writer with a typed durability Receipt) through photocraft_format::write/settle (format/src/durability.rs); every write site routes through it: engine file_cmds.rs write_file and preset_store.rs, automation files.rs/headless.rs/workspace.rs, app services.rs, format store.rs and autosave.rs"
 
 [[item]]
 id = "BUG-203-2"
 target = "Temp file in the same dir, sync_all, rename over target, fsync dir on Unix"
 status = "done"
 issue = 203
-note = "atomic.rs: temp_name in the same dir, create_new + write_all + sync_all, Unix directory fsync after the rename"
+note = "craft-atomic: temp_name in the same dir, create_new + write_all + full flush, directory flush after the rename; a refused full flush or folder flush is reported as VisibleUnconfirmed"
 
 [[item]]
 id = "BUG-203-3"
 target = "Windows: retry the rename with backoff on PermissionDenied"
 status = "done"
 issue = 203
-note = "atomic.rs RenameRetry::platform(): seven retries from 10 ms on Windows; retry_rename is shared with automation's cap-std workspace write"
+note = "craft-atomic RenameRetry::platform(): seven retries from 10 ms on Windows; retry_rename is shared with automation's cap-std workspace write"
 
 [[item]]
 id = "BUG-203-4"
 target = "Unwritable directory errors clearly, never falls back to writing in place"
 status = "done"
 issue = 203
-note = "atomic.rs maps read-only dir, disk-full and cross-device rename errors to messages that say the original was not changed; there is no in-place fallback path"
+note = "craft-atomic maps read-only dir, disk-full and cross-device rename errors to messages that say the original was not changed; there is no in-place fallback path"
 
 [[item]]
 id = "BUG-203-5"
 target = "On any failure the original file is untouched and the temp file removed"
 status = "done"
 issue = 203
-note = "atomic.rs removes the temp file on every failure; tests assert the original bytes survive write and rename failures"
+note = "craft-atomic removes the temp file on every failure; tests assert the original bytes survive write and rename failures"
 
 [[item]]
 id = "BUG-203-6"
 target = "Failure-injection tests: mid-write, rename and read-only dir errors keep original bytes"
 status = "done"
 issue = 203
-note = "format/src/atomic/tests.rs: Faulty AtomicFs injects mid-write StorageFull, rename failure and a read-only dir; locked-target retries, symlink and file-mode preservation covered too"
+note = "craft-atomic src/tests.rs: Faulty AtomicFs injects a failure at every sink step and asserts the original bytes before the rename and each durability reason after it; locked-target retries, symlink and file-mode preservation covered too"
 
 [[item]]
 id = "BUG-204-1"

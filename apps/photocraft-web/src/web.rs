@@ -594,7 +594,7 @@ fn services(inbox: Inbox, place_inbox: PlaceInbox, cursor_pos: photocraft_ui_egu
                 reply.send(Some(FileDialogAnswer::SaveTo(name)));
             }
         })),
-        write: Some(Box::new(|path: &str, bytes: &[u8]| download(path, bytes))),
+        write: Some(photocraft_ui_egui::unwarned_write(|path: &str, bytes: &[u8]| download(path, bytes))),
         // A download may be cancelled and never reports back: it doesn't save the document.
         write_unconfirmed: true,
         inbox: Some(inbox),

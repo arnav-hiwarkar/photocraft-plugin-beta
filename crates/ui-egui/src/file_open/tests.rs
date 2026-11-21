@@ -39,7 +39,7 @@ fn app_over(files: Arc<ScriptedFiles>) -> (Box<PhotocraftApp>, Written) {
             Ok((b"out".to_vec(), warnings))
         })),
         files: Some(files),
-        write: Some(Box::new(move |p: &str, b: &[u8]| {
+        write: Some(crate::unwarned_write(move |p: &str, b: &[u8]| {
             w.borrow_mut().push((p.to_string(), b.to_vec()));
             Ok(())
         })),
@@ -1469,7 +1469,7 @@ fn export_as_is_recorded_and_replayed() {
             Ok((b"out".to_vec(), Vec::new()))
         })),
         files: Some(Arc::new(ScriptedFiles::answering([chosen(&["/pics/out.jpg".into()])]))),
-        write: Some(Box::new(|_: &str, _: &[u8]| Ok(()))),
+        write: Some(crate::unwarned_write(|_: &str, _: &[u8]| Ok(()))),
         ..Default::default()
     };
     let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);

@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use photocraft_doc::Document;
+use photocraft_format::durability::Durability;
 use photocraft_format::{PcraftWriter, SaveOptions};
 use photocraft_io::{BandRenderer, ExportOptions};
 
@@ -117,7 +118,8 @@ pub fn save_with_renderer(
     mut renderer: Option<&mut dyn BandRenderer>,
 ) -> Result<Vec<String>, AutomationError> {
     let mut kept = Vec::new();
-    let res = save_with_renderer_keeping(doc, path, format_override, opts, writer, renderer.as_mut().map(|r| &mut **r as &mut dyn BandRenderer), &mut kept);
+    let res = save_with_renderer_keeping(doc, path, format_override, opts, writer, renderer.as_mut().map(|r| &mut **r as &mut dyn BandRenderer), &mut kept)
+        .map(|saved| saved.into_warnings(path));
     if res.is_err()
         && let Some(r) = renderer
     {
@@ -140,7 +142,7 @@ pub fn save_with_renderer_keeping(
     writer: Option<&mut PcraftWriter>,
     renderer: Option<&mut dyn BandRenderer>,
     kept: &mut Vec<String>,
-) -> Result<Vec<String>, AutomationError> {
+) -> Result<Saved, AutomationError> {
     let ext = format_override
         .map(|f| f.trim_start_matches('.').to_ascii_lowercase())
         .or_else(|| path.extension().map(|e| e.to_string_lossy().to_ascii_lowercase()))
@@ -149,28 +151,39 @@ pub fn save_with_renderer_keeping(
         let named = named_for_output(doc, &path.to_string_lossy());
         let mut local = PcraftWriter::new();
         let w = writer.unwrap_or(&mut local);
-        w.save_path(&named, path, &native_options(&named, opts)?)?;
+        let stats = w.save_path(&named, path, &native_options(&named, opts)?)?;
         let mut warnings = Vec::new();
         if let Some(r) = renderer {
             warnings.push("native .pcraft format uses CPU compositor for previews".into());
             warnings.extend(r.drain_diagnostics());
         }
-        return Ok(warnings);
+        return Ok(Saved { warnings, durability: stats.durability });
     }
     let Some(renderer) = renderer else {
         let r = photocraft_io::export_with_renderer(doc, &ext, opts, &photocraft_raster::Interrupt::NONE, None)?;
-        // Crash-safe: a failed write never destroys the previous file.
-        photocraft_format::atomic_write(path, &r.bytes).map_err(|e| AutomationError::Io(e.to_string()))?;
-        return Ok(r.warnings);
+        let unconfirmed = photocraft_format::write(path, &r.bytes).map_err(|e| AutomationError::Io(e.to_string()))?;
+        return Ok(Saved { warnings: r.warnings, durability: Durability::of(unconfirmed) });
     };
     let r = photocraft_io::export_with_renderer(doc, &ext, opts, &photocraft_raster::Interrupt::NONE, Some(&mut *renderer))?;
-    if let Err(e) = photocraft_format::atomic_write(path, &r.bytes) {
-        // Encoding drained the renderer's diagnostics into `r.warnings`; hand them to the
-        // caller so it can still report the adapter or fallback reason alongside the write error.
-        kept.extend(r.warnings);
-        return Err(AutomationError::Io(e.to_string()));
+    match photocraft_format::write(path, &r.bytes) {
+        Ok(unconfirmed) => Ok(Saved { warnings: r.warnings, durability: Durability::of(unconfirmed) }),
+        Err(e) => {
+            kept.extend(r.warnings);
+            Err(AutomationError::Io(e.to_string()))
+        }
     }
-    Ok(r.warnings)
+}
+
+pub struct Saved {
+    pub warnings: Vec<String>,
+    pub durability: Durability,
+}
+
+impl Saved {
+    pub fn into_warnings(mut self, path: &Path) -> Vec<String> {
+        self.warnings.extend(self.durability.unconfirmed().map(|reasons| photocraft_format::unconfirmed_warning(path, reasons)));
+        self.warnings
+    }
 }
 
 /// Encode a document for a capability-scoped write. Unlike [`save`], this

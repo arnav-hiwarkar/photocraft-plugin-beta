@@ -1,4 +1,5 @@
 use super::*;
+use std::io::Seek;
 
 fn roots(name: &str) -> (PathBuf, PathBuf, AuthorizedWorkspace) {
     let base = std::env::temp_dir().join(format!("photocraft-workspace-{}-{name}", std::process::id()));
@@ -104,7 +105,7 @@ fn open_pcraft_rejects_non_regular_entries_and_escaping_symlinks() {
 }
 
 fn temp_files(dir: &Path) -> Vec<String> {
-    std::fs::read_dir(dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.ends_with(".tmp")).collect()
+    std::fs::read_dir(dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| craft_atomic::temp_owner(n).is_some()).collect()
 }
 
 #[test]
@@ -398,7 +399,7 @@ fn windows_junction_escape_is_rejected_when_supported() {
 }
 
 /// #10317: below a UNC root (`\\wsl.localhost\...`, any share) `cap-std`'s Windows rename,
-/// remove and mkdir fail with `ERROR_PATH_NOT_FOUND`, so a save left only its `.pcsave.tmp`
+/// remove and mkdir fail with `ERROR_PATH_NOT_FOUND`, so a save left only its temporary file
 /// behind, an export into a new directory failed, and a cancelled export leaked its frames.
 /// There a save still goes through its temporary file and is renamed into place on the
 /// canonical root path below pinned directories, cleanup deletes through handles opened

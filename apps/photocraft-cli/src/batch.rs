@@ -185,7 +185,7 @@ pub(crate) fn batch(a: &BatchArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
     // After the summary, so a log that can't be written doesn't hide the counts.
     if let Some(path) = &a.error_log {
         let bytes = photocraft_engine::file_cmds::encode_batch_error_log(failures.iter().map(|(file, error)| (file.as_str(), error.as_str())));
-        photocraft_format::atomic_write(path, &bytes)?;
+        photocraft_format::write(path, &bytes)?;
     }
     if failed > 0 { Err(CliError::FilesFailed(failed)) } else { Ok(()) }
 }
