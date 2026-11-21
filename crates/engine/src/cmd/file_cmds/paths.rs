@@ -39,10 +39,8 @@ pub(crate) fn read_file_limited(path: &str, _max: u64) -> std::io::Result<Vec<u8
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// Every file the engine writes goes through here: crash-safe (temp file + fsync + rename, see
-/// [`photocraft_format::atomic`]), so a failed save never destroys the previous file.
 pub(crate) fn write_file(path: &str, bytes: &[u8]) -> Result<()> {
-    photocraft_format::atomic_write(std::path::Path::new(path), bytes).map_err(|e| EngineError::Other(e.to_string()))
+    photocraft_format::write(std::path::Path::new(path), bytes).map(drop).map_err(|e| EngineError::Other(e.to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]

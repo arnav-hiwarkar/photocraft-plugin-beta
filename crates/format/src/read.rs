@@ -1,4 +1,4 @@
-//! Reading a whole file to open it: the read side of [`crate::atomic`].
+//! Reading a whole file to open it.
 //!
 //! What it adds over `std::fs::read` for multi-gigabyte PSB files:
 //!

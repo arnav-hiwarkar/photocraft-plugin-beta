@@ -1,17 +1,9 @@
 //! Object storage (ZIP or directory), incremental writer and loader.
 
-#[cfg(all(test, windows))]
-use std::collections::HashSet;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
-#[cfg(all(test, windows))]
-use std::io::Write;
 use std::path::Path;
-#[cfg(any(all(test, not(unix)), all(test, windows)))]
-use std::path::PathBuf;
 use std::sync::{Arc, Weak};
-#[cfg(all(test, windows))]
-use std::time::SystemTime;
 
 use photocraft_color::{PixelFormat, SampleType};
 use photocraft_doc::Document;
@@ -22,12 +14,10 @@ use crate::manifest::{ContentM, FORMAT_VERSION, Hash, LayerM, Manifest};
 #[cfg(test)]
 use crate::zip::ZipReader;
 use crate::{FormatError, LoadOptions, Result, SaveOptions};
-#[cfg(test)]
+#[cfg(all(test, unix))]
 use craft_pcraft_format::is_valid_hash;
 
-#[cfg(all(test, windows))]
-use craft_pcraft_format::SAVE_LOCK;
-#[cfg(test)]
+#[cfg(all(test, unix))]
 use craft_pcraft_format::{BLOBS_DIR, COMPOSITE_DIR, TILES_DIR};
 pub(crate) use craft_pcraft_format::{COMPOSITE, MANIFEST, THUMB};
 use craft_pcraft_format::{blob_path, tile_path};
@@ -39,9 +29,6 @@ const FULL_COMPOSITE_MEMBER: &str = "full_composite";
 /// Bytes a ZIP bundle may hold, central directory included, and entries it may hold: the
 /// format's 32-bit offsets and 16-bit counts.
 const ZIP_LIMIT: (u64, usize) = (u32::MAX as u64, u16::MAX as usize);
-/// How long a directory save waits for another save of the same bundle to finish.
-#[cfg(all(test, windows))]
-const SAVE_LOCK_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Delegates object frame encoding to craft-libs.
 struct ObjectEncoder;
@@ -474,6 +461,7 @@ pub struct SaveStats {
     pub objects_removed: usize,
     /// Bytes of the manifest.
     pub manifest_bytes: usize,
+    pub unconfirmed: Option<craft_atomic::Reason>,
 }
 
 type BlobHashCache = HashMap<usize, (Weak<Vec<u8>>, Hash)>;
@@ -580,13 +568,6 @@ pub struct PcraftWriter {
     compressed: HashMap<String, Arc<Vec<u8>>>,
     compressed_budget: usize,
     directory: craft_pcraft_bundle::DirectoryBundleWriter,
-    #[cfg(all(test, windows))]
-    verified_directory: Option<DirectoryVerificationCache>,
-    #[cfg(all(test, windows))]
-    reverify_budget: u64,
-    /// How long [`Self::save_dir`] waits for another save of the bundle ([`SAVE_LOCK_WAIT`]).
-    #[cfg(all(test, windows))]
-    lock_wait: std::time::Duration,
 }
 
 impl Default for PcraftWriter {
@@ -597,71 +578,8 @@ impl Default for PcraftWriter {
             compressed: HashMap::new(),
             compressed_budget: usize::MAX,
             directory: craft_pcraft_bundle::DirectoryBundleWriter::default(),
-            #[cfg(all(test, windows))]
-            verified_directory: None,
-            #[cfg(all(test, windows))]
-            reverify_budget: DEFAULT_REVERIFY_BUDGET,
-            #[cfg(all(test, windows))]
-            lock_wait: SAVE_LOCK_WAIT,
         }
     }
-}
-
-/// Hold `dir`'s [`SAVE_LOCK`] for a directory save, so two writers (two stores, or two
-/// processes) can't interleave: each lists the existing objects, writes its own, publishes its
-/// manifest and removes what that manifest doesn't reference. Interleaved, one writer's cleanup
-/// could remove an object the other's winning manifest needs (#4957). The lock is the OS's
-/// advisory file lock, released when the returned file is dropped or the process ends, so a
-/// crash leaves no stale lock. Another save holding it is waited for up to `wait`; after that the
-/// save fails without writing anything. A file system without file locks (some network shares)
-/// saves unlocked, as before.
-#[cfg(all(test, windows))]
-fn lock_bundle(dir: &Path, wait: std::time::Duration) -> Result<Option<std::fs::File>> {
-    let path = dir.join(SAVE_LOCK);
-    validate_bundle_file(dir, &path)?;
-    let file = std::fs::OpenOptions::new().read(true).write(true).create(true).truncate(false).open(&path)?;
-    let start = std::time::Instant::now();
-    loop {
-        match file.try_lock() {
-            Ok(()) => return Ok(Some(file)),
-            Err(std::fs::TryLockError::WouldBlock) if start.elapsed() < wait => std::thread::sleep(std::time::Duration::from_millis(20)),
-            Err(std::fs::TryLockError::WouldBlock) => {
-                return Err(FormatError::Io(std::io::Error::new(
-                    std::io::ErrorKind::WouldBlock,
-                    format!("another save of {} is in progress; nothing was written", dir.display()),
-                )));
-            }
-            Err(std::fs::TryLockError::Error(_)) => return Ok(None),
-        }
-    }
-}
-
-#[derive(Default)]
-#[cfg(all(test, windows))]
-struct DirectoryVerificationCache {
-    directory: PathBuf,
-    /// Directory saves so far; an object's `checked_at` is the save that last read it fully.
-    generation: u64,
-    objects: HashMap<String, Verified>,
-}
-
-#[derive(Clone, Copy)]
-#[cfg(all(test, windows))]
-struct Verified {
-    signature: FileSignature,
-    checked_at: u64,
-}
-
-/// What a file looked like when it was verified. Any change means "verify again".
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[cfg(all(test, windows))]
-struct FileSignature {
-    len: u64,
-    modified: SystemTime,
-    /// Inode, device and status-change time (s, ns): an in-place rewrite changes the change
-    /// time even when a tool restores the modification time.
-    #[cfg(unix)]
-    unix: (u64, u64, i64, i64),
 }
 
 struct Prepared {
@@ -713,37 +631,6 @@ impl Object {
     }
 }
 
-/// Whether `compressed` decodes to exactly `expected`.
-#[cfg(all(test, windows))]
-fn content_matches(expected: &[u8], compressed: &[u8], what: &str) -> bool {
-    decompress(compressed, expected.len(), what).is_ok_and(|actual| hash_bytes(&actual) == hash_bytes(expected))
-}
-
-#[cfg(all(test, windows))]
-fn file_signature(metadata: &std::fs::Metadata) -> Option<FileSignature> {
-    #[cfg(unix)]
-    let unix = {
-        use std::os::unix::fs::MetadataExt;
-        (metadata.ino(), metadata.dev(), metadata.ctime(), metadata.ctime_nsec())
-    };
-    Some(FileSignature {
-        len: metadata.len(),
-        modified: metadata.modified().ok()?,
-        #[cfg(unix)]
-        unix,
-    })
-}
-
-#[cfg(all(test, windows))]
-fn path_signature(path: &Path) -> Result<Option<FileSignature>> {
-    match std::fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.is_file() => Ok(file_signature(&metadata)),
-        Ok(_) => Err(unsafe_bundle_entry(path)),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(e.into()),
-    }
-}
-
 fn unsafe_bundle_entry(path: &Path) -> FormatError {
     FormatError::Io(std::io::Error::new(
         std::io::ErrorKind::InvalidData,
@@ -760,172 +647,6 @@ fn plain_file_or_missing(path: &Path) -> Result<()> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(e.into()),
     }
-}
-
-#[cfg(all(test, windows))]
-fn plain_directory_or_missing(path: &Path) -> Result<()> {
-    match std::fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.is_dir() => Ok(()),
-        Ok(_) => Err(FormatError::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("refusing directory bundle save: {} is a symlink or not a directory", path.display()),
-        ))),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e.into()),
-    }
-}
-
-/// Use the canonical root after creation so a later replacement of the caller's path cannot
-/// redirect subsequent bundle operations. The caller may choose a symlinked root, but managed
-/// subdirectories and files below its resolved target must not be symlinks.
-#[cfg(all(test, windows))]
-fn bundle_root(dir: &Path) -> Result<PathBuf> {
-    let dir: PathBuf = dir.components().collect();
-    std::fs::create_dir_all(&dir)?;
-    let root = std::fs::canonicalize(&dir)?;
-    plain_directory_or_missing(&root)?;
-    for sub in [TILES_DIR, BLOBS_DIR, COMPOSITE_DIR] {
-        let path = root.join(sub);
-        plain_directory_or_missing(&path)?;
-        if !path.exists() {
-            match std::fs::create_dir(&path) {
-                Ok(()) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(e) => return Err(e.into()),
-            }
-        }
-        plain_directory_or_missing(&path)?;
-        if std::fs::canonicalize(&path)? != path {
-            return Err(unsafe_bundle_entry(&path));
-        }
-    }
-    Ok(root)
-}
-
-#[cfg(all(test, windows))]
-fn validate_bundle_file(root: &Path, path: &Path) -> Result<()> {
-    let parent = path.parent().ok_or_else(|| unsafe_bundle_entry(path))?;
-    if parent != root && parent != root.join(TILES_DIR) && parent != root.join(BLOBS_DIR) && parent != root.join(COMPOSITE_DIR) {
-        return Err(unsafe_bundle_entry(path));
-    }
-    plain_directory_or_missing(parent)?;
-    if std::fs::canonicalize(parent)? != parent {
-        return Err(unsafe_bundle_entry(parent));
-    }
-    plain_file_or_missing(path)
-}
-
-/// Flush `dir`, the folder `written` was just renamed into, as `atomic_write` does (with the
-/// full-flush fallback of `sync_file`, #1336). Windows flushes through the injected `AtomicFs`
-/// and fails on any error (#7858).
-#[cfg(not(windows))]
-#[cfg(all(test, windows))]
-fn flush_bundle_dir(dir: &Path, written: &Path) -> std::io::Result<()> {
-    use crate::atomic::AtomicFs;
-    #[cfg(test)]
-    {
-        FLUSHED.with(|f| f.borrow_mut().push(dir.to_path_buf()));
-        let named = |p: Option<&Path>, name: &str| p.and_then(Path::file_name).is_some_and(|n| n == name);
-        if FAIL_DIR_FLUSH.with(|f| {
-            let hit = f.get().is_some_and(|name| named(Some(written), name) || named(written.parent(), name));
-            if hit {
-                f.set(None);
-            }
-            hit
-        }) {
-            return Err(std::io::Error::other("injected folder flush failure"));
-        }
-    }
-    let _ = written;
-    crate::atomic::RealFs.sync_dir(dir)
-}
-
-/// [`flush_bundle_dir`], as the save's error when the flush was attempted and failed: `written`
-/// is in place, but may not survive a power loss or crash (#4968).
-#[cfg(not(windows))]
-#[cfg(all(test, windows))]
-fn confirm_flushed(dir: &Path, written: &Path) -> Result<()> {
-    crate::atomic::dir_synced(flush_bundle_dir(dir, written)).map_err(|e| {
-        FormatError::Io(std::io::Error::new(
-            e.kind(),
-            format!("{} was written, but its folder could not be flushed to disk, so the save may not survive a power loss or crash: {e}", written.display()),
-        ))
-    })
-}
-
-/// Publish a validated bundle entry through a flushed temporary file and replacing rename.
-/// On Windows, propagate a failed directory barrier even though the new entry is already visible.
-#[cfg(all(test, windows))]
-fn write_bundle_file(root: &Path, path: &Path, data: &[u8], fs: &dyn crate::atomic::AtomicFs) -> Result<()> {
-    #[cfg(not(windows))]
-    let _ = fs;
-    validate_bundle_file(root, path)?;
-    let parent = path.parent().ok_or_else(|| unsafe_bundle_entry(path))?;
-    let name = path.file_name().ok_or_else(|| unsafe_bundle_entry(path))?;
-    let mut temporary = None;
-    for _ in 0..8 {
-        let candidate = parent.join(crate::atomic::temp_name(&name.to_string_lossy()));
-        let mut opts = std::fs::OpenOptions::new();
-        opts.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            opts.mode(0o600);
-        }
-        match opts.open(&candidate) {
-            Ok(file) => {
-                temporary = Some((candidate, file));
-                break;
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(e) => return Err(e.into()),
-        }
-    }
-    let (tmp, mut file) = temporary.ok_or_else(|| {
-        FormatError::Io(std::io::Error::new(std::io::ErrorKind::AlreadyExists, format!("could not create a temporary file beside {}", path.display())))
-    })?;
-    let result = (|| -> Result<()> {
-        // The parent may have changed between validation and create_new. Check the new file's
-        // resolved location before putting document bytes into it.
-        if std::fs::canonicalize(&tmp)? != tmp {
-            return Err(unsafe_bundle_entry(&tmp));
-        }
-        validate_bundle_file(root, path)?;
-        file.write_all(data)?;
-        file.sync_all()?;
-        // Preserve the existing mode where possible, as the generic atomic writer does: through
-        // the open handle, so a staging entry swapped meanwhile is not what gets the mode.
-        if let Ok(permissions) = std::fs::metadata(path).map(|m| m.permissions()) {
-            let _ = file.set_permissions(permissions);
-        }
-        drop(file);
-        // Recheck the parent and target just before publishing. rename replaces a symlink
-        // itself, never its referent, even if one appears after this check.
-        validate_bundle_file(root, path)?;
-        crate::atomic::retry_rename(crate::atomic::RenameRetry::platform(), || std::fs::rename(&tmp, path))?;
-        #[cfg(windows)]
-        {
-            crate::atomic::dir_synced(fs.sync_dir(parent)).map_err(|e| crate::atomic::publication_error(e, path))?;
-        }
-        // Elsewhere a failed flush is reported too (#4968), but a file system that can't flush a
-        // directory at all still saves, as in `atomic_write`.
-        #[cfg(not(windows))]
-        confirm_flushed(parent, path)?;
-        Ok(())
-    })();
-    if result.is_err() && validate_bundle_file(root, &tmp).is_ok() {
-        let _ = std::fs::remove_file(&tmp);
-    }
-    result
-}
-
-/// Keep the existing leaf/path validation and pin the actual unlink to opened
-/// directory handles on Unix. This closes the check-then-remove path-swap gap.
-#[cfg(all(test, windows))]
-fn remove_bundle_file(root: &Path, path: &Path, gc: &BundleGc) -> Result<()> {
-    validate_bundle_file(root, path)?;
-    let relative = path.strip_prefix(root).map_err(|_| unsafe_bundle_entry(path))?;
-    gc.remove(relative)
 }
 
 #[cfg(unix)]
@@ -985,56 +706,6 @@ impl BundleGc {
     }
 }
 
-#[cfg(not(unix))]
-#[cfg(test)]
-struct BundleGc {
-    root: PathBuf,
-}
-
-#[cfg(not(unix))]
-#[cfg(test)]
-impl BundleGc {
-    fn new(root: &Path) -> Result<Self> {
-        Ok(Self { root: root.to_path_buf() })
-    }
-
-    fn remove(&self, relative: &Path) -> Result<()> {
-        std::fs::remove_file(self.root.join(relative))?;
-        Ok(())
-    }
-}
-
-#[cfg(all(test, windows))]
-fn existing_object_is_valid(path: &Path, object: &Object, what: &str) -> Result<(bool, Option<FileSignature>)> {
-    let mut file = match std::fs::File::open(path) {
-        Ok(file) => file,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok((false, None)),
-        Err(e) => return Err(e.into()),
-    };
-    let metadata = file.metadata()?;
-    if !metadata.is_file() {
-        return Ok((false, None));
-    }
-    let signature = file_signature(&metadata);
-
-    let expected = object.content();
-    let expected_len = expected.len();
-    // This is the same bound used by the tile loader. It comfortably includes
-    // zstd framing overhead while keeping damaged files bounded when inspected.
-    let max_compressed_len = expected_len.saturating_add(expected_len / 8).saturating_add(4096);
-    let max_compressed_len_u64 = u64::try_from(max_compressed_len).unwrap_or(u64::MAX);
-    if metadata.len() > max_compressed_len_u64 {
-        return Ok((false, None));
-    }
-
-    let mut compressed = Vec::new();
-    (&mut file).take(max_compressed_len_u64.saturating_add(1)).read_to_end(&mut compressed)?;
-    if compressed.len() > max_compressed_len {
-        return Ok((false, None));
-    }
-    Ok((content_matches(&expected, &compressed, what), signature))
-}
-
 /// A bundle path and its compressed bytes.
 type Compressed<'a> = (&'a String, Arc<Vec<u8>>);
 
@@ -1081,10 +752,6 @@ impl PcraftWriter {
     /// re-checks (oldest-checked first; at least one object when the budget is non-zero). `0`
     /// trusts unchanged signatures entirely; `u64::MAX` re-verifies everything on every save.
     pub fn set_reverify_budget(&mut self, bytes: u64) {
-        #[cfg(all(test, windows))]
-        {
-            self.reverify_budget = bytes;
-        }
         self.directory.set_reverify_budget(bytes);
     }
 
@@ -1098,10 +765,6 @@ impl PcraftWriter {
     /// How long a directory save waits for another save of the same bundle to finish before
     /// failing without writing anything (10 s by default; see [`Self::save_dir`]).
     pub fn set_lock_wait(&mut self, wait: std::time::Duration) {
-        #[cfg(all(test, windows))]
-        {
-            self.lock_wait = wait;
-        }
         self.directory.set_lock_wait(wait);
     }
 
@@ -1275,157 +938,6 @@ impl PcraftWriter {
         Ok(stats)
     }
 
-    /// The same save path with an injectable publication barrier, for failure/GC ordering tests.
-    #[cfg(all(test, windows))]
-    fn save_dir_with(&mut self, doc: &Document, dir: &Path, opts: &SaveOptions, fs: &dyn crate::atomic::AtomicFs) -> Result<SaveStats> {
-        let scratch_generation = photocraft_raster::spill::read_error_generation();
-        let canonical_dir = bundle_root(dir)?;
-        let dir = canonical_dir.as_path();
-        // Held until the end of the save: listing, writing, publishing and cleanup (#4957).
-        let _lock = lock_bundle(dir, self.lock_wait)?;
-        let existing = list_objects(dir)?;
-        // Reject a hostile existing entry before writing any object or manifest. This also
-        // covers entries that this save would otherwise leave untouched or garbage-collect.
-        for path in [MANIFEST, THUMB, COMPOSITE, FULL_COMPOSITE] {
-            validate_bundle_file(dir, &dir.join(path))?;
-        }
-        let mut p = self.prepare(doc, opts)?;
-        let previews = previews(opts)?;
-        p.match_previews(&previews)?;
-        let mut stats = p.stats;
-        if self.verified_directory.as_ref().is_none_or(|cache| cache.directory != canonical_dir) {
-            self.verified_directory = Some(DirectoryVerificationCache { directory: canonical_dir.clone(), ..Default::default() });
-        }
-        let generation = match &mut self.verified_directory {
-            Some(cache) => {
-                cache.generation = cache.generation.saturating_add(1);
-                cache.generation
-            }
-            None => 0,
-        };
-        let recheck = self.rolling_recheck(&p.objects);
-        let mut compressor: Option<ObjectEncoder> = None;
-        for (path, obj) in &p.objects {
-            let object_path = dir.join(path);
-            // bundle_root and list_objects validated the fixed parent directories once. Check
-            // each leaf here; write_bundle_file rechecks its parent around every mutation.
-            plain_file_or_missing(&object_path)?;
-            let signature = path_signature(&object_path)?;
-            let already_verified = !recheck.contains(path)
-                && signature.is_some_and(|signature| {
-                    self.verified_directory.as_ref().is_some_and(|cache| cache.objects.get(path).is_some_and(|v| v.signature == signature))
-                });
-            if existing.contains(path) && already_verified {
-                if matches!(obj, Object::Tile(..)) {
-                    stats.tiles_reused += 1;
-                }
-                continue;
-            }
-            if existing.contains(path) {
-                let (valid, signature) = existing_object_is_valid(&object_path, obj, path)?;
-                if valid {
-                    if let Some(signature) = signature
-                        && let Some(cache) = &mut self.verified_directory
-                    {
-                        cache.objects.insert(path.clone(), Verified { signature, checked_at: generation });
-                    }
-                    if matches!(obj, Object::Tile(..)) {
-                        stats.tiles_reused += 1;
-                    }
-                    continue;
-                }
-            }
-            match obj {
-                Object::Tile(..) => stats.tiles_written += 1,
-                Object::Blob(_) => stats.blobs_written += 1,
-            }
-            let compressed = obj.compressed(compressor.get_or_insert_with(ObjectEncoder::new));
-            scratch_ok(doc, scratch_generation)?;
-            write_bundle_file(dir, &object_path, &compressed, fs)?;
-            let written = path_signature(&object_path)?;
-            if let Some(cache) = &mut self.verified_directory {
-                match written {
-                    Some(signature) => {
-                        cache.objects.insert(path.clone(), Verified { signature, checked_at: generation });
-                    }
-                    None => {
-                        cache.objects.remove(path);
-                    }
-                }
-            }
-        }
-        for (name, data) in &previews {
-            write_bundle_file(dir, &dir.join(name), data, fs)?;
-        }
-        // Pin all GC directories before removing stale previews or objects.
-        // Unix cleanup then stays within these directories even if a pathname is swapped.
-        let gc = BundleGc::new(dir)?;
-        #[cfg(windows)]
-        {
-            // A previous attempt may have published an object and then failed its directory
-            // flush. The retry can reuse those valid bytes (including cached ones), so flush
-            // both object directories again before publishing a manifest that references them.
-            // This also persists the fixed subdirectories of a newly created bundle.
-            for sub in [TILES_DIR, BLOBS_DIR] {
-                crate::atomic::dir_synced(fs.sync_dir(&dir.join(sub))).map_err(|e| crate::atomic::publication_error(e, &dir.join(sub)))?;
-            }
-        }
-        #[cfg(not(windows))]
-        for sub in [TILES_DIR, BLOBS_DIR] {
-            let folder = dir.join(sub);
-            if folder.is_dir() {
-                confirm_flushed(&folder, &folder)?;
-            }
-        }
-        scratch_ok(doc, scratch_generation)?;
-        write_bundle_file(dir, &dir.join(MANIFEST), &p.manifest, fs)?;
-        // Omitted previews belong to the previous manifest until the new one commits.
-        // After commit, a locked leftover is only housekeeping, just like unused objects.
-        for stale in [THUMB, COMPOSITE, FULL_COMPOSITE] {
-            if !previews.iter().any(|(n, _)| *n == stale) {
-                let _ = remove_bundle_file(dir, &dir.join(stale), &gc);
-            }
-        }
-        // The manifest is committed: the save has succeeded. Removing objects it no longer
-        // references is best-effort housekeeping (a vanished or locked file must not turn a
-        // complete save into a reported failure); a leftover is retried on the next save.
-        for path in existing {
-            if !p.objects.contains_key(&path) {
-                if remove_bundle_file(dir, &dir.join(&path), &gc).is_ok() {
-                    stats.objects_removed += 1;
-                }
-                if let Some(cache) = &mut self.verified_directory {
-                    cache.objects.remove(&path);
-                }
-            }
-        }
-        Ok(stats)
-    }
-
-    /// The cached objects this save re-verifies even though their signature is unchanged:
-    /// oldest-checked first, until their recorded sizes reach the re-verify budget (always at
-    /// least one, so an object larger than the budget is still reached in turn).
-    #[cfg(all(test, windows))]
-    fn rolling_recheck(&self, objects: &BTreeMap<String, Object>) -> HashSet<String> {
-        let mut out = HashSet::new();
-        let Some(cache) = &self.verified_directory else { return out };
-        if self.reverify_budget == 0 {
-            return out;
-        }
-        let mut candidates: Vec<(&String, &Verified)> = cache.objects.iter().filter(|(path, _)| objects.contains_key(*path)).collect();
-        candidates.sort_by(|a, b| a.1.checked_at.cmp(&b.1.checked_at).then_with(|| a.0.cmp(b.0)));
-        let mut spent = 0u64;
-        for (path, verified) in candidates {
-            let next = spent.saturating_add(verified.signature.len);
-            if !out.is_empty() && next > self.reverify_budget {
-                break;
-            }
-            spent = next;
-            out.insert(path.clone());
-        }
-        out
-    }
-
     /// Save to `path`: a directory bundle if `path` is an existing directory
     /// or ends with a path separator, otherwise a ZIP file (written atomically).
     pub fn save_path(&mut self, doc: &Document, path: &Path, opts: &SaveOptions) -> Result<SaveStats> {
@@ -1434,8 +946,7 @@ impl PcraftWriter {
             self.save_dir(doc, path, opts)
         } else {
             let (bytes, stats) = self.save_zip(doc, opts)?;
-            write_atomic(path, &bytes)?;
-            Ok(stats)
+            Ok(SaveStats { unconfirmed: crate::write(path, &bytes)?, ..stats })
         }
     }
 }
@@ -1682,47 +1193,6 @@ fn gc_pinned_directory_handles_resist_subdirectory_swap() {
     assert_eq!(std::fs::read(outside.join(&filename)).unwrap(), b"outside file must survive");
     std::fs::remove_dir_all(root).unwrap();
 }
-
-#[cfg(all(test, windows))]
-fn list_objects(dir: &Path) -> Result<HashSet<String>> {
-    let mut out = HashSet::new();
-    for sub in ["tiles", "blobs"] {
-        let object_dir = dir.join(sub);
-        plain_directory_or_missing(&object_dir)?;
-        if std::fs::canonicalize(&object_dir)? != object_dir {
-            return Err(unsafe_bundle_entry(&object_dir));
-        }
-        let rd = std::fs::read_dir(&object_dir)?;
-        for e in rd {
-            let e = e?;
-            let name = e.file_name().to_string_lossy().into_owned();
-            if name.strip_suffix(".zst").is_some_and(is_valid_hash) {
-                let path = e.path();
-                match std::fs::symlink_metadata(&path) {
-                    Ok(metadata) if metadata.file_type().is_symlink() => return Err(unsafe_bundle_entry(&path)),
-                    Ok(metadata) if metadata.is_file() => {
-                        out.insert(format!("{sub}/{name}"));
-                    }
-                    // Stale directories cannot be removed with remove_file; leave them for later
-                    // cleanup without failing a save of otherwise valid content.
-                    Ok(_) => {}
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                    Err(e) => return Err(e.into()),
-                }
-            }
-        }
-    }
-    Ok(out)
-}
-
-/// Crash-safe replace of one file (see [`crate::atomic`]).
-pub(crate) fn write_atomic(path: &Path, data: &[u8]) -> Result<()> {
-    crate::atomic::atomic_write(path, data)?;
-    Ok(())
-}
-
-#[cfg(all(test, windows))]
-mod durability_tests;
 
 #[cfg(test)]
 #[test]

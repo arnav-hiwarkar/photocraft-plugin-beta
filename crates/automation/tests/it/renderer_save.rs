@@ -281,3 +281,27 @@ fn scaled_preview_fallback_warning_is_drained_and_the_rpc_reply_carries_it() {
     let reply = plain.handle("doc.render", serde_json::json!({"maxSide": 16})).expect("doc.render");
     assert!(reply.get("warnings").is_none(), "{reply}");
 }
+
+#[test]
+fn a_trusted_local_save_reports_the_receipt_and_a_refused_one_keeps_the_old_file() {
+    let dir = std::env::temp_dir().join(format!("photocraft-local-receipt-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    let mut h = Headless::trusted_local();
+    h.session.open_document(Document::with_background("test", Size::new(32, 24), ColorMode::Rgb, SampleType::U8, Color::WHITE), None);
+    for name in ["out.png", "out.pcraft"] {
+        let saved = h.save(None, Some(&dir.join(name)), None, &Default::default()).unwrap();
+        assert_eq!(saved["durability"], "durable", "{name}");
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let target = dir.join("out.png");
+        let before = fs::read(&target).unwrap();
+        fs::set_permissions(&target, fs::Permissions::from_mode(0o444)).unwrap();
+        let error = h.save(None, Some(&target), None, &Default::default()).unwrap_err().to_string();
+        assert!(error.contains("read-only") && error.contains("not changed"), "{error}");
+        assert_eq!(fs::read(&target).unwrap(), before);
+    }
+    let _ = fs::remove_dir_all(&dir);
+}

@@ -35,6 +35,7 @@ photocraft-io = { workspace = true }
 craft-xml = { workspace = true }
 craft-psd = { workspace = true }
 photocraft-format = { workspace = true }
+craft-atomic = { workspace = true }
 photocraft-plugins = { workspace = true }
 base64 = "0.22"
 blake3 = { version = "1.8", default-features = false, features = ["pure"] }

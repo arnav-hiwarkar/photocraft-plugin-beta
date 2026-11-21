@@ -6,7 +6,8 @@ use std::sync::Arc;
 
 use cap_std::ambient_authority;
 use cap_std::fs::{Dir, OpenOptions};
-use photocraft_format::atomic::RenameRetry;
+use craft_atomic::RenameRetry;
+use photocraft_format::durability::Reason;
 use serde_json::Value;
 
 use crate::AutomationError;
@@ -143,12 +144,12 @@ impl AuthorizedWorkspace {
 
     /// Create or replace one file below the configured write root, crash-safely: the bytes go to
     /// a temporary file beside the target, which is synced and renamed over it (the same steps
-    /// as [`photocraft_format::atomic_write`], through the directory capability). On failure
+    /// as `craft_atomic::write`, through the directory capability). On failure
     /// the previous file is untouched and the temporary file is removed.
     ///
     /// Replacing a file carries its extended attributes — macOS Finder tags, Linux `user.*` —
     /// onto the file that takes its place (#7095), through the two open descriptors rather than
-    /// their paths. The rest of what [`photocraft_format::atomic_write`] preserves does not
+    /// their paths. The rest of what `craft_atomic::write` preserves does not
     /// follow: its permission step is tracked in #4963, and the Windows `ReplaceFileW` swap is
     /// path-based, which this path may not use.
     ///
@@ -162,14 +163,14 @@ impl AuthorizedWorkspace {
     /// The parent directory must already exist. `cap-std` performs path
     /// resolution and file creation relative to the held directory handle, so
     /// a non-existent final target is supported without ambient path access.
-    pub fn write(&self, path: &str, bytes: &[u8]) -> Result<(), AutomationError> {
+    pub fn write(&self, path: &str, bytes: &[u8]) -> Result<Option<Reason>, AutomationError> {
         self.write_stream(path, &mut |w| w.write_all(bytes))
     }
 
     /// [`Self::write`] with the file's bytes produced by `write` straight into the temporary
     /// file (it may seek back to patch lengths), so a large PSD/PSB is never held in memory
     /// whole (#5333). The same refusals, the same atomic replace.
-    pub fn write_stream(&self, path: &str, write: &mut photocraft_format::atomic::StreamWriter<'_>) -> Result<(), AutomationError> {
+    pub fn write_stream(&self, path: &str, write: &mut StreamWriter<'_>) -> Result<Option<Reason>, AutomationError> {
         let relative = request_path(path, self.write.as_ref())?;
         let root = self.write.as_ref().ok_or_else(|| AutomationError::BadRequest(format!("{DENIED}: write authority is absent")))?;
         let leaf = relative.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -190,7 +191,7 @@ impl AuthorizedWorkspace {
             )));
         }
         let parent = relative.parent().map(Path::to_path_buf).unwrap_or_default();
-        let tmp = parent.join(photocraft_format::atomic::temp_name(&leaf));
+        let tmp = parent.join(craft_atomic::temp_name(&leaf));
         let mut options = OpenOptions::new();
         options.write(true).create_new(true);
         let opened = root.dir.open_with(&tmp, &options);
@@ -201,36 +202,29 @@ impl AuthorizedWorkspace {
             let mut file = file.into_std();
             write(&mut file)?;
             #[cfg(unix)]
-            {
-                use std::os::fd::AsFd;
-                // Best effort, and only when there is a file being replaced: a save still
-                // succeeds for a document whose Finder tag could not come along.
-                if let Ok(old) = root.dir.open(&relative) {
-                    let old = old.into_std();
-                    let _ = photocraft_format::atomic::meta::copy_xattrs(old.as_fd(), file.as_fd());
-                    // The creation time too (#9388), through the same handles.
-                    let _ = photocraft_format::atomic::meta::copy_created_file(&old, &file);
-                }
+            if let Ok(old) = root.dir.open(&relative) {
+                let old = old.into_std();
+                let _ = craft_atomic::copy_xattrs(&old, &file);
+                let _ = craft_atomic::copy_created(&old, &file);
             }
-            // Falls back to a plain fsync on shares that refuse a full flush (#1336).
-            photocraft_format::atomic::sync_file(&file)
+            craft_atomic::sync_file(&file)
         });
-        let renamed = written.and_then(|()| photocraft_format::atomic::retry_rename(RenameRetry::platform(), || rename_in(root, &tmp, &relative)));
-        if let Err(e) = renamed {
-            return Err(file_error("write", path, e));
-        }
+        let content = match written.and_then(|flush| craft_atomic::retry_rename(RenameRetry::platform(), || rename_in(root, &tmp, &relative)).map(|()| flush)) {
+            Ok(flush) => flush,
+            Err(e) => return Err(file_error("write", path, e)),
+        };
         cleanup.armed = false;
-        // Flush the directory entry (Unix); best effort, the new bytes are already in place.
-        #[cfg(unix)]
-        {
-            let dir = if parent.as_os_str().is_empty() { PathBuf::from(".") } else { parent };
-            if let Ok(d) = root.dir.open(&dir) {
-                let _ = photocraft_format::atomic::sync_file(&d.into_std());
-            }
-        }
-        Ok(())
+        let dir = if parent.as_os_str().is_empty() { PathBuf::from(".") } else { parent };
+        let folder = if cfg!(unix) {
+            root.dir.open(&dir).map(cap_std::fs::File::into_std)
+        } else {
+            Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "a folder reached through a capability cannot be flushed here"))
+        };
+        photocraft_format::settle(Path::new(path), craft_atomic::confirm(&craft_atomic::RealFs, content, folder)).map_err(|e| file_error("write", path, e))
     }
 }
+
+pub type StreamWriter<'a> = dyn FnMut(&mut std::fs::File) -> std::io::Result<()> + 'a;
 
 /// Removes a temporary file on drop unless `armed` was cleared after its rename. The removal
 /// goes through the held directory handle ([`remove_file_in`]), so it works below every root.

@@ -1425,6 +1425,16 @@ dependencies = [
 [[package]]
 name = "craft-atomic"
 version = "0.1.0"
+source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5#65d231ec8e9ce924203a5cdf7a30b101c0334cb5"
+dependencies = [
+ "exacl",
+ "rustix 1.1.5",
+ "winsafe",
+]
+
+[[package]]
+name = "craft-atomic"
+version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
 dependencies = [
  "rustix 1.1.5",
@@ -1531,7 +1541,7 @@ version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
 dependencies = [
  "craft-ai-agents",
- "craft-atomic",
+ "craft-atomic 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-flags",
  "getrandom 0.3.4",
  "log",
@@ -1579,7 +1589,7 @@ version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
 dependencies = [
  "block2 0.6.2",
- "craft-atomic",
+ "craft-atomic 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-behavior",
  "craft-host",
  "craft-i18n",
@@ -1651,7 +1661,7 @@ name = "craft-flags"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
 dependencies = [
- "craft-atomic",
+ "craft-atomic 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "dirs",
  "toml_edit",
 ]
@@ -1696,7 +1706,7 @@ version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
 dependencies = [
  "cap-primitives",
- "craft-atomic",
+ "craft-atomic 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-font-catalog",
  "flate2",
  "log",
@@ -1979,7 +1989,7 @@ version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
 dependencies = [
  "blake3",
- "craft-atomic",
+ "craft-atomic 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-pcraft-format",
  "craft-zip",
  "ruzstd",
@@ -2030,7 +2040,7 @@ dependencies = [
  "async-io",
  "async-process",
  "core-graphics2",
- "craft-atomic",
+ "craft-atomic 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-docpath",
  "craft-host",
  "craft-theme",
@@ -2135,7 +2145,7 @@ name = "craft-settings"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
 dependencies = [
- "craft-atomic",
+ "craft-atomic 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-host",
  "dirs",
  "serde",
@@ -2251,7 +2261,7 @@ name = "craft-theme-store"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
 dependencies = [
- "craft-atomic",
+ "craft-atomic 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-behavior",
  "craft-theme",
  "craft-ui",
@@ -2503,7 +2513,7 @@ name = "craft-window"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
 dependencies = [
- "craft-atomic",
+ "craft-atomic 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-behavior",
  "craft-host",
  "craft-settings",
@@ -6395,6 +6405,7 @@ dependencies = [
  "clap",
  "core-graphics2",
  "craft",
+ "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5)",
  "craft-cms",
  "craft-image-codecs 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-svg 0.1.0 (git+https://github.com/storytold/craft-libs?rev=7b8c1eccea0c695a495ab279c9523e6efcc9b8be)",
@@ -6463,6 +6474,7 @@ dependencies = [
  "cap-std",
  "clap",
  "craft",
+ "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5)",
  "craft-image-codecs 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-psd",
  "getrandom 0.3.4",
@@ -6558,6 +6570,7 @@ dependencies = [
  "chrono",
  "craft",
  "craft-affinity",
+ "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5)",
  "craft-cms",
  "craft-file-formats",
  "craft-image-codecs 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
@@ -6601,12 +6614,12 @@ name = "photocraft-format"
 version = "0.23.1"
 dependencies = [
  "blake3",
+ "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5)",
  "craft-image-codecs 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-pcraft-bundle",
  "craft-pcraft-format",
  "craft-zip",
  "crc32fast",
- "exacl",
  "flate2",
  "libc",
  "photocraft-color",
@@ -6619,7 +6632,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
- "winsafe",
 ]
 
 [[package]]

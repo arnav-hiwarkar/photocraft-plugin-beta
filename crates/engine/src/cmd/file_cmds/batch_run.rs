@@ -438,11 +438,16 @@ fn save_unique_output(out: &str, bytes: &[u8]) -> Result<PublishedOutput> {
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             Err(error) => return Err(EngineError::Other(format!("{candidate}: {error}"))),
         }
-        match photocraft_format::write_noreplace(path, bytes) {
-            Ok(()) => return Ok(PublishedOutput { path: candidate, warning: None }),
-            Err(error) if error.published => return Ok(PublishedOutput { path: candidate, warning: Some(error.to_string()) }),
-            Err(error) if error.error.kind() == ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(EngineError::Other(format!("{candidate}: {error}"))),
+        match craft_atomic::write_new(path, bytes) {
+            craft_atomic::Receipt::Durable => return Ok(PublishedOutput { path: candidate, warning: None }),
+            craft_atomic::Receipt::VisibleUnconfirmed(unconfirmed) => {
+                let warning = Some(format!("{candidate}: {unconfirmed}"));
+                return Ok(PublishedOutput { path: candidate, warning });
+            }
+            craft_atomic::Receipt::Unchanged(error) if error.kind() == ErrorKind::AlreadyExists => {}
+            craft_atomic::Receipt::Unchanged(error) | craft_atomic::Receipt::Displaced { error, .. } => {
+                return Err(EngineError::Other(format!("{candidate}: {error}")));
+            }
         }
     }
     Err(EngineError::Other(format!("{out}: no free output name through suffix _100000")))

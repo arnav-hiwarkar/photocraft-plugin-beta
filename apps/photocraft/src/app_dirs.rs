@@ -220,7 +220,7 @@ fn adopt_locked(legacy: &Path, dir: &Path) -> PathBuf {
 }
 
 /// Move each autosave of `from` into `to` (both folders): bundle first, then sidecar, skipped if
-/// `to` has either part. Temp files of an interrupted write (`photocraft_format::atomic`) go
+/// `to` has either part. Temp files of an interrupted write (`craft_atomic::temp_owner`) go
 /// along too, for the recovery store's startup sweep there.
 fn move_entries(from: &Path, to: &Path) {
     let Ok(entries) = std::fs::read_dir(from) else { return };
@@ -243,7 +243,7 @@ fn move_entries(from: &Path, to: &Path) {
             }
         }
     }
-    for name in names.iter().filter(|n| n.ends_with(".pcsave.tmp")) {
+    for name in names.iter().filter(|n| craft_atomic::temp_owner(n).is_some()) {
         let _ = move_path(&from.join(name), &to.join(name));
     }
 }
