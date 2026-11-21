@@ -367,6 +367,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: list,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "style.presets.apply",
@@ -377,6 +378,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             run: apply,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "style.presets.new",
@@ -387,6 +389,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             run: new_preset,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "style.presets.edit",
@@ -397,6 +400,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: edit,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "style.presets.reset",
@@ -407,6 +411,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: reset,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

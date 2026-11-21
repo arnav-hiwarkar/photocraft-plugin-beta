@@ -1151,6 +1151,7 @@ macro_rules! style_cmd {
             enabled: has_layer,
             run: |s, p| set_effect(s, p, $kind),
             journal: true,
+            declared: crate::Declared::COMMAND,
         }
     };
 }
@@ -1213,6 +1214,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             run: replace_effects,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.layerStyle.makeDefault",
@@ -1223,6 +1225,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: make_default,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.layerStyle.defaultFor",
@@ -1233,6 +1236,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: default_for,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.layerStyle.clear",
@@ -1256,6 +1260,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(Value::Null)
             },
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

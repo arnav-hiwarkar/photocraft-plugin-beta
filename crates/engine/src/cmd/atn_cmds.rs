@@ -140,6 +140,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: crate::actions_edit_cmds::library_change_enabled,
             run: files::replace,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.load",
@@ -150,6 +151,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: load,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.save",
@@ -160,6 +162,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: save,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: STOP_MESSAGE,
@@ -170,6 +173,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: stop_message,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: MENU_ITEM,
@@ -180,6 +184,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: menu_item::run,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: PHOTOSHOP_STEP,
@@ -190,6 +195,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: photoshop_step_run,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

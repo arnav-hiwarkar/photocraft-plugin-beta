@@ -228,6 +228,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: |s, _| Ok(json!({"presets": s.presets.export_presets})),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "file.export.presets.get",
@@ -238,6 +239,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: get,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "file.export.presets.save",
@@ -248,6 +250,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: save,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "file.export.presets.delete",
@@ -258,6 +261,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: delete,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "file.export.presets.rename",
@@ -268,6 +272,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: rename,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

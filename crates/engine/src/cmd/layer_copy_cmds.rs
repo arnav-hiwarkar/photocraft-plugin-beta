@@ -429,6 +429,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled,
         run: copy_to_document,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

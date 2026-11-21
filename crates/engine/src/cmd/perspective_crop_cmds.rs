@@ -301,6 +301,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: has_doc,
         run: perspective_crop,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

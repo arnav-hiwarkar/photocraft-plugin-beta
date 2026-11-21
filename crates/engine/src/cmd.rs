@@ -11,7 +11,7 @@ use crate::{EngineError, Result, Session, inspect, pixels};
 
 macro_rules! cmd {
     ($id:literal, $label:literal, [$($m:literal),*], $sc:expr, $params:literal, $en:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: $sc, params: $params, enabled: $en, run: $run, journal: true }
+        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: $sc, params: $params, enabled: $en, run: $run, journal: true, declared: crate::Declared::COMMAND }
     };
 }
 
@@ -167,7 +167,7 @@ pub(crate) use params::{check_f32_values, cmyk_param, color_param, int, int_i32,
 pub use photocraft_color::blend::parse_blend;
 
 pub use crate::install::{command_specs, find};
-pub use crate::registry::{CommandSpec, list_entry, list_entry_matches, search_keywords};
+pub use crate::registry::{CommandSpec, ContextInputs, Declared, Preview, Role, list_entry, list_entry_matches, search_keywords};
 
 #[cfg(test)]
 mod set_props_tests {

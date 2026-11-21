@@ -347,7 +347,7 @@ fn export_import(s: &mut Session, p: &Value) -> Result<Value> {
 
 macro_rules! spec {
     ($id:literal, $label:literal, [$($m:literal),*], $sc:expr, $params:literal, $en:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: $sc, params: $params, enabled: $en, run: $run, journal: true }
+        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: $sc, params: $params, enabled: $en, run: $run, journal: true, declared: crate::Declared::COMMAND }
     };
 }
 
@@ -390,15 +390,18 @@ pub fn specs() -> Vec<CommandSpec> {
             json!({"purged": [], "bytes": 0, "message": "nothing to purge (no video layers)"})
         )),
         spec!("edit.purge.all", "All", ["Edit", "Purge"], None, "{}", can_purge_all, |s, _| purge(s, "all")),
-        spec!(
-            "edit.contentAwareFill",
-            "Content-Aware Fill…",
-            ["Edit"],
-            None,
-            r##"{"sampling":"auto|rectangular|custom","margin":px?,"area":[x,y,w,h]?,"channel":index|name?,"samplingStrokes":[{"mode":"add|subtract","size":px,"points":[[x,y],…]}]? (the workspace's Sampling Brush, after the sampling option's area; added strokes may lie outside the window),"fillEdits":[{"op":"new|add|subtract|intersect","points":[[x,y],…]}|{"op":"expand|contract","by":px}]? (the workspace's lasso edits of the fill area, in order),"sampleAllLayers":bool=false,"colorAdaptation":"default|none|high|veryHigh","rotationAdaptation":"none|low|medium|high|full","scale":bool=false,"mirror":bool=false,"output":"current|new|duplicate","layer":id|name?=active (the layer filled and sampled),"seed":u64=1}"##,
-            can_caf,
-            content_aware_fill
-        ),
+        CommandSpec {
+            declared: crate::Declared::COMMAND.preview(crate::Preview::FullResolution),
+            ..spec!(
+                "edit.contentAwareFill",
+                "Content-Aware Fill…",
+                ["Edit"],
+                None,
+                r##"{"sampling":"auto|rectangular|custom","margin":px?,"area":[x,y,w,h]?,"channel":index|name?,"samplingStrokes":[{"mode":"add|subtract","size":px,"points":[[x,y],…]}]? (the workspace's Sampling Brush, after the sampling option's area; added strokes may lie outside the window),"fillEdits":[{"op":"new|add|subtract|intersect","points":[[x,y],…]}|{"op":"expand|contract","by":px}]? (the workspace's lasso edits of the fill area, in order),"sampleAllLayers":bool=false,"colorAdaptation":"default|none|high|veryHigh","rotationAdaptation":"none|low|medium|high|full","scale":bool=false,"mirror":bool=false,"output":"current|new|duplicate","layer":id|name?=active (the layer filled and sampled),"seed":u64=1}"##,
+                can_caf,
+                content_aware_fill
+            )
+        },
         spec!("edit.deleteAndFillSelection", "Delete and Fill Selection", [], None, "{}", can_caf, delete_and_fill),
         spec!(
             "edit.contentAwareScale",

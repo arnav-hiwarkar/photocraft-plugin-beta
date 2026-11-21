@@ -10,7 +10,7 @@
 use photocraft_algo::{FilterParams, GalleryEffect, GalleryFilter, GalleryParamKind};
 use serde_json::{Map, Value, json};
 
-use crate::commands::CommandSpec;
+use crate::commands::{CommandSpec, ContextInputs, Declared, Preview};
 use crate::{EngineError, Result, Session};
 
 /// Straight RGBA colour from `[r, g, b(, a)]` (0–1) or `#rrggbb`.
@@ -123,11 +123,6 @@ fn check_choices(f: GalleryFilter, p: &Value) -> std::result::Result<(), String>
     Ok(())
 }
 
-/// Whether the command reads the foreground/background colours.
-pub(crate) fn uses_colours(id: &str) -> bool {
-    id == "filter.filterGallery" || id.strip_prefix("filter.gallery.").and_then(GalleryFilter::from_key).is_some_and(GalleryFilter::uses_colours)
-}
-
 /// The gallery catalogue for dialogs and agents: categories, filters and parameter notation.
 pub fn catalogue() -> Value {
     let filters: Vec<Value> = GalleryFilter::ALL
@@ -153,6 +148,11 @@ fn run_gallery(s: &mut Session, p: &Value) -> Result<Value> {
     crate::filters::run_filter(s, "filter.filterGallery", &Value::Object(q))
 }
 
+fn declared(f: GalleryFilter) -> Declared {
+    let context = if f.uses_colours() { ContextInputs::Colours } else { ContextInputs::None };
+    Declared::FILTER.preview(Preview::FullResolution).context(context)
+}
+
 macro_rules! gallery_specs {
     ($($v:ident),* $(,)?) => {
         vec![$(
@@ -165,6 +165,7 @@ macro_rules! gallery_specs {
                 enabled: crate::filters::has_filterable_layer,
                 run: |s, p| crate::filters::run_filter(s, GalleryFilter::$v.command_id(), p),
                 journal: true,
+                declared: declared(GalleryFilter::$v),
             }
         ),*]
     };
@@ -181,6 +182,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: crate::filters::has_filterable_layer,
         run: run_gallery,
         journal: true,
+        declared: Declared::FILTER.context(ContextInputs::Colours),
     }];
     v.extend(gallery_specs![
         ColoredPencil,

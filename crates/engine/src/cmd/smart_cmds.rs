@@ -182,7 +182,17 @@ fn convertible_to_smart(s: &Session) -> std::result::Result<(), String> {
 
 macro_rules! spec {
     ($id:literal, $label:literal, $menu:expr, $params:literal, $en:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: $menu, shortcut: None, params: $params, enabled: $en, run: $run, journal: true }
+        CommandSpec {
+            id: $id,
+            label: $label,
+            menu: $menu,
+            shortcut: None,
+            params: $params,
+            enabled: $en,
+            run: $run,
+            journal: true,
+            declared: crate::Declared::COMMAND,
+        }
     };
 }
 

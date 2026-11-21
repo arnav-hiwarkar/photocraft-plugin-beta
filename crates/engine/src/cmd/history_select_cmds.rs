@@ -98,6 +98,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: can_select,
         run: select_state,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

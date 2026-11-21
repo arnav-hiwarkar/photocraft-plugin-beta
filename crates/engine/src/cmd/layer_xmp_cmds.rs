@@ -93,6 +93,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled,
         run: xmp_metadata,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

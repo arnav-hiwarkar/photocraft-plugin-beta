@@ -183,6 +183,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: |_| Ok(()),
         run: list,
         journal: false,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

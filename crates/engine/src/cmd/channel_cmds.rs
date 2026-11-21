@@ -109,7 +109,7 @@ fn list(s: &Session) -> Value {
 
 macro_rules! spec {
     ($id:literal, $label:literal, [$($m:literal),*], $sc:expr, $params:literal, $en:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: $sc, params: $params, enabled: $en, run: $run, journal: true }
+        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: $sc, params: $params, enabled: $en, run: $run, journal: true, declared: crate::Declared::COMMAND }
     };
 }
 
@@ -264,6 +264,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: |s, _| Ok(list(s)),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         spec!("channel.target.composite", "Target Composite Channel", [], Some("Cmd+2"), "{}", has_doc, |s, _| target_slot(s, 2)),
         // ⌘\ targets the active layer's mask, as clicking its thumbnail does.

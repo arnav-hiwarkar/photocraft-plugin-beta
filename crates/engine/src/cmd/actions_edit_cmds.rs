@@ -377,6 +377,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: library_commands::enabled,
             run: library_commands::clear,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.reset",
@@ -387,6 +388,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: library_commands::enabled,
             run: library_commands::reset,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.undoLibrary",
@@ -397,6 +399,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: library_commands::undo_enabled,
             run: library_commands::undo,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.insertMenuItem",
@@ -407,6 +410,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: insert_menu_item,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.insertPath",
@@ -417,6 +421,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: insert_path::run,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.allowToolRecording",
@@ -427,6 +432,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: allow_tool_recording,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.recordAgain",
@@ -437,6 +443,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: record_again::run,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.duplicate",
@@ -447,6 +454,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: duplicate,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.insert",
@@ -457,6 +465,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: insert,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.dialog",
@@ -467,6 +476,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: dialog,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.conditional",
@@ -477,6 +487,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: conditional,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.assignSet",
@@ -487,6 +498,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: assign_set,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.newSet",
@@ -497,6 +509,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: new_set,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

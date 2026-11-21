@@ -236,6 +236,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: select_sky,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "select.isolateLayers",
@@ -246,6 +247,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             run: isolate_layers,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "select.transformSelection",
@@ -256,6 +258,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_selection,
             run: transform_selection,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

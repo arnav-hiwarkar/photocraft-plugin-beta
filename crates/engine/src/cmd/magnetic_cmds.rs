@@ -197,6 +197,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: has_doc,
         run: magnetic_lasso,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

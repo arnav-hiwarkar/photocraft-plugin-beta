@@ -551,6 +551,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: list,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "cloneSource.select",
@@ -561,6 +562,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: select,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "cloneSource.set",
@@ -571,6 +573,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: set,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "cloneSource.resetTransform",
@@ -581,6 +584,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: reset_transform,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "cloneSource.overlay",
@@ -591,6 +595,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: overlay,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

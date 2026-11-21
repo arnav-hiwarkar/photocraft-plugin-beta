@@ -17,7 +17,7 @@ use photocraft_doc::{Document, Layer};
 use photocraft_geom::Rect;
 use serde_json::{Value, json};
 
-use crate::commands::CommandSpec;
+use crate::commands::{CommandSpec, ContextInputs, Declared, Preview};
 use crate::{EngineError, Result, Session};
 
 fn f(p: &Value, k: &str, d: f32) -> f32 {
@@ -474,18 +474,12 @@ fn custom(p: &Value) -> FilterParams {
     }
 }
 
-/// Ids whose rendering uses the foreground/background colours.
-fn uses_colours(id: &str) -> bool {
-    matches!(id, "filter.render.clouds" | "filter.render.differenceClouds" | "filter.render.fibers" | "filter.stylize.tiles" | "filter.pixelate.pointillize")
-        || crate::gallery_cmds::uses_colours(id)
-}
-
 /// Fills in session state a filter reads (the current colours) as explicit params, so the
 /// recorded params (journal, smart filters) reproduce the result.
 pub(crate) fn prepare(s: &Session, id: &str, p: &Value) -> Value {
     let mut out = if p.is_object() { p.clone() } else { json!({}) };
     let _ = resolve_shape_path(s, id, &mut out);
-    if uses_colours(id)
+    if crate::install::find(id).is_some_and(|c| c.declared.context == ContextInputs::Colours)
         && let Value::Object(m) = &mut out
     {
         m.entry("foreground").or_insert_with(|| json!(s.tools.foreground));
@@ -697,7 +691,7 @@ fn run_relight(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 macro_rules! cmd {
-    ($id:literal, $label:literal, [$($m:literal),*], $params:literal) => {
+    ($id:literal, $label:literal, [$($m:literal),*], $params:literal $(, $($modifier:ident($($arg:expr),*)).+)?) => {
         CommandSpec {
             id: $id,
             label: $label,
@@ -707,6 +701,7 @@ macro_rules! cmd {
             enabled: crate::filters::has_filterable_layer,
             run: |s, p| crate::filters::run_filter(s, $id, p),
             journal: true,
+            declared: Declared::FILTER $($(.$modifier($($arg),*))+)?,
         }
     };
 }
@@ -728,31 +723,59 @@ pub fn specs() -> Vec<CommandSpec> {
             "filter.pixelate.mezzotint",
             "Mezzotint…",
             ["Filter", "Pixelate"],
-            r##"{"type":"fineDots|mediumDots|grainyDots|coarseDots|shortLines|mediumLines|longLines|shortStrokes|mediumStrokes|longStrokes","seed":u32=0}"##
+            r##"{"type":"fineDots|mediumDots|grainyDots|coarseDots|shortLines|mediumLines|longLines|shortStrokes|mediumStrokes|longStrokes","seed":u32=0}"##,
+            preview(Preview::FullResolution)
         ),
-        cmd!("filter.pixelate.pointillize", "Pointillize…", ["Filter", "Pixelate"], r##"{"cellSize":3..300=5,"seed":u32=0,"background":json}"##),
+        cmd!(
+            "filter.pixelate.pointillize",
+            "Pointillize…",
+            ["Filter", "Pixelate"],
+            r##"{"cellSize":3..300=5,"seed":u32=0,"background":json}"##,
+            context(ContextInputs::Colours)
+        ),
         // Stylize
-        cmd!("filter.stylize.diffuse", "Diffuse…", ["Filter", "Stylize"], r##"{"mode":"normal|darkenOnly|lightenOnly|anisotropic","seed":u32=0}"##),
+        cmd!(
+            "filter.stylize.diffuse",
+            "Diffuse…",
+            ["Filter", "Stylize"],
+            r##"{"mode":"normal|darkenOnly|lightenOnly|anisotropic","seed":u32=0}"##,
+            preview(Preview::FullResolution)
+        ),
         cmd!(
             "filter.stylize.extrude",
             "Extrude…",
             ["Filter", "Stylize"],
-            r##"{"type":"blocks|pyramids","size":2..255=30,"depth":1..255=30,"depthMode":"random|levelBased","solidFrontFaces":bool,"maskIncompleteBlocks":bool,"seed":u32=0}"##
+            r##"{"type":"blocks|pyramids","size":2..255=30,"depth":1..255=30,"depthMode":"random|levelBased","solidFrontFaces":bool,"maskIncompleteBlocks":bool,"seed":u32=0}"##,
+            preview(Preview::FullResolution)
         ),
         cmd!(
             "filter.stylize.oilPaint",
             "Oil Paint…",
             ["Filter", "Stylize"],
-            r##"{"stylization":0.1..10=4,"cleanliness":0..10=5,"scale":0.1..10=1,"bristleDetail":0..10=5,"lighting":bool=true,"angle":-180..180=-60,"shine":0..10=1}"##
+            r##"{"stylization":0.1..10=4,"cleanliness":0..10=5,"scale":0.1..10=1,"bristleDetail":0..10=5,"lighting":bool=true,"angle":-180..180=-60,"shine":0..10=1}"##,
+            preview(Preview::FullResolution).direction("angle")
         ),
         cmd!(
             "filter.stylize.tiles",
             "Tiles…",
             ["Filter", "Stylize"],
-            r##"{"count":1..99=10,"maxOffset":1..99=10,"fill":"background|foreground|inverse|unaltered","seed":u32=0,"foreground":json,"background":json}"##
+            r##"{"count":1..99=10,"maxOffset":1..99=10,"fill":"background|foreground|inverse|unaltered","seed":u32=0,"foreground":json,"background":json}"##,
+            context(ContextInputs::Colours)
         ),
-        cmd!("filter.stylize.traceContour", "Trace Contour…", ["Filter", "Stylize"], r##"{"level":0..255=128,"edge":"lower|upper"}"##),
-        cmd!("filter.stylize.wind", "Wind…", ["Filter", "Stylize"], r##"{"method":"wind|blast|stagger","direction":"fromRight|fromLeft","seed":u32=0}"##),
+        cmd!(
+            "filter.stylize.traceContour",
+            "Trace Contour…",
+            ["Filter", "Stylize"],
+            r##"{"level":0..255=128,"edge":"lower|upper"}"##,
+            preview(Preview::FullResolution)
+        ),
+        cmd!(
+            "filter.stylize.wind",
+            "Wind…",
+            ["Filter", "Stylize"],
+            r##"{"method":"wind|blast|stagger","direction":"fromRight|fromLeft","seed":u32=0}"##,
+            preview(Preview::FullResolution)
+        ),
         // Distort
         cmd!(
             "filter.distort.displace",
@@ -768,13 +791,26 @@ pub fn specs() -> Vec<CommandSpec> {
             r##"{"amount":-100..100=10,"ridges":0..20=5,"style":"pondRipples|outFromCenter|aroundCenter"}"##
         ),
         // Render
-        cmd!("filter.render.clouds", "Clouds", ["Filter", "Render"], r##"{"seed":u32=0,"foreground":json,"background":json}"##),
-        cmd!("filter.render.differenceClouds", "Difference Clouds", ["Filter", "Render"], r##"{"seed":u32=0,"foreground":json,"background":json}"##),
+        cmd!(
+            "filter.render.clouds",
+            "Clouds",
+            ["Filter", "Render"],
+            r##"{"seed":u32=0,"foreground":json,"background":json}"##,
+            context(ContextInputs::Colours)
+        ),
+        cmd!(
+            "filter.render.differenceClouds",
+            "Difference Clouds",
+            ["Filter", "Render"],
+            r##"{"seed":u32=0,"foreground":json,"background":json}"##,
+            context(ContextInputs::Colours)
+        ),
         cmd!(
             "filter.render.fibers",
             "Fibers…",
             ["Filter", "Render"],
-            r##"{"variance":1..64=16,"strength":1..64=4,"seed":u32=0,"foreground":json,"background":json}"##
+            r##"{"variance":1..64=16,"strength":1..64=4,"seed":u32=0,"foreground":json,"background":json}"##,
+            preview(Preview::FullResolution).context(ContextInputs::Colours)
         ),
         cmd!(
             "filter.render.lensFlare",
@@ -786,7 +822,8 @@ pub fn specs() -> Vec<CommandSpec> {
             "filter.render.lightingEffects",
             "Lighting Effects…",
             ["Filter", "Render"],
-            r##"{"lightType":"spot|point|infinite","intensity":-100..100=75,"lightX":0..1=0.25,"lightY":0..1=0.2,"lightZ":0..2=0.6,"targetX":0..1=0.5,"targetY":0..1=0.55,"cone":1..89=45,"hotspot":0..100=50,"angle":-180..180=135,"elevation":0..90=45,"gloss":-100..100=0,"metallic":-100..100=0,"exposure":-100..100=0,"ambience":-100..100=8,"texture":"none|red|green|blue|alpha|luminance","height":0..100=50,"whiteIsHigh":bool=true,"lights":json}"##
+            r##"{"lightType":"spot|point|infinite","intensity":-100..100=75,"lightX":0..1=0.25,"lightY":0..1=0.2,"lightZ":0..2=0.6,"targetX":0..1=0.5,"targetY":0..1=0.55,"cone":1..89=45,"hotspot":0..100=50,"angle":-180..180=135,"elevation":0..90=45,"gloss":-100..100=0,"metallic":-100..100=0,"exposure":-100..100=0,"ambience":-100..100=8,"texture":"none|red|green|blue|alpha|luminance","height":0..100=50,"whiteIsHigh":bool=true,"lights":json}"##,
+            direction("angle")
         ),
         CommandSpec {
             id: "filter.render.relight",
@@ -797,13 +834,15 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: relight_enabled,
             run: run_relight,
             journal: true,
+            declared: Declared::FILTER.direction("angle"),
         },
         // Noise
         cmd!(
             "filter.noise.reduceNoise",
             "Reduce Noise…",
             ["Filter", "Noise"],
-            r##"{"strength":0..10=6,"preserveDetails":0..100=60,"reduceColorNoise":0..100=45,"sharpenDetails":0..100=25,"removeJpegArtifact":bool}"##
+            r##"{"strength":0..10=6,"preserveDetails":0..100=60,"reduceColorNoise":0..100=45,"sharpenDetails":0..100=25,"removeJpegArtifact":bool}"##,
+            preview(Preview::FullResolution)
         ),
         // Blur
         cmd!(
@@ -856,14 +895,21 @@ pub fn specs() -> Vec<CommandSpec> {
             r##"{"speed":0..500=50,"taper":0..100=0,"startX":0..1=0.2,"startY":0..1=0.5,"endX":0..1=0.8,"endY":0..1=0.5,"paths":json}"##
         ),
         // Other
-        cmd!("filter.other.custom", "Custom…", ["Filter", "Other"], r##"{"kernel":int[25],"scale":1..9999=1,"offset":-9999..9999=0}"##),
+        cmd!(
+            "filter.other.custom",
+            "Custom…",
+            ["Filter", "Other"],
+            r##"{"kernel":int[25],"scale":1..9999=1,"offset":-9999..9999=0}"##,
+            preview(Preview::FullResolution)
+        ),
         cmd!("filter.other.hsbHsl", "HSB/HSL", ["Filter", "Other"], r##"{"inputMode":"rgb|hsb|hsl","rowOrder":"hsb|hsl|rgb"}"##),
         // Video
         cmd!(
             "filter.video.deInterlace",
             "De-Interlace…",
             ["Filter", "Video"],
-            r##"{"eliminate":"oddFields|evenFields","createBy":"interpolation|duplication"}"##
+            r##"{"eliminate":"oddFields|evenFields","createBy":"interpolation|duplication"}"##,
+            preview(Preview::FullResolution)
         ),
         cmd!("filter.video.ntscColors", "NTSC Colors", ["Filter", "Video"], "{}"),
     ]

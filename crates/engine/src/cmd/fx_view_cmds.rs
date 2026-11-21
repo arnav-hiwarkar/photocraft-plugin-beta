@@ -79,6 +79,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: has_effects,
         run: set_expanded,
         journal: false,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

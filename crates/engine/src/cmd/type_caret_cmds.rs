@@ -204,6 +204,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: false,
             run: |s, p| hit_test(s, p),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "type.caret",
@@ -214,6 +215,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: false,
             run: |s, p| caret(s, p),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "type.navigate",
@@ -224,6 +226,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: false,
             run: |s, p| navigate(s, p),
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

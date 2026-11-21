@@ -306,6 +306,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: has_layer,
         run: vanishing_point,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

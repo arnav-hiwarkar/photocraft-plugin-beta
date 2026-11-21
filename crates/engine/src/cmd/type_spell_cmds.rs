@@ -296,6 +296,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: crate::commands::has_doc,
             journal: true,
             run: check_spelling,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "type.insertText",
@@ -306,6 +307,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_text_layer,
             journal: true,
             run: insert_text,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

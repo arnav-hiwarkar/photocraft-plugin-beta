@@ -1284,6 +1284,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: set_history,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.setPlayback",
@@ -1294,6 +1295,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: set_playback,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.move",
@@ -1304,6 +1306,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: move_item,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.list",
@@ -1314,6 +1317,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: list,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.get",
@@ -1324,6 +1328,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: get,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.record",
@@ -1334,6 +1339,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: record,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.stop",
@@ -1344,6 +1350,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: stop,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.play",
@@ -1354,6 +1361,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: play,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.delete",
@@ -1364,6 +1372,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: delete,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.toggle",
@@ -1374,6 +1383,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: toggle,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.rename",
@@ -1384,6 +1394,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: rename,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "actions.setColor",
@@ -1394,6 +1405,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: set_color,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

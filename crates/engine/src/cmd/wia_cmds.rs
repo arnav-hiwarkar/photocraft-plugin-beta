@@ -31,6 +31,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: |_s| Ok(()),
         journal: false,
         run: |s, p| wia(s, p),
+        declared: crate::Declared::COMMAND,
     }]
 }
 

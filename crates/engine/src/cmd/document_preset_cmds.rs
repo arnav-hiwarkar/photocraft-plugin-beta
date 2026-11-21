@@ -337,6 +337,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: |s, _| Ok(json!({"presets":s.presets.documents})),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.presets.get",
@@ -347,6 +348,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: get,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.presets.save",
@@ -357,6 +359,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: save,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.presets.delete",
@@ -367,6 +370,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: delete,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.presets.rename",
@@ -377,6 +381,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: rename,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.recent.list",
@@ -387,6 +392,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: |s, _| Ok(json!({"recent":s.presets.recent_documents})),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.recent.add",
@@ -398,6 +404,7 @@ pub fn specs() -> Vec<CommandSpec> {
             run: add_recent,
             // Bookkeeping for File › New, not an editing step an action should replay.
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

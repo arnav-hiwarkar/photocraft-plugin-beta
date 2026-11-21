@@ -1042,6 +1042,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 }
                 Ok(out)
             },
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "type.edit",
@@ -1167,6 +1168,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 })?;
                 info(s, &json!({ "layer": id.0 }))
             },
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "type.setStyle",
@@ -1203,6 +1205,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 let id = ids.first().ok_or_else(|| EngineError::Other("select a type layer".into()))?;
                 info(s, &json!({ "layer": id.0 }))
             },
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "type.rasterize",
@@ -1231,6 +1234,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 })?;
                 Ok(json!({ "layer": id.0 }))
             },
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "type.info",
@@ -1241,6 +1245,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: false,
             run: |s, p| info(s, p),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "type.fonts",
@@ -1260,6 +1265,7 @@ pub fn specs() -> Vec<CommandSpec> {
                     None => Ok(json!({ "families": eng.fonts.families() })),
                 }
             },
+            declared: crate::Declared::COMMAND,
         },
         size_key("type.increaseSize", "Increase Type Size", "Cmd+Shift+.", |s, p| step_size(s, p, true, 2.0)),
         size_key("type.decreaseSize", "Decrease Type Size", "Cmd+Shift+,", |s, p| step_size(s, p, false, 2.0)),
@@ -1287,6 +1293,7 @@ fn size_key(id: &'static str, label: &'static str, shortcut: &'static str, run: 
         enabled: has_type_layer,
         journal: true,
         run,
+        declared: crate::Declared::COMMAND,
     }
 }
 

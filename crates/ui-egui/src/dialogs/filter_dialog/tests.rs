@@ -142,7 +142,14 @@ fn only_direction_angles_get_the_dial() {
         let spec = photocraft_engine::commands::find(cmd).unwrap_or_else(|| panic!("{cmd} is not a command")).params;
         params(&mut app, cmd, spec).iter().any(|p| p.key == "angle" && matches!(p.kind, ParamKind::Angle { .. }))
     };
-    for cmd in ANGLE_DIAL {
+    for cmd in [
+        "filter.blur.motionBlur",
+        "filter.stylize.emboss",
+        "filter.stylize.oilPaint",
+        "filter.render.lightingEffects",
+        "filter.render.relight",
+        "layer.layerStyle.globalLight",
+    ] {
         assert!(has_dial(cmd), "{cmd} has no angle dial");
     }
     // Rotation amounts and angles with another zero keep their slider.

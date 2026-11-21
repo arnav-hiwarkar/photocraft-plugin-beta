@@ -18,6 +18,7 @@ use craft::ui::runtime::env::{Label, UnitKind};
 use craft::ui::runtime::requests::PathKind;
 use photocraft_doc::Document;
 use photocraft_engine::color_cmds::ColorSettings;
+use photocraft_engine::commands::Preview;
 use serde_json::{Map, Value, json};
 
 use crate::PhotocraftApp;
@@ -65,54 +66,11 @@ fn is_pixel_param_of(command: &str, key: &str) -> bool {
         && !matches!((command, key), ("filter.render.tree" | "filter.render.pictureFrame", "size") | ("filter.lensCorrection", "horizontal" | "vertical"))
 }
 
-/// Filters whose features have a fixed size in document pixels that no dialog parameter scales:
-/// per-pixel noise and dots (Add Noise, Diffuse, Mezzotint, Fibers, and Dust & Scratches, whose
-/// specks a proxy averages away — so the preview would show nothing removed at all, #3265 — while
-/// its radius stays in document pixels), pixel kernels and scan lines
-/// (Custom, Reduce Noise, De-Interlace, Trace Contour's one-pixel lines), fixed lengths and
-/// widths (Ripple, Oil Paint, Wind's streaks, Extrude's depth, Flame's length, width and
-/// interval) and Tree, whose branches are built from 6 px segments. On a reduced proxy those
-/// features come out k times too large (or a different tree grows), so these preview at full
-/// resolution: what the preview shows is what OK applies, as in Photoshop (#2063).
-///
-/// Sharpen, Sharpen More, Sharpen Edges, Find Edges, Emboss and Despeckle use fixed one-pixel
-/// kernels with no size parameter, so a proxy changes their look: edges average away, making
-/// the sharpening and edge detection invisible. These must preview at full resolution (#3929).
-///
-/// Content-Aware Fill searches for matching patches, and the matches found on a reduced copy
-/// differ from those found at full size, so its preview would not show what OK writes (#6530).
-const FULL_RESOLUTION_PREVIEW: &[&str] = &[
-    "filter.distort.ripple",
-    "filter.stylize.diffuse",
-    "filter.stylize.oilPaint",
-    "filter.render.flame",
-    "filter.render.fibers",
-    "filter.pixelate.mezzotint",
-    "filter.noise.addNoise",
-    "filter.noise.dustAndScratches",
-    "filter.noise.reduceNoise",
-    "filter.other.custom",
-    "filter.video.deInterlace",
-    "filter.stylize.traceContour",
-    "filter.stylize.wind",
-    "filter.stylize.extrude",
-    "filter.render.tree",
-    "filter.sharpen.sharpen",
-    "filter.sharpen.sharpenMore",
-    "filter.sharpen.sharpenEdges",
-    "filter.stylize.findEdges",
-    "filter.stylize.emboss",
-    "filter.noise.despeckle",
-    "edit.contentAwareFill",
-];
-
-/// Whether `command` with `params` previews at full resolution: [`FULL_RESOLUTION_PREVIEW`], every
-/// Filter Gallery filter (its strokes, grain and textures are sized in pixels; the settings are
-/// abstract levels, not lengths) and the dithered colour-mode conversions (Indexed Color, Bitmap).
+/// Whether `command` with `params` previews at full resolution: the commands that declare
+/// [`Preview::FullResolution`] and the dithered colour-mode conversions (Indexed Color, Bitmap).
 fn full_resolution_preview(command: &str, params: &Value) -> bool {
     let choice = |key: &str| params.get(key).and_then(Value::as_str);
-    FULL_RESOLUTION_PREVIEW.contains(&command)
-        || command.starts_with("filter.gallery.")
+    photocraft_engine::commands::find(command).is_some_and(|c| c.declared.preview == Preview::FullResolution)
         || (command == "image.mode.indexedColor" && choice("dither") != Some("none"))
         || (command == "image.mode.bitmap" && !matches!(choice("method"), Some("threshold" | "threshold50")))
 }
@@ -847,21 +805,8 @@ fn proof_setup_defaults(app: &PhotocraftApp, fields: &mut Map<String, Value>) {
     fields.insert("simulatePaper".into(), json!(pv.setup.simulate_paper));
 }
 
-/// Commands whose `angle` is a direction in document angles (counter-clockwise from three
-/// o'clock): a light or a blur direction, edited on a dial as in Photoshop's Motion Blur, Emboss
-/// and Global Light (#3152). Rotation amounts (Twirl, Rotate Arbitrary, Crop, Lens Correction,
-/// the Blur Gallery shapes) and angles with another zero (Flame's points up) keep the slider.
-const ANGLE_DIAL: &[&str] = &[
-    "filter.blur.motionBlur",
-    "filter.stylize.emboss",
-    "filter.stylize.oilPaint",
-    "filter.render.lightingEffects",
-    "filter.render.relight",
-    "layer.layerStyle.globalLight",
-];
-
 fn uses_angle_dial(command: &str, key: &str) -> bool {
-    key == "angle" && ANGLE_DIAL.contains(&command)
+    photocraft_engine::commands::find(command).is_some_and(|c| c.declared.direction == Some(key))
 }
 
 /// What OK on an edited smart filter runs (`smart_ui::confirm_command`).
