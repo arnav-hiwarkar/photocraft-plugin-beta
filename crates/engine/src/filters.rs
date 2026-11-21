@@ -456,7 +456,7 @@ pub(crate) fn keep_alpha(old: &photocraft_raster::Surface, new: &mut photocraft_
 }
 
 macro_rules! filter_cmd {
-    ($id:literal, $label:literal, [$($m:literal),*], $params:literal, $declared:expr) => {
+    ($id:literal, $label:literal, [$($m:literal),*], $params:literal $(, $($modifier:ident($($arg:expr),*)).+)?) => {
         CommandSpec {
             id: $id,
             label: $label,
@@ -466,7 +466,7 @@ macro_rules! filter_cmd {
             enabled: has_filterable_layer,
             run: |s, p| run_filter(s, $id, p),
             journal: true,
-            declared: $declared,
+            declared: Declared::FILTER $($(.$modifier($($arg),*))+)?,
         }
     };
 }
@@ -474,108 +474,85 @@ macro_rules! filter_cmd {
 /// The filter command specs.
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        filter_cmd!("filter.blur.gaussianBlur", "Gaussian Blur…", ["Filter", "Blur"], r##"{"radius":0.1..1000=1}"##, Declared::FILTER),
-        filter_cmd!("filter.blur.average", "Average", ["Filter", "Blur"], "{}", Declared::FILTER),
-        filter_cmd!("filter.blur.blur", "Blur", ["Filter", "Blur"], "{}", Declared::FILTER),
-        filter_cmd!("filter.blur.blurMore", "Blur More", ["Filter", "Blur"], "{}", Declared::FILTER),
-        filter_cmd!("filter.sharpen.sharpen", "Sharpen", ["Filter", "Sharpen"], "{}", Declared::FILTER.preview(Preview::FullResolution)),
-        filter_cmd!("filter.sharpen.sharpenMore", "Sharpen More", ["Filter", "Sharpen"], "{}", Declared::FILTER.preview(Preview::FullResolution)),
-        filter_cmd!("filter.sharpen.sharpenEdges", "Sharpen Edges", ["Filter", "Sharpen"], "{}", Declared::FILTER.preview(Preview::FullResolution)),
-        filter_cmd!("filter.noise.despeckle", "Despeckle", ["Filter", "Noise"], "{}", Declared::FILTER.preview(Preview::FullResolution)),
-        filter_cmd!("filter.blur.boxBlur", "Box Blur…", ["Filter", "Blur"], r##"{"radius":1..2000=1}"##, Declared::FILTER),
-        filter_cmd!(
-            "filter.blur.motionBlur",
-            "Motion Blur…",
-            ["Filter", "Blur"],
-            r##"{"angle":-360..360=0,"distance":1..2000=10}"##,
-            Declared::FILTER.direction("angle")
-        ),
+        filter_cmd!("filter.blur.gaussianBlur", "Gaussian Blur…", ["Filter", "Blur"], r##"{"radius":0.1..1000=1}"##),
+        filter_cmd!("filter.blur.average", "Average", ["Filter", "Blur"], "{}"),
+        filter_cmd!("filter.blur.blur", "Blur", ["Filter", "Blur"], "{}"),
+        filter_cmd!("filter.blur.blurMore", "Blur More", ["Filter", "Blur"], "{}"),
+        filter_cmd!("filter.sharpen.sharpen", "Sharpen", ["Filter", "Sharpen"], "{}", preview(Preview::FullResolution)),
+        filter_cmd!("filter.sharpen.sharpenMore", "Sharpen More", ["Filter", "Sharpen"], "{}", preview(Preview::FullResolution)),
+        filter_cmd!("filter.sharpen.sharpenEdges", "Sharpen Edges", ["Filter", "Sharpen"], "{}", preview(Preview::FullResolution)),
+        filter_cmd!("filter.noise.despeckle", "Despeckle", ["Filter", "Noise"], "{}", preview(Preview::FullResolution)),
+        filter_cmd!("filter.blur.boxBlur", "Box Blur…", ["Filter", "Blur"], r##"{"radius":1..2000=1}"##),
+        filter_cmd!("filter.blur.motionBlur", "Motion Blur…", ["Filter", "Blur"], r##"{"angle":-360..360=0,"distance":1..2000=10}"##, direction("angle")),
         filter_cmd!(
             "filter.blur.radialBlur",
             "Radial Blur…",
             ["Filter", "Blur"],
-            r##"{"amount":1..100=10,"method":"spin|zoom","quality":"draft|good|best"="good","centerX":0..1=0.5,"centerY":0..1=0.5}"##,
-            Declared::FILTER
+            r##"{"amount":1..100=10,"method":"spin|zoom","quality":"draft|good|best"="good","centerX":0..1=0.5,"centerY":0..1=0.5}"##
         ),
-        filter_cmd!("filter.blur.surfaceBlur", "Surface Blur…", ["Filter", "Blur"], r##"{"radius":1..100=5,"threshold":2..255=15}"##, Declared::FILTER),
+        filter_cmd!("filter.blur.surfaceBlur", "Surface Blur…", ["Filter", "Blur"], r##"{"radius":1..100=5,"threshold":2..255=15}"##),
         filter_cmd!(
             "filter.sharpen.unsharpMask",
             "Unsharp Mask…",
             ["Filter", "Sharpen"],
-            r##"{"amount":1..500=50,"radius":0.1..1000=1,"threshold":0..255=0}"##,
-            Declared::FILTER
+            r##"{"amount":1..500=50,"radius":0.1..1000=1,"threshold":0..255=0}"##
         ),
         filter_cmd!(
             "filter.sharpen.smartSharpen",
             "Smart Sharpen…",
             ["Filter", "Sharpen"],
-            r##"{"amount":1..500=100,"radius":0.1..64=1,"reduceNoise":0..100=10}"##,
-            Declared::FILTER
+            r##"{"amount":1..500=100,"radius":0.1..64=1,"reduceNoise":0..100=10}"##
         ),
         filter_cmd!(
             "filter.noise.addNoise",
             "Add Noise…",
             ["Filter", "Noise"],
             r##"{"amount":0.1..400=12.5,"distribution":"uniform|gaussian","monochromatic":bool,"seed":u32=0}"##,
-            Declared::FILTER.preview(Preview::FullResolution)
+            preview(Preview::FullResolution)
         ),
-        filter_cmd!("filter.noise.median", "Median…", ["Filter", "Noise"], r##"{"radius":1..500=1}"##, Declared::FILTER),
+        filter_cmd!("filter.noise.median", "Median…", ["Filter", "Noise"], r##"{"radius":1..500=1}"##),
         filter_cmd!(
             "filter.noise.dustAndScratches",
             "Dust & Scratches…",
             ["Filter", "Noise"],
             r##"{"radius":1..500=1,"threshold":0..255=0}"##,
-            Declared::FILTER.preview(Preview::FullResolution)
+            preview(Preview::FullResolution)
         ),
-        filter_cmd!("filter.pixelate.mosaic", "Mosaic…", ["Filter", "Pixelate"], r##"{"cellSize":2..200=10}"##, Declared::FILTER),
+        filter_cmd!("filter.pixelate.mosaic", "Mosaic…", ["Filter", "Pixelate"], r##"{"cellSize":2..200=10}"##),
         filter_cmd!(
             "filter.stylize.emboss",
             "Emboss…",
             ["Filter", "Stylize"],
             r##"{"angle":-180..180=135,"height":1..100=3,"amount":1..500=100}"##,
-            Declared::FILTER.preview(Preview::FullResolution).direction("angle")
+            preview(Preview::FullResolution).direction("angle")
         ),
-        filter_cmd!("filter.stylize.findEdges", "Find Edges", ["Filter", "Stylize"], "{}", Declared::FILTER.preview(Preview::FullResolution)),
-        filter_cmd!("filter.stylize.solarize", "Solarize", ["Filter", "Stylize"], "{}", Declared::FILTER),
-        filter_cmd!("filter.distort.twirl", "Twirl…", ["Filter", "Distort"], r##"{"angle":-999..999=50}"##, Declared::FILTER),
-        filter_cmd!("filter.distort.pinch", "Pinch…", ["Filter", "Distort"], r##"{"amount":-100..100=50}"##, Declared::FILTER),
-        filter_cmd!(
-            "filter.distort.spherize",
-            "Spherize…",
-            ["Filter", "Distort"],
-            r##"{"amount":-100..100=100,"mode":"normal|horizontalOnly|verticalOnly"}"##,
-            Declared::FILTER
-        ),
+        filter_cmd!("filter.stylize.findEdges", "Find Edges", ["Filter", "Stylize"], "{}", preview(Preview::FullResolution)),
+        filter_cmd!("filter.stylize.solarize", "Solarize", ["Filter", "Stylize"], "{}"),
+        filter_cmd!("filter.distort.twirl", "Twirl…", ["Filter", "Distort"], r##"{"angle":-999..999=50}"##),
+        filter_cmd!("filter.distort.pinch", "Pinch…", ["Filter", "Distort"], r##"{"amount":-100..100=50}"##),
+        filter_cmd!("filter.distort.spherize", "Spherize…", ["Filter", "Distort"], r##"{"amount":-100..100=100,"mode":"normal|horizontalOnly|verticalOnly"}"##),
         filter_cmd!(
             "filter.distort.wave",
             "Wave…",
             ["Filter", "Distort"],
-            r##"{"generators":1..999=5,"wavelengthMin":1..998=10,"wavelengthMax":2..999=120,"amplitudeMin":1..998=5,"amplitudeMax":1..999=35,"type":"sine|triangle|square","undefinedAreas":"wrap|repeat","seed":u32=0}"##,
-            Declared::FILTER
+            r##"{"generators":1..999=5,"wavelengthMin":1..998=10,"wavelengthMax":2..999=120,"amplitudeMin":1..998=5,"amplitudeMax":1..999=35,"type":"sine|triangle|square","undefinedAreas":"wrap|repeat","seed":u32=0}"##
         ),
         filter_cmd!(
             "filter.distort.ripple",
             "Ripple…",
             ["Filter", "Distort"],
             r##"{"amount":-999..999=100,"size":"small|medium|large"}"##,
-            Declared::FILTER.preview(Preview::FullResolution)
+            preview(Preview::FullResolution)
         ),
-        filter_cmd!(
-            "filter.distort.polarCoordinates",
-            "Polar Coordinates…",
-            ["Filter", "Distort"],
-            r##"{"mode":"rectangularToPolar|polarToRectangular"}"##,
-            Declared::FILTER
-        ),
-        filter_cmd!("filter.other.highPass", "High Pass…", ["Filter", "Other"], r##"{"radius":0.1..1000=10}"##, Declared::FILTER),
-        filter_cmd!("filter.other.minimum", "Minimum…", ["Filter", "Other"], r##"{"radius":0.2..500=1,"preserve":"squareness|roundness"}"##, Declared::FILTER),
-        filter_cmd!("filter.other.maximum", "Maximum…", ["Filter", "Other"], r##"{"radius":0.2..500=1,"preserve":"squareness|roundness"}"##, Declared::FILTER),
+        filter_cmd!("filter.distort.polarCoordinates", "Polar Coordinates…", ["Filter", "Distort"], r##"{"mode":"rectangularToPolar|polarToRectangular"}"##),
+        filter_cmd!("filter.other.highPass", "High Pass…", ["Filter", "Other"], r##"{"radius":0.1..1000=10}"##),
+        filter_cmd!("filter.other.minimum", "Minimum…", ["Filter", "Other"], r##"{"radius":0.2..500=1,"preserve":"squareness|roundness"}"##),
+        filter_cmd!("filter.other.maximum", "Maximum…", ["Filter", "Other"], r##"{"radius":0.2..500=1,"preserve":"squareness|roundness"}"##),
         filter_cmd!(
             "filter.other.offset",
             "Offset…",
             ["Filter", "Other"],
-            r##"{"horizontal":px=0,"vertical":px=0,"undefinedAreas":"wrap|repeat|transparent"}"##,
-            Declared::FILTER
+            r##"{"horizontal":px=0,"vertical":px=0,"undefinedAreas":"wrap|repeat|transparent"}"##
         ),
         CommandSpec {
             id: "filter.lastFilter",

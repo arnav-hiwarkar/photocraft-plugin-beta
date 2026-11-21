@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use serde_json::Value;
+
 use crate::commands::{CommandSpec, ContextInputs, Preview, Role};
 
 type Row = (&'static str, &'static str, &'static str, &'static str, &'static str);
@@ -41,6 +43,33 @@ fn every_registered_command_declares_what_the_old_lists_said() {
     }
     wrong.extend(want.keys().filter(|id| !seen.contains(*id)).map(|id| format!("{id}: not registered")));
     assert!(wrong.is_empty(), "{} commands differ:\n{}", wrong.len(), wrong.join("\n"));
+}
+
+#[test]
+fn a_command_is_a_filter_exactly_when_it_has_filter_params() {
+    let wrong: Vec<String> = crate::install::command_specs()
+        .iter()
+        .filter(|c| (c.declared.role == Role::Filter) != crate::filters::params_for(c.id, &Value::Null).is_some())
+        .map(|c| format!("{}: {:?}", c.id, c.declared.role))
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+fn numeric_range(params: &str, key: &str) -> bool {
+    let Some((_, rest)) = params.split_once(&format!("\"{key}\":")) else { return false };
+    let Some((lo, _)) = rest.split_once("..") else { return false };
+    lo.parse::<f64>().is_ok()
+}
+
+#[test]
+fn every_declared_direction_is_a_numeric_parameter_of_its_command() {
+    let directions: Vec<(&str, &str)> = crate::install::command_specs().iter().filter_map(|c| Some((c.id, c.declared.direction?))).collect();
+    assert_eq!(directions.len(), 6);
+    let wrong: Vec<&(&str, &str)> = directions.iter().filter(|(id, key)| !crate::install::find(id).is_some_and(|c| numeric_range(c.params, key))).collect();
+    assert!(wrong.is_empty(), "{wrong:?}");
+    assert!(numeric_range(r#"{"angle":-360..360=0,"distance":1..2000=10}"#, "angle"));
+    assert!(!numeric_range(r#"{"angle":"up|down","distance":1..2000=10}"#, "angle"));
+    assert!(!numeric_range(r#"{"distance":1..2000=10}"#, "angle"));
 }
 
 const DECLARED: &[Row] = &[
