@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "actions": [
+    {
+      "name": "Corpus Fill",
+      "steps": [
+        [
+          "plugin.run",
+          {
+            "id": "org.example.corpus.fill"
+          }
+        ]
+      ]
+    }
+  ]
+}

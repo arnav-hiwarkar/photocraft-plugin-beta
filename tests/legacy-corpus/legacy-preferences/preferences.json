@@ -1,0 +1,10 @@
+{
+  "plugIns": {
+    "additionalPluginsFolder": "Plug-ins",
+    "allowScriptsToConnect": false,
+    "generatorEnabled": false,
+    "showExtensionPanels": true,
+    "useAdditionalPluginsFolder": true
+  },
+  "version": 2
+}
