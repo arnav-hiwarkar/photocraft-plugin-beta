@@ -1384,6 +1384,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: photomerge,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "file.automate.mergeToHdrPro",
@@ -1394,6 +1395,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: merge_to_hdr,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "file.automate.cropAndStraightenPhotos",
@@ -1404,6 +1406,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: |s| crop_ready(s).map_err(|e| e.to_string()),
             run: crop_and_straighten,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

@@ -283,6 +283,7 @@ pub fn specs() -> Vec<CommandSpec> {
             Ok(json!(sample_color_at(&d.doc, d.active_layer, x, y, size, zoom, which)))
         },
         journal: false,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

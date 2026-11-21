@@ -180,6 +180,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: true,
             run: stamp_visible,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.stampDown",
@@ -190,6 +191,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             journal: true,
             run: stamp_down,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

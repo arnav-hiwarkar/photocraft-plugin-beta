@@ -98,6 +98,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: can_convert,
         journal: true,
         run: background_from_layer,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

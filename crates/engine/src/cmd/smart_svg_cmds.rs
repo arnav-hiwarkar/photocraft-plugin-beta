@@ -437,6 +437,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled,
             run: export,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: UPDATE_VECTOR,
@@ -447,6 +448,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled,
             run: update_vector,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: UPDATE,
@@ -457,6 +459,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled,
             run: update,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

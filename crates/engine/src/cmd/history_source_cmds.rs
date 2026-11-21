@@ -187,6 +187,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: has_doc,
         run: set_source,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

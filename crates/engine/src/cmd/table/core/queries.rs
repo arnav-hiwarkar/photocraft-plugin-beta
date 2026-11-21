@@ -12,6 +12,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: |s, _| Ok(inspect::session(s)),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.inspect",
@@ -31,6 +32,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(inspect::document(d))
             },
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.activate",
@@ -68,6 +70,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 if s.set_active(idx) { Ok(json!({"document": idx})) } else { Err(EngineError::Other(format!("no document at index {idx}"))) }
             },
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.move",
@@ -90,6 +93,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(json!({"document": to}))
             },
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "command.list",
@@ -100,6 +104,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: |s, _| Ok(Value::Array(command_specs().iter().map(|c| list_entry(s, c, (c.enabled)(s).err())).collect())),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "document.pixel",
@@ -117,6 +122,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(json!(px))
             },
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

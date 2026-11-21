@@ -60,7 +60,7 @@ pub(crate) const PATH_FORM: &str = r##"path: {"subpaths":[{"closed":bool=true,"o
 
 macro_rules! spec {
     ($id:literal, $label:literal, [$($m:literal),*], $params:expr, $en:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: None, params: $params, enabled: $en, run: $run, journal: true }
+        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: None, params: $params, enabled: $en, run: $run, journal: true, declared: crate::Declared::COMMAND }
     };
 }
 
@@ -125,6 +125,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 shape_info(s, id)
             },
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         spec!("shape.rasterize", "Rasterize Shape", ["Layer", "Rasterize"], r##"{"layer":id?}"##, has_layer, shape_rasterize),
         CommandSpec {
@@ -136,6 +137,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: |s, _| paths_list(s),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "path.info",
@@ -150,6 +152,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(json!({ "name": name.unwrap_or("work"), "path": path_json(&path) }))
             },
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         spec!(
             "path.set",
@@ -208,6 +211,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: path_to_selection,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         // ⌘⇧↩ / Ctrl+Shift+Enter adds the path to the selection, ⌘⌥↩ / Ctrl+Alt+Enter subtracts it.
         CommandSpec {
@@ -219,6 +223,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: |s, p| path_to_selection_with_mode(s, p, "add"),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "path.subtractFromSelection",
@@ -229,6 +234,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: |s, p| path_to_selection_with_mode(s, p, "subtract"),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         // ⇧⌥⌘↩ / Ctrl+Alt+Shift+Enter intersects the path with the selection (#7726).
         CommandSpec {
@@ -240,6 +246,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: |s, p| path_to_selection_with_mode(s, p, "intersect"),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         spec!(
             "path.toShape",
@@ -366,6 +373,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 vector_mask_info(s, id)
             },
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

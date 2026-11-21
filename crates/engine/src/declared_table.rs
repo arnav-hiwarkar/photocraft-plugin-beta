@@ -1,56 +1,26 @@
 use std::collections::BTreeMap;
 
-use serde_json::Value;
-
-use crate::commands::CommandSpec;
+use crate::commands::{CommandSpec, ContextInputs, Preview, Role};
 
 type Row = (&'static str, &'static str, &'static str, &'static str, &'static str);
 
-const FULL_RESOLUTION_PREVIEW: &[&str] = &[
-    "filter.distort.ripple",
-    "filter.stylize.diffuse",
-    "filter.stylize.oilPaint",
-    "filter.render.flame",
-    "filter.render.fibers",
-    "filter.pixelate.mezzotint",
-    "filter.noise.addNoise",
-    "filter.noise.dustAndScratches",
-    "filter.noise.reduceNoise",
-    "filter.other.custom",
-    "filter.video.deInterlace",
-    "filter.stylize.traceContour",
-    "filter.stylize.wind",
-    "filter.stylize.extrude",
-    "filter.render.tree",
-    "filter.sharpen.sharpen",
-    "filter.sharpen.sharpenMore",
-    "filter.sharpen.sharpenEdges",
-    "filter.stylize.findEdges",
-    "filter.stylize.emboss",
-    "filter.noise.despeckle",
-    "edit.contentAwareFill",
-];
-
-const ANGLE_DIAL: &[&str] = &[
-    "filter.blur.motionBlur",
-    "filter.stylize.emboss",
-    "filter.stylize.oilPaint",
-    "filter.render.lightingEffects",
-    "filter.render.relight",
-    "layer.layerStyle.globalLight",
-];
-
-const USES_COLOURS: &[&str] =
-    &["filter.render.clouds", "filter.render.differenceClouds", "filter.render.fibers", "filter.stylize.tiles", "filter.pixelate.pointillize"];
-
 fn row(c: &CommandSpec) -> Row {
-    let id = c.id;
+    let d = c.declared;
     (
         c.id,
-        if crate::filters::params_for(id, &Value::Null).is_some() && id.starts_with("filter.") { "filter" } else { "command" },
-        if FULL_RESOLUTION_PREVIEW.contains(&id) || id.starts_with("filter.gallery.") { "full-resolution" } else { "proxy" },
-        if USES_COLOURS.contains(&id) || crate::gallery_cmds::uses_colours(id) { "colours" } else { "none" },
-        if ANGLE_DIAL.contains(&id) { "angle" } else { "" },
+        match d.role {
+            Role::Command => "command",
+            Role::Filter => "filter",
+        },
+        match d.preview {
+            Preview::Proxy => "proxy",
+            Preview::FullResolution => "full-resolution",
+        },
+        match d.context {
+            ContextInputs::None => "none",
+            ContextInputs::Colours => "colours",
+        },
+        d.direction.unwrap_or(""),
     )
 }
 

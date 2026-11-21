@@ -172,6 +172,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: add,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "view.colorSamplers.move",
@@ -182,6 +183,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: move_point,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "view.colorSamplers.delete",
@@ -192,6 +194,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: delete,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "view.colorSamplers.clear",
@@ -202,6 +205,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: clear,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "view.colorSamplers.list",
@@ -212,6 +216,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: list,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

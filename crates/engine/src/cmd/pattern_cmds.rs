@@ -560,6 +560,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: true,
             run: define,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "pattern.list",
@@ -570,6 +571,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             journal: false,
             run: list,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "pattern.rename",
@@ -580,6 +582,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pattern,
             journal: true,
             run: rename,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "pattern.delete",
@@ -590,6 +593,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pattern,
             journal: true,
             run: delete,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "pattern.import",
@@ -600,6 +604,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             journal: true,
             run: import,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "pattern.export",
@@ -610,6 +615,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pattern,
             journal: true,
             run: export,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.newFillLayer.pattern",
@@ -620,6 +626,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: true,
             run: new_fill_layer,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "brush.texturePattern",
@@ -630,6 +637,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pattern,
             journal: true,
             run: brush_texture,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

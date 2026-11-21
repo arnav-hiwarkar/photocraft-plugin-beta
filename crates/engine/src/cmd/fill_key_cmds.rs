@@ -115,6 +115,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled,
             run: |s, p| fill(s, p, "edit.fillForeground", false, false),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "edit.fillBackground",
@@ -125,6 +126,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled,
             run: |s, p| fill(s, p, "edit.fillBackground", true, false),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "edit.fillForegroundPreserve",
@@ -135,6 +137,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled,
             run: |s, p| fill(s, p, "edit.fillForegroundPreserve", false, true),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "edit.fillBackgroundPreserve",
@@ -145,6 +148,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled,
             run: |s, p| fill(s, p, "edit.fillBackgroundPreserve", true, true),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "edit.fillHistory",
@@ -155,6 +159,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: fill_enabled,
             run: fill_history,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

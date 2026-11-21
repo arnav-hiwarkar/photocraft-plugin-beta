@@ -88,6 +88,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 enabled: has_layers,
                 journal: true,
                 run: |s, _| navigate(s, $step, $add),
+                declared: crate::Declared::COMMAND,
             }
         };
     }

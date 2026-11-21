@@ -351,7 +351,17 @@ fn auto_blend(s: &mut Session, p: &Value) -> Result<Value> {
 
 macro_rules! spec {
     ($id:literal, $label:literal, $params:literal, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: &["Edit"], shortcut: None, params: $params, enabled: two_layers, run: $run, journal: true }
+        CommandSpec {
+            id: $id,
+            label: $label,
+            menu: &["Edit"],
+            shortcut: None,
+            params: $params,
+            enabled: two_layers,
+            run: $run,
+            journal: true,
+            declared: crate::Declared::COMMAND,
+        }
     };
 }
 

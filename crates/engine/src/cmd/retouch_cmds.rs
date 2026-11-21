@@ -264,6 +264,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: clone_stamp,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.patternStamp",
@@ -276,6 +277,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: pattern_stamp::enabled,
             run: pattern_stamp::run,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.healingBrush",
@@ -288,6 +290,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: healing_brush,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.spotHealing",
@@ -298,6 +301,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: spot_healing,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.patch",
@@ -308,6 +312,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: patch::enabled,
             run: patch::patch,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.contentAwareMove",
@@ -318,6 +323,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: content_aware_move::enabled,
             run: content_aware_move::content_aware_move,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.remove",
@@ -330,6 +336,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: remove::remove,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.dodge",
@@ -340,6 +347,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: |s, p| dab_cmd(s, p, "paint.dodge"),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.burn",
@@ -350,6 +358,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: |s, p| dab_cmd(s, p, "paint.burn"),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.sponge",
@@ -360,6 +369,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: |s, p| dab_cmd(s, p, "paint.sponge"),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.blur",
@@ -370,6 +380,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: |s, p| dab_cmd(s, p, "paint.blur"),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.sharpen",
@@ -380,6 +391,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: |s, p| dab_cmd(s, p, "paint.sharpen"),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.smudge",
@@ -392,6 +404,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: |s, p| dab_cmd(s, p, "paint.smudge"),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.historyBrush",
@@ -404,6 +417,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: history_brush,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.artHistoryBrush",
@@ -416,6 +430,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: art_history::enabled,
             run: art_history::run,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

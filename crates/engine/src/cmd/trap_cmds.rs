@@ -56,6 +56,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled,
         journal: true,
         run: |s, p| trap(s, p),
+        declared: crate::Declared::COMMAND,
     }]
 }
 

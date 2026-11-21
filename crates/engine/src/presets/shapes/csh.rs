@@ -19,6 +19,7 @@ pub(super) fn spec() -> CommandSpec {
         enabled: always,
         run: import,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }
 }
 

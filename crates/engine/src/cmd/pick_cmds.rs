@@ -215,6 +215,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: true,
             run: select_in_rect,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.pickAt",
@@ -225,6 +226,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: false,
             run: pick,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

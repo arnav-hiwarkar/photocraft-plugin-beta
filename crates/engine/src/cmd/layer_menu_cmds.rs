@@ -417,6 +417,7 @@ macro_rules! stack_spec {
             enabled: has_smart,
             run: |s, p| stack_mode(s, p, $mode),
             journal: true,
+            declared: crate::Declared::COMMAND,
         }
     };
 }
@@ -1023,7 +1024,7 @@ fn write_file(_: &str, _: &[u8]) -> Result<()> {
 
 macro_rules! spec {
     ($id:literal, $label:literal, [$($m:literal),*], $params:literal, $en:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: None, params: $params, enabled: $en, run: $run, journal: true }
+        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: None, params: $params, enabled: $en, run: $run, journal: true, declared: crate::Declared::COMMAND }
     };
 }
 
@@ -1079,14 +1080,17 @@ pub fn specs() -> Vec<CommandSpec> {
             has_layer,
             blending_options
         ),
-        spec!(
-            "layer.layerStyle.globalLight",
-            "Global Light…",
-            ["Layer", "Layer Style"],
-            r##"{"angle":-360..360=120,"altitude":0..90=30}"##,
-            has_doc,
-            global_light
-        ),
+        CommandSpec {
+            declared: crate::Declared::COMMAND.direction("angle"),
+            ..spec!(
+                "layer.layerStyle.globalLight",
+                "Global Light…",
+                ["Layer", "Layer Style"],
+                r##"{"angle":-360..360=120,"altitude":0..90=30}"##,
+                has_doc,
+                global_light
+            )
+        },
         spec!("layer.layerStyle.createLayer", "Create Layer", ["Layer", "Layer Style"], r##"{"layer":id?}"##, has_effects, create_layer),
         spec!("layer.layerStyle.scaleEffects", "Scale Effects…", ["Layer", "Layer Style"], r##"{"scale":1..1000=100}"##, has_effects, scale_effects),
         spec!(
@@ -1106,6 +1110,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_content_options,
             run: content_options,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         spec!("layer.quickExportAsPng", "Quick Export as PNG", ["Layer"], r##"{"layer":id?,"path":text}"##, has_layer, |s, p| export_layer(
             s,

@@ -320,6 +320,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: has_doc,
         run,
         journal: true,
+        declared: crate::Declared::COMMAND,
     };
     vec![
         spec("path.moveAnchors", "Drag Anchor Points", r#""anchors":[[subpath,knot],…],"move":[dx,dy],"curvature":bool=false (anchors move with their handles; Direct Selection drag. curvature = the Curvature Pen's drag: every smooth knot of the touched subpaths gets its handles recomputed so the curve flows through the anchors),"duplicate":bool=false (anchors = all of one subpath's; that subpath is copied, with its operation, as the path's last subpath, and the copy's anchors move instead; the source stays; Direct Selection's ⌥-drag on a segment),"stepName":"Drag Path"|"Drag Anchor Point"? (History step name; the Convert Point tool sends "Drag Path" when it drags a whole path, Direct Selection "Drag Anchor Point" when it drags one anchor; default "Drag Anchor Points", "Drag Path" with duplicate; any other value is refused)"#.into(), move_anchors),

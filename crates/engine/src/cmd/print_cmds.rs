@@ -1718,7 +1718,17 @@ fn has_document(s: &Session) -> std::result::Result<(), String> {
 pub fn specs() -> Vec<CommandSpec> {
     macro_rules! spec {
         ($id:expr, $label:expr, $menu:expr, $sc:expr, $params:expr, $enabled:expr, $run:expr) => {
-            CommandSpec { id: $id, label: $label, menu: $menu, shortcut: $sc, params: $params, enabled: $enabled, journal: true, run: $run }
+            CommandSpec {
+                id: $id,
+                label: $label,
+                menu: $menu,
+                shortcut: $sc,
+                params: $params,
+                enabled: $enabled,
+                journal: true,
+                run: $run,
+                declared: crate::Declared::COMMAND,
+            }
         };
     }
     const PRINT_PARAMS: &str = r##"{"printerSettings":hex? (Windows driver settings),"printer":name? (default printer),"copies":1..999=1,"duplex":"off|longEdge|shortEdge"? (absent keeps the printer's default),"grayscale":bool=false,"paper":"letter|legal|tabloid|a3|a4|a5|4x6|5x7"|[w,h] pt="letter","orientation":"portrait|landscape"="portrait","center":bool=true,"top":in?,"left":in?,"scale":%=100,"scaleToFit":bool=false,"printable":[x,y,w,h] pt? (the driver's printable area from the paper's top-left, as file.print.page reports it; Scale to Fit Media fits it, else the paper minus 18 pt; a native Windows print reads the driver's own instead),"colorHandling":"printerManages|photocraftManages|noColorManagement"="printerManages","printerProfile":profile? (photocraftManages),"intent":"perceptual|relative|saturation|absolute"="relative","bpc":bool=true,"cornerCropMarks":bool,"centerCropMarks":bool,"registrationMarks":bool,"bleed":in=0 (Functions › Bleed: corner crop marks this far inside the image edge, on the trim line),"description":bool,"labels":bool,"emulsionDown":bool=false (mirror the page left to right, for sublimation and other transfer printing),"output":pdf path? (print to PDF; then "send" defaults to false),"send":bool?,"printServer":"host[:port]|socket path"? (default: the system's CUPS; a named server is always printed to over IPP),"dryRun":bool=false (render the PDF, report the backend command, don't spool; write a PDF only at an explicit output path)} → {pdf:path|null (null without explicit output), imageRect, command:diagnostic array|null, sent, spooler:where the job went|null, backend:"lp|windows|ipp|portal"|null}"##;
@@ -1734,6 +1744,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: |_| Ok(()),
             journal: false,
             run: printers,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "file.print.page",
@@ -1744,6 +1755,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: |_| Ok(()),
             journal: false,
             run: printer_page,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "file.printers",
@@ -1754,6 +1766,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: crate::commands::always,
             journal: false,
             run: system_printers,
+            declared: crate::Declared::COMMAND,
         },
         spec!(
             "file.printOneCopy",

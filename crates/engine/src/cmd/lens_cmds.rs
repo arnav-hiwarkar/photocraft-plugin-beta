@@ -481,6 +481,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: filterable,
             run: lens_correction,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: WIDE,
@@ -491,6 +492,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: filterable,
             run: adaptive_wide_angle,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: RAW,
@@ -501,6 +503,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: raw_enabled,
             run: camera_raw_cmd,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: LENS_BATCH,
@@ -511,6 +514,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: crate::file_cmds::native,
             run: lens_batch,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

@@ -80,6 +80,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 new_adjustment(s, adj, p, &format!("layer.newAdjustmentLayer.{kind}"))
             },
             journal: true,
+            declared: crate::Declared::COMMAND,
         });
         v.push(CommandSpec {
             id: image_id,
@@ -141,6 +142,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 destructive_adjust(s, &label, adj, p)
             },
             journal: true,
+            declared: crate::Declared::COMMAND,
         });
     }
     v

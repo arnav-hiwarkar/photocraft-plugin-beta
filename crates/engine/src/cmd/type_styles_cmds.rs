@@ -707,10 +707,11 @@ macro_rules! style_specs {
                 enabled: has_doc,
                 journal: true,
                 run: |s, p| new_style(s, p, $paragraph),
+                declared: crate::Declared::COMMAND,
             },
-            CommandSpec { id: concat!($prefix, ".duplicate"), label: "Duplicate Style", menu: &[], shortcut: None, params: r#"{"id":u32}"#, enabled: has_doc, journal: true, run: |s, p| duplicate(s, p, $paragraph) },
-            CommandSpec { id: concat!($prefix, ".delete"), label: "Delete Style", menu: &[], shortcut: None, params: r#"{"id":u32} (text keeps its formatting as overrides)"#, enabled: has_doc, journal: true, run: |s, p| delete(s, p, $paragraph) },
-            CommandSpec { id: concat!($prefix, ".rename"), label: "Rename Style", menu: &[], shortcut: None, params: r#"{"id":u32,"name":str}"#, enabled: has_doc, journal: true, run: |s, p| rename(s, p, $paragraph) },
+            CommandSpec { id: concat!($prefix, ".duplicate"), label: "Duplicate Style", menu: &[], shortcut: None, params: r#"{"id":u32}"#, enabled: has_doc, journal: true, run: |s, p| duplicate(s, p, $paragraph), declared: crate::Declared::COMMAND },
+            CommandSpec { id: concat!($prefix, ".delete"), label: "Delete Style", menu: &[], shortcut: None, params: r#"{"id":u32} (text keeps its formatting as overrides)"#, enabled: has_doc, journal: true, run: |s, p| delete(s, p, $paragraph), declared: crate::Declared::COMMAND },
+            CommandSpec { id: concat!($prefix, ".rename"), label: "Rename Style", menu: &[], shortcut: None, params: r#"{"id":u32,"name":str}"#, enabled: has_doc, journal: true, run: |s, p| rename(s, p, $paragraph), declared: crate::Declared::COMMAND },
             CommandSpec {
                 id: concat!($prefix, ".set"),
                 label: concat!($noun, " Style Options"),
@@ -720,6 +721,7 @@ macro_rules! style_specs {
                 enabled: has_doc,
                 journal: true,
                 run: |s, p| set_options(s, p, $paragraph),
+                declared: crate::Declared::COMMAND,
             },
             CommandSpec {
                 id: concat!($prefix, ".apply"),
@@ -730,6 +732,7 @@ macro_rules! style_specs {
                 enabled: has_target,
                 journal: true,
                 run: |s, p| apply(s, p, $paragraph),
+                declared: crate::Declared::COMMAND,
             },
             CommandSpec {
                 id: concat!($prefix, ".redefine"),
@@ -740,8 +743,9 @@ macro_rules! style_specs {
                 enabled: has_target,
                 journal: true,
                 run: |s, p| redefine(s, p, $paragraph),
+                declared: crate::Declared::COMMAND,
             },
-            CommandSpec { id: concat!($prefix, ".clearOverride"), label: "Clear Override", menu: &[], shortcut: None, params: concat!("{", target_doc!(), "}"), enabled: has_target, journal: true, run: |s, p| clear_override(s, p, $paragraph) },
+            CommandSpec { id: concat!($prefix, ".clearOverride"), label: "Clear Override", menu: &[], shortcut: None, params: concat!("{", target_doc!(), "}"), enabled: has_target, journal: true, run: |s, p| clear_override(s, p, $paragraph), declared: crate::Declared::COMMAND },
             CommandSpec {
                 id: concat!($prefix, ".list"),
                 label: concat!("List ", $noun, " Styles"),
@@ -751,6 +755,7 @@ macro_rules! style_specs {
                 enabled: has_doc,
                 journal: false,
                 run: |s, p| list(s, p, $paragraph),
+                declared: crate::Declared::COMMAND,
             },
         ]
     };

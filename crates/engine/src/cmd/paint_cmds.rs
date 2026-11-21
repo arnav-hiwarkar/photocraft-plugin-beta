@@ -269,6 +269,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: crate::commands::has_paintable,
             run: bucket,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.gradient",
@@ -279,6 +280,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: crate::commands::has_paintable,
             run: gradient,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

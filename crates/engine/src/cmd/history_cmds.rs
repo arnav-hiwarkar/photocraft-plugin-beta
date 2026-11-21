@@ -252,6 +252,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: can_undo,
             run: |s, _| Ok(json!(s.undo())),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "history.redo",
@@ -262,6 +263,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: can_redo,
             run: |s, _| Ok(json!(s.redo())),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "history.deleteState",
@@ -272,6 +274,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: can_delete,
             run: delete_state,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "history.newDocument",
@@ -282,6 +285,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: new_document,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "history.newSnapshot",
@@ -292,6 +296,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: new_snapshot,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "history.selectSnapshot",
@@ -302,6 +307,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: select_snapshot,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "history.renameSnapshot",
@@ -312,6 +318,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: rename_snapshot,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "history.deleteSnapshot",
@@ -322,6 +329,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: delete_snapshot,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

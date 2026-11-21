@@ -269,6 +269,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled,
         run: to_multichannel,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

@@ -148,7 +148,17 @@ fn rotate(s: &mut Session, p: &Value) -> Result<Value> {
 
 macro_rules! key_cmd {
     ($id:literal, $label:literal, $sc:literal, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: &[], shortcut: Some($sc), params: "{}", enabled: always, run: $run, journal: true }
+        CommandSpec {
+            id: $id,
+            label: $label,
+            menu: &[],
+            shortcut: Some($sc),
+            params: "{}",
+            enabled: always,
+            run: $run,
+            journal: true,
+            declared: crate::Declared::COMMAND,
+        }
     };
 }
 
@@ -171,6 +181,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: rotate,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

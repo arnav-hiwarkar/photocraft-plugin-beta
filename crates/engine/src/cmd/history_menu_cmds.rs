@@ -74,6 +74,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: can_step_forward,
             run: |s, _| step(s, true),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "history.stepBackward",
@@ -84,6 +85,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: can_step_backward,
             run: |s, _| step(s, false),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "history.clear",
@@ -94,6 +96,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: can_clear,
             run: clear,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }
