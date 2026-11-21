@@ -188,6 +188,7 @@ fn render_to_file_and_base64() {
     let path = std::env::temp_dir().join(format!("pc-rpc-{}.png", std::process::id()));
     let r = g.handle("doc.render", json!({"path": path.to_string_lossy(), "maxSide": 0})).unwrap();
     assert!(r["bytes"].as_u64().unwrap() > 0);
+    assert_eq!(r["durability"], "durable");
     assert_eq!(photocraft_codecs::decode(&std::fs::read(&path).unwrap()).unwrap().dimensions(), (40, 20));
     let _ = std::fs::remove_file(path);
 }

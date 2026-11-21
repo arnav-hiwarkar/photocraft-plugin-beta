@@ -434,13 +434,14 @@ impl Headless {
     }
 
     /// Write rendered bytes through the configured write authority.
-    pub fn write_render(&self, path: &Path, bytes: &[u8]) -> Result<(), AutomationError> {
+    pub fn write_render(&self, path: &Path, bytes: &[u8]) -> Result<&'static str, AutomationError> {
         let requested = path.to_str().ok_or_else(|| AutomationError::BadRequest("automation paths must be valid UTF-8".into()))?;
         match &self.filesystem {
             Filesystem::Denied => Err(AutomationError::BadRequest("automation filesystem access is not granted: write authority is absent".into())),
-            Filesystem::TrustedLocal => photocraft_format::write(path, bytes).map(drop).map_err(|error| AutomationError::Io(error.to_string())),
-            Filesystem::Workspace(workspace) => workspace.write(requested, bytes).map(drop),
+            Filesystem::TrustedLocal => photocraft_format::write(path, bytes).map_err(|error| AutomationError::Io(error.to_string())),
+            Filesystem::Workspace(workspace) => workspace.write(requested, bytes),
         }
+        .map(|unconfirmed| unconfirmed.map_or("durable", photocraft_format::durability::Reason::id))
     }
 
     pub fn inspect(&self, index: Option<usize>) -> Result<Value, AutomationError> {
