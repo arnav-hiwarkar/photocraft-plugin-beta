@@ -1,0 +1,8 @@
+schema_version = 1
+
+[plugIns]
+useAdditionalPluginsFolder = true
+additionalPluginsFolder = "Plug-ins"
+showExtensionPanels = true
+allowScriptsToConnect = false
+generatorEnabled = false

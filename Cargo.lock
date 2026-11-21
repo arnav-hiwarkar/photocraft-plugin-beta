@@ -2197,7 +2197,12 @@ dependencies = [
 [[package]]
 name = "craft-testkit"
 version = "0.1.0"
-source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=b468730ac1975d332a275a281558a16406fe3e0c#b468730ac1975d332a275a281558a16406fe3e0c"
+source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=20e857da7a1ea0cff9444840ddaffc84d5c2c0d8#20e857da7a1ea0cff9444840ddaffc84d5c2c0d8"
+dependencies = [
+ "serde",
+ "sha2 0.10.9",
+ "toml",
+]
 
 [[package]]
 name = "craft-text"
@@ -6702,6 +6707,22 @@ name = "photocraft-ipp"
 version = "0.23.1"
 dependencies = [
  "craft-ipp",
+]
+
+[[package]]
+name = "photocraft-legacy-corpus"
+version = "0.23.1"
+dependencies = [
+ "craft-testkit",
+ "photocraft-doc",
+ "photocraft-engine",
+ "photocraft-format",
+ "photocraft-plugins",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml",
+ "wat",
 ]
 
 [[package]]

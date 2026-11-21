@@ -1,0 +1,84 @@
+[[member]]
+name = "action"
+kind = "action-step"
+app = "photocraft"
+expect = "actions.play Corpus Fill runs the recorded plugin.run step: every sample of the active layer becomes 64"
+files = [
+    { path = "actions.json", sha256 = "3127abf03d9d0fbc8a673dcc44ef8dd8439cf58a284118ddda100de94660a6f0" },
+]
+
+[[member]]
+name = "channel-document"
+kind = "apply-target-channel"
+app = "photocraft"
+expect = "plugin.run fill with target channel 0 sets that alpha channel to 64 and leaves the layer's pixels"
+files = [
+    { path = "document.pcraft", sha256 = "2dfd6d5abe72f18d66c6392b7ac179b3d631691fff4743d03dc9e0caeda99e73" },
+]
+
+[[member]]
+name = "fill-module"
+kind = "pc-abi1-module"
+app = "photocraft"
+expect = "plugin.run with org.example.corpus.fill sets every sample of the active layer, alpha included, to 64 of 255"
+files = [
+    { path = "fill.wasm", sha256 = "c2e01a0df2eca6f5f4a2308963f83356fc36f45ecfcb1dbf0e06e3faf64696d7" },
+    { path = "fill.wat", sha256 = "de6d8e328463692b67c6533a90af722b2785a7813d7ada43bfdf0a1b324ddc4c" },
+]
+
+[[member]]
+name = "locked-document"
+kind = "apply-lock-transparency"
+app = "photocraft"
+expect = "plugin.run fill on the transparency-locked layer sets colour to 64 and keeps every alpha"
+files = [
+    { path = "document.pcraft", sha256 = "8849b0567f053b7a7aaf6d7aff9898ca9f060b67dc500670bb070855c0151e68" },
+]
+
+[[member]]
+name = "manifest-module"
+kind = "pc-manifest"
+app = "photocraft"
+expect = "plugin.list shows a number in px, an int, a bool and a choice with overlap 2 and canvas area; a wrong-typed value is refused"
+files = [
+    { path = "manifest.wasm", sha256 = "a4d8c4cf0b631164831770daf637e52afb4b41e92eb8bec392ba2a695dc8648d" },
+    { path = "manifest.wat", sha256 = "b91c44bb19b4b48f2299ac85dd8ed9451a7e2a7da6ec20051abc54f65635f4b3" },
+]
+
+[[member]]
+name = "missing-plugin-document"
+kind = "plugin-missing"
+app = "photocraft"
+expect = "the record for the absent org.example.corpus.absent survives reopening, renders as the unfiltered layer, and plugin.run names it"
+files = [
+    { path = "document.pcraft", sha256 = "a91d16f8ac2407cefe359e01a089f43876e743b081364b102e53ae72ad97159c" },
+]
+
+[[member]]
+name = "plugin-folder"
+kind = "plugin-folder-prefs"
+app = "photocraft"
+expect = "config.toml turns on the Plug-ins folder; loading it installs fill and reports not-a-module.wasm as failed"
+files = [
+    { path = "Plug-ins/fill.wasm", sha256 = "c2e01a0df2eca6f5f4a2308963f83356fc36f45ecfcb1dbf0e06e3faf64696d7" },
+    { path = "Plug-ins/not-a-module.wasm", sha256 = "93cd816056f28ae55b76347862480044f74c9324a813d8c6825d53ace5cc18f2" },
+    { path = "config.toml", sha256 = "1fcdfa09b23e8dad4ca4bbe23b7950edeec985f6ef7cdeaafeaf04b0287b0f72" },
+]
+
+[[member]]
+name = "selection-document"
+kind = "apply-selection-mask"
+app = "photocraft"
+expect = "plugin.run fill blends through the saved selection: all of it in column 0, half in column 1, none in columns 2 and 3"
+files = [
+    { path = "document.pcraft", sha256 = "8fb4507008b0cb1efd31990de0d4618002f53791e2d7a8b67a95277e6193a44d" },
+]
+
+[[member]]
+name = "smart-filter-document"
+kind = "smart-filter-record"
+app = "photocraft"
+expect = "the smart object keeps the record {command: plugin.run, params: {id: org.example.corpus.fill, params: {}}} and renders to 64"
+files = [
+    { path = "document.pcraft", sha256 = "fe1ce84ffff537486149e1e5ea294b2369a0c8b14e1c941bb4b0a74c557535d3" },
+]
