@@ -72,7 +72,7 @@ craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "bafb45228
 # craft-update: app-specific pretend versions apply to startup and manual checks.
 craft-update = { git = "https://github.com/storytold/craft-libs", version = "=0.1.0", rev = "bafb4522899d9f814a07dad636cdefcbf705dead", features = ["ui"] }
 craft-testkit = { git = "https://github.com/arnav-hiwarkar/craft-libs-plugin-beta", rev = "6e4df1d034883c90af908d3833aa3be7e377a7ab" }
-craft-atomic = { git = "https://github.com/arnav-hiwarkar/craft-libs-plugin-beta", rev = "5630535f065e6d91c31ba45197927614c1c45b62" }
+craft-atomic = { git = "https://github.com/arnav-hiwarkar/craft-libs-plugin-beta", rev = "7ac46cf4574d0d355ffe0c40d9a929b82883232b" }
 thiserror = "2"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"

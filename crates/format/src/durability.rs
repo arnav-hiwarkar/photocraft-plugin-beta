@@ -2,35 +2,7 @@ use std::fs::File;
 use std::io;
 use std::path::Path;
 
-pub use craft_atomic::{Reason, Reasons, Receipt};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Durability {
-    Durable,
-    Unconfirmed(Reasons),
-    NotMeasured,
-}
-
-impl Durability {
-    pub fn of(unconfirmed: Option<Reasons>) -> Self {
-        unconfirmed.map_or(Self::Durable, Self::Unconfirmed)
-    }
-
-    pub fn id(self) -> String {
-        match self {
-            Self::Durable => "durable".into(),
-            Self::NotMeasured => "not-measured".into(),
-            Self::Unconfirmed(reasons) => reasons.ids().join("+"),
-        }
-    }
-
-    pub fn unconfirmed(self) -> Option<Reasons> {
-        match self {
-            Self::Unconfirmed(reasons) => Some(reasons),
-            Self::Durable | Self::NotMeasured => None,
-        }
-    }
-}
+pub use craft_atomic::{Durability, Reason, Reasons, Receipt};
 
 pub fn settle(path: &Path, receipt: Receipt) -> io::Result<Option<Reasons>> {
     match receipt {
