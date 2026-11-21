@@ -240,7 +240,7 @@ pub use services::{
     AutosaveFn, AutosaveResultsFn, CapsLockFn, ClipboardGetFn, ClipboardGetSvgFn, ClipboardSetFn, ClipboardUnreadableFn, CursorPosFn, DiscardAutosaveFn,
     ExportFn, ExportSettings, ExternalSvgEditor, ExternalSvgSession, ExternalVectorSave, ExternalVectorSource, FileStamp, FileStampFn, FormatChoices, ImportFn,
     Inbox, LoadTextFn, OpenExternalSvgFn, OpenUrlFn, OsEventsFn, PenEndFn, PhotoshopShortcutsFn, PlaceInbox, RecoverFn, Recoverable, RightButtonDownFn,
-    SameFileFn, SaveFileFn, SaveTextFn, Services, SystemThemeFn, TabletPollFn, WindowFrameFn, WriteFn,
+    SameFileFn, SaveFileFn, SaveTextFn, Services, SystemThemeFn, TabletPollFn, WindowFrameFn, WriteFn, unwarned_write,
 };
 pub(crate) use services::{opaque_layer, saves_flat_in_place};
 pub use text::cjk_fonts;

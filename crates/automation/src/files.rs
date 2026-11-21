@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use photocraft_doc::Document;
+use photocraft_format::durability::Durability;
 use photocraft_format::{PcraftWriter, SaveOptions};
 use photocraft_io::{BandRenderer, ExportOptions};
 
@@ -156,16 +157,16 @@ pub fn save_with_renderer_keeping(
             warnings.push("native .pcraft format uses CPU compositor for previews".into());
             warnings.extend(r.drain_diagnostics());
         }
-        return Ok(Saved { warnings, unconfirmed: stats.unconfirmed });
+        return Ok(Saved { warnings, durability: stats.durability });
     }
     let Some(renderer) = renderer else {
         let r = photocraft_io::export_with_renderer(doc, &ext, opts, &photocraft_raster::Interrupt::NONE, None)?;
         let unconfirmed = photocraft_format::write(path, &r.bytes).map_err(|e| AutomationError::Io(e.to_string()))?;
-        return Ok(Saved { warnings: r.warnings, unconfirmed });
+        return Ok(Saved { warnings: r.warnings, durability: Durability::of(unconfirmed) });
     };
     let r = photocraft_io::export_with_renderer(doc, &ext, opts, &photocraft_raster::Interrupt::NONE, Some(&mut *renderer))?;
     match photocraft_format::write(path, &r.bytes) {
-        Ok(unconfirmed) => Ok(Saved { warnings: r.warnings, unconfirmed }),
+        Ok(unconfirmed) => Ok(Saved { warnings: r.warnings, durability: Durability::of(unconfirmed) }),
         Err(e) => {
             kept.extend(r.warnings);
             Err(AutomationError::Io(e.to_string()))
@@ -175,12 +176,12 @@ pub fn save_with_renderer_keeping(
 
 pub struct Saved {
     pub warnings: Vec<String>,
-    pub unconfirmed: Option<photocraft_format::durability::Reason>,
+    pub durability: Durability,
 }
 
 impl Saved {
     pub fn into_warnings(mut self, path: &Path) -> Vec<String> {
-        self.warnings.extend(self.unconfirmed.map(|reason| photocraft_format::unconfirmed_warning(path, reason)));
+        self.warnings.extend(self.durability.unconfirmed().map(|reasons| photocraft_format::unconfirmed_warning(path, reasons)));
         self.warnings
     }
 }

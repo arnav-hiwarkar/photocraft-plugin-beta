@@ -27,8 +27,12 @@ fn export_app(width: u32, height: u32) -> Box<PhotocraftApp> {
 
 /// [`export_app`] over the file service `files` (the framework takes it when the app is built).
 fn export_app_over(width: u32, height: u32, files: Option<std::sync::Arc<dyn craft::host::Files>>) -> Box<PhotocraftApp> {
-    let services =
-        crate::Services { files, export: Some(Box::new(|_, _, _| Ok((Vec::new(), Vec::new())))), write: Some(Box::new(|_, _| Ok(()))), ..Default::default() };
+    let services = crate::Services {
+        files,
+        export: Some(Box::new(|_, _, _| Ok((Vec::new(), Vec::new())))),
+        write: Some(crate::unwarned_write(|_, _| Ok(()))),
+        ..Default::default()
+    };
     let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
     app.run("file.new", json!({"width": width, "height": height})).unwrap();
     app
@@ -225,7 +229,7 @@ fn a_remembered_pixel_size_keeps_this_images_proportions() {
             log.borrow_mut().push((doc.size.width, doc.size.height));
             Ok((Vec::new(), Vec::new()))
         })),
-        write: Some(Box::new(|_, _| Ok(()))),
+        write: Some(crate::unwarned_write(|_, _| Ok(()))),
         ..Default::default()
     };
     let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
@@ -1016,7 +1020,7 @@ fn replay_converts_untagged_pixels_from_the_original_working_profile() {
                 *output.lock().unwrap() = Some(doc.clone());
                 Ok((Vec::new(), Vec::new()))
             }));
-            app.services.write = Some(Box::new(|_, _| Ok(())));
+            app.services.write = Some(crate::unwarned_write(|_, _| Ok(())));
             replay(&mut app, &json!({"path": "out.png", "format": "png", "profile": "srgb", "transparency": true})).unwrap();
             let actual = captured.lock().unwrap().take().unwrap();
             assert_eq!(actual.layers[0].surface().unwrap().pixel(0, 0), expected_pixel, "{working:?} {depth:?}");

@@ -389,7 +389,7 @@ mod tests {
         let ctx = app.ctx().clone();
         let written = std::sync::Arc::new(std::sync::Mutex::new(Vec::<(String, Vec<u8>)>::new()));
         let sink = written.clone();
-        app.services.write = Some(Box::new(move |path, bytes| {
+        app.services.write = Some(crate::unwarned_write(move |path, bytes| {
             sink.lock().unwrap().push((path.to_owned(), bytes.to_vec()));
             Ok(())
         }));

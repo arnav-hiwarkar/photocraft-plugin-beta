@@ -479,6 +479,6 @@ pub(super) fn download_for_web(app: &mut PhotocraftApp, mut p: Value) -> Result<
     // beside the downloaded page, matching the names handed to the platform service.
     p["imagesFolder"] = json!("");
     let write = app.services.write.as_mut().ok_or("no download service")?;
-    web_cmds::save_for_web_with_writer(&mut app.session, &p, &mut |path, bytes| write(path, bytes).map_err(photocraft_engine::EngineError::Other))
+    web_cmds::save_for_web_with_writer(&mut app.session, &p, &mut |path, bytes| write(path, bytes).map(drop).map_err(photocraft_engine::EngineError::Other))
         .map_err(|e| e.to_string())
 }

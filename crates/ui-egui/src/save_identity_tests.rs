@@ -21,7 +21,7 @@ fn app_over(files: Option<std::sync::Arc<dyn craft::host::Files>>) -> Box<Photoc
             export: Some(Box::new(|doc, path, _| {
                 photocraft_io::export(doc, path, &Default::default()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string())
             })),
-            write: Some(Box::new(|_, _| Ok(()))),
+            write: Some(crate::unwarned_write(|_, _| Ok(()))),
             automation_write: Some(Box::new(|_, _| Ok(()))),
             ..Default::default()
         },
@@ -54,7 +54,7 @@ fn new_document_psd_and_subsequent_save_as_adopt_the_written_file_name() {
         app.run("layer.new.layer", json!({})).unwrap();
         let bytes = Rc::new(RefCell::new(Vec::new()));
         let written = bytes.clone();
-        app.services.write = Some(Box::new(move |_, data| {
+        app.services.write = Some(crate::unwarned_write(move |_, data| {
             *written.borrow_mut() = data.to_vec();
             Ok(())
         }));
@@ -89,7 +89,7 @@ fn failed_encode_or_write_keeps_the_previous_name_path_and_dirty_state() {
             app.run("layer.new.layer", json!({})).unwrap();
         }
         let before = identity(&app);
-        app.services.write = Some(Box::new(|_, _| Err("disk full".into())));
+        app.services.write = Some(crate::unwarned_write(|_, _| Err("disk full".into())));
         assert!(app.save_as(Some("after.psd".into())).is_err());
         assert_eq!(identity(&app), before);
         assert!(app.save_automation(Some("after.psd".into())).is_ok());
@@ -141,7 +141,7 @@ fn save_as_flat_keeps_the_layered_original() {
         }
         let written = Rc::new(RefCell::new(Vec::new()));
         let w = written.clone();
-        app.services.write = Some(Box::new(move |path, _| {
+        app.services.write = Some(crate::unwarned_write(move |path, _| {
             w.borrow_mut().push(path.to_string());
             Ok(())
         }));
@@ -162,7 +162,7 @@ fn save_as_flat_keeps_the_layered_original() {
     let mut app = app();
     let written = Rc::new(RefCell::new(Vec::new()));
     let w = written.clone();
-    app.services.write = Some(Box::new(move |path, _| {
+    app.services.write = Some(crate::unwarned_write(move |path, _| {
         w.borrow_mut().push(path.to_string());
         Ok(())
     }));
@@ -321,4 +321,16 @@ fn unconfirmed_download_names_the_document_but_keeps_it_unsaved() {
     app.services.write_unconfirmed = false;
     app.save_as(Some("download.psd".into())).unwrap();
     assert!(!app.has_unsaved_work());
+}
+
+#[test]
+fn a_foreground_save_shows_the_writer_s_durability_warning() {
+    let mut app = app();
+    app.run("file.new", json!({"width": 4, "height": 4, "name": "Untitled-1"})).unwrap();
+    app.services.write =
+        Some(Box::new(|path: &str, _: &[u8]| Ok(vec![format!("{path} was saved, but the save is not confirmed durable (dir-sync-unsupported)")])));
+    let ctx = app.ctx().clone();
+    menus::invoke(&mut app, &ctx, "file.saveAs", json!({"path": "out.psd"})).unwrap();
+    assert!(app.ui.status.contains("out.psd was saved, but the save is not confirmed durable (dir-sync-unsupported)"), "{}", app.ui.status);
+    assert!(app.ui.status_error);
 }

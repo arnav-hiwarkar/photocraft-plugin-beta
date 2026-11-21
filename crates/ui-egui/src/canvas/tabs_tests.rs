@@ -47,7 +47,7 @@ fn panels_shown(h: &Harness<'_, Box<PhotocraftApp>>) -> bool {
 fn saved_document_tabs_track_file_identity() {
     let mut h = harness(2);
     h.state_mut().services.export = Some(Box::new(|_, _, _| Ok((vec![1], Vec::new()))));
-    h.state_mut().services.write = Some(Box::new(|_, _| Ok(())));
+    h.state_mut().services.write = Some(crate::unwarned_write(|_, _| Ok(())));
     h.state_mut().save_as(Some("folder/My saved image.psd".into())).unwrap();
     h.run_steps(2);
     assert_eq!(h.state().session.active().unwrap().doc.name, "My saved image.psd");

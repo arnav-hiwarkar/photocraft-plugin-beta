@@ -401,7 +401,7 @@ impl Headless {
                     self.renderer.as_mut().map(|b| &mut **b as &mut dyn photocraft_io::BandRenderer),
                 )?;
                 match workspace.write(target_text, &bytes) {
-                    Ok(unconfirmed) => files::Saved { warnings, unconfirmed },
+                    Ok(unconfirmed) => files::Saved { warnings, durability: photocraft_format::durability::Durability::of(unconfirmed) },
                     Err(error) => {
                         self.pending_diagnostics.extend(warnings);
                         return Err(error);
@@ -409,7 +409,7 @@ impl Headless {
                 }
             }
         };
-        let durability = saved.unconfirmed.map_or("durable", photocraft_format::durability::Reason::id);
+        let durability = saved.durability.id();
         let mut warnings = saved.into_warnings(&target);
         warnings.extend(photocraft_engine::type_extra_cmds::missing_font_warnings(&doc));
         // A layered document save (PSD, PSB, OpenRaster or .pcraft) that holds the whole document is a
@@ -434,14 +434,14 @@ impl Headless {
     }
 
     /// Write rendered bytes through the configured write authority.
-    pub fn write_render(&self, path: &Path, bytes: &[u8]) -> Result<&'static str, AutomationError> {
+    pub fn write_render(&self, path: &Path, bytes: &[u8]) -> Result<String, AutomationError> {
         let requested = path.to_str().ok_or_else(|| AutomationError::BadRequest("automation paths must be valid UTF-8".into()))?;
         match &self.filesystem {
             Filesystem::Denied => Err(AutomationError::BadRequest("automation filesystem access is not granted: write authority is absent".into())),
             Filesystem::TrustedLocal => photocraft_format::write(path, bytes).map_err(|error| AutomationError::Io(error.to_string())),
             Filesystem::Workspace(workspace) => workspace.write(requested, bytes),
         }
-        .map(|unconfirmed| unconfirmed.map_or("durable", photocraft_format::durability::Reason::id))
+        .map(|unconfirmed| photocraft_format::durability::Durability::of(unconfirmed).id())
     }
 
     pub fn inspect(&self, index: Option<usize>) -> Result<Value, AutomationError> {

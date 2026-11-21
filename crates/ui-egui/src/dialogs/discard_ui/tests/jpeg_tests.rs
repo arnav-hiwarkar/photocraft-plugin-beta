@@ -31,7 +31,7 @@ fn jpeg_app(to: &str) -> (Prompted, Writes) {
     let writes: Writes = Rc::default();
     let written = writes.clone();
     app.services.export = Some(Box::new(|_, _, settings| Ok((asked(settings.jpeg_quality, settings.jpeg_format), Vec::new()))));
-    app.services.write = Some(Box::new(move |path, bytes| {
+    app.services.write = Some(crate::unwarned_write(move |path, bytes| {
         written.borrow_mut().push((path.to_string(), bytes.to_vec()));
         Ok(())
     }));

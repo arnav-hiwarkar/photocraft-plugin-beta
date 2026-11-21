@@ -574,7 +574,7 @@ fn recorded_save_as_and_save_replay_and_write_the_file() {
     let log = written.clone();
     let services = crate::Services {
         export: Some(Box::new(|doc, path, _| photocraft_io::export(doc, path, &Default::default()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string()))),
-        write: Some(Box::new(move |path, _| {
+        write: Some(crate::unwarned_write(move |path, _| {
             log.borrow_mut().push(path.to_string());
             Ok(())
         })),
@@ -608,7 +608,7 @@ pub(super) fn disk_app(files: std::sync::Arc<craft::host::ScriptedFiles>) -> Box
             photocraft_io::import_with_options(name, bytes, opts).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
         })),
         export: Some(Box::new(|doc, path, _| photocraft_io::export(doc, path, &Default::default()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string()))),
-        write: Some(Box::new(|path, bytes| std::fs::write(path, bytes).map_err(|e| e.to_string()))),
+        write: Some(crate::unwarned_write(|path, bytes| std::fs::write(path, bytes).map_err(|e| e.to_string()))),
         files: Some(files),
         ..Default::default()
     };
@@ -775,7 +775,7 @@ fn recorded_save_as_with_the_suggested_name_saves_each_document_under_its_own() 
     let log = written.clone();
     let services = crate::Services {
         export: Some(Box::new(|doc, path, _| photocraft_io::export(doc, path, &Default::default()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string()))),
-        write: Some(Box::new(move |path, _| {
+        write: Some(crate::unwarned_write(move |path, _| {
             log.borrow_mut().push(path.to_string());
             Ok(())
         })),
@@ -2114,7 +2114,7 @@ fn save_hook_closing_the_target_stops_an_imported_close_with_save() {
         let w = writes.clone();
         let services = crate::Services {
             export: Some(Box::new(|doc, _, _| Ok((doc.name.clone().into_bytes(), Vec::new())))),
-            write: Some(Box::new(move |path, _| {
+            write: Some(crate::unwarned_write(move |path, _| {
                 w.borrow_mut().push(path.to_string());
                 Ok(())
             })),

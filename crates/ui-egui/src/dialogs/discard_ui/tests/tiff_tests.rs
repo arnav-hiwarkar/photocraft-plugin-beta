@@ -20,7 +20,7 @@ fn tiff_prompt_answering(command: &str, paths: &[&str]) -> (Prompted, Writes, Do
     let writes: Writes = Rc::default();
     let written = writes.clone();
     app.services.export = Some(Box::new(move |doc, _, settings| Ok((serde_json::to_vec(&(doc.id, settings.tiff_layers)).unwrap(), Vec::new()))));
-    app.services.write = Some(Box::new(move |path, bytes| {
+    app.services.write = Some(crate::unwarned_write(move |path, bytes| {
         written.borrow_mut().push((path.to_string(), bytes.to_vec()));
         Ok(())
     }));
@@ -87,7 +87,7 @@ fn cancelling_failing_or_copying_a_tiff_keeps_the_original_unsaved() {
         h.run_steps(3);
         match outcome {
             "export error" => h.state_mut().services.export = Some(Box::new(|_, _, _| Err("cannot encode".into()))),
-            "write error" => h.state_mut().services.write = Some(Box::new(|_, _| Err("disk full".into()))),
+            "write error" => h.state_mut().services.write = Some(crate::unwarned_write(|_, _| Err("disk full".into()))),
             "copy" => set_field(&mut h, "discardLayers", json!(true)),
             _ => {}
         }

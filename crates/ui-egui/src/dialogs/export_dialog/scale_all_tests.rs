@@ -26,7 +26,7 @@ fn opened() -> (Box<PhotocraftApp>, DialogId, Writes, Arc<ScriptedFiles>) {
         export: Some(Box::new(|doc, path, settings| {
             photocraft_io::export(doc, path, &settings.io_options()).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string())
         })),
-        write: Some(Box::new(move |path, bytes| {
+        write: Some(crate::unwarned_write(move |path, bytes| {
             captured.borrow_mut().push((path.to_string(), bytes.to_vec()));
             Ok(())
         })),

@@ -37,7 +37,7 @@ fn a_save_document_script_that_edits_the_document_keeps_the_prompt_up() {
     make_dirty(&mut app, 0);
     app.session.active_mut().unwrap().path = Some("/pics/kept.psd".into());
     app.services.export = Some(Box::new(|_: &photocraft_doc::Document, _: &str, _: &crate::ExportSettings| Ok((b"out".to_vec(), Vec::new()))));
-    app.services.write = Some(Box::new(|_: &str, _: &[u8]| Ok(())));
+    app.services.write = Some(crate::unwarned_write(|_: &str, _: &[u8]| Ok(())));
     app.session.edit_prefs(|prefs| {
         prefs.script_events.enabled = true;
         prefs.script_events.bindings = vec![ScriptBinding {
@@ -507,7 +507,7 @@ fn saving_from_the_prompt_waits_for_the_save_dialog_then_closes() {
     let mut app = app_with_docs_over(1, Some(files.clone()));
     make_dirty(&mut app, 0);
     app.services.export = Some(Box::new(|_: &photocraft_doc::Document, _: &str, _: &crate::ExportSettings| Ok((b"out".to_vec(), Vec::new()))));
-    app.services.write = Some(Box::new(move |p: &str, _: &[u8]| {
+    app.services.write = Some(crate::unwarned_write(move |p: &str, _: &[u8]| {
         w.borrow_mut().push(p.to_string());
         Ok(())
     }));
@@ -589,7 +589,7 @@ fn saving_from_the_prompt_closes_after_an_unconfirmed_write() {
     app.session.active_mut().unwrap().path = Some("/pics/kept.psd".into());
     app.services.write_unconfirmed = true;
     app.services.export = Some(Box::new(|_: &photocraft_doc::Document, _: &str, _: &crate::ExportSettings| Ok((b"out".to_vec(), Vec::new()))));
-    app.services.write = Some(Box::new(move |p: &str, _: &[u8]| {
+    app.services.write = Some(crate::unwarned_write(move |p: &str, _: &[u8]| {
         w.borrow_mut().push(p.to_string());
         Ok(())
     }));
@@ -613,7 +613,7 @@ fn a_synthetic_save_press_on_the_hosted_prompt_is_refused_and_reported() {
     make_dirty(&mut app, 0);
     app.session.active_mut().unwrap().path = Some("/pics/kept.psd".into());
     app.services.export = Some(Box::new(|_: &photocraft_doc::Document, _: &str, _: &crate::ExportSettings| Ok((b"out".to_vec(), Vec::new()))));
-    app.services.write = Some(Box::new(move |p: &str, _: &[u8]| {
+    app.services.write = Some(crate::unwarned_write(move |p: &str, _: &[u8]| {
         w.borrow_mut().push(p.to_string());
         Ok(())
     }));

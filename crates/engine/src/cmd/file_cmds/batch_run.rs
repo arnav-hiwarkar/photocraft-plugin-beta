@@ -1,5 +1,5 @@
 use super::open::import_at_raw_ppi;
-use super::paths::{extension, file_name, join, list_files, list_images, read_file, sanitize, stem, write_file};
+use super::paths::{extension, file_name, join, list_files, list_images, read_file, sanitize, stem, write_saved};
 use super::processing::parse_steps;
 use super::save::{SaveOpts, encode, save_doc, save_doc_as};
 use super::{Arc, Document, EngineError, Result, Session, Value, batch_naming, json, str_param};
@@ -439,14 +439,11 @@ fn save_unique_output(out: &str, bytes: &[u8]) -> Result<PublishedOutput> {
             Err(error) => return Err(EngineError::Other(format!("{candidate}: {error}"))),
         }
         match craft_atomic::write_new(path, bytes) {
-            craft_atomic::Receipt::Durable => return Ok(PublishedOutput { path: candidate, warning: None }),
-            craft_atomic::Receipt::VisibleUnconfirmed(unconfirmed) => {
-                let warning = Some(format!("{candidate}: {unconfirmed}"));
-                return Ok(PublishedOutput { path: candidate, warning });
-            }
             craft_atomic::Receipt::Unchanged(error) if error.kind() == ErrorKind::AlreadyExists => {}
-            craft_atomic::Receipt::Unchanged(error) | craft_atomic::Receipt::Displaced { error, .. } => {
-                return Err(EngineError::Other(format!("{candidate}: {error}")));
+            receipt => {
+                let unconfirmed = photocraft_format::settle(path, receipt).map_err(|error| EngineError::Other(format!("{candidate}: {error}")))?;
+                let warning = unconfirmed.map(|reasons| photocraft_format::unconfirmed_warning(path, reasons));
+                return Ok(PublishedOutput { path: candidate, warning });
             }
         }
     }
@@ -461,9 +458,9 @@ fn save_unique_output(out: &str, _bytes: &[u8]) -> Result<PublishedOutput> {
 /// Encode before the Batch write checkpoint. Esc accepted during an action or encode therefore
 /// leaves the current destination untouched; the worker owns the write once the checkpoint passes.
 fn save_batch_doc(doc: &Document, out: &str, format: &str, save: SaveOpts, ctx: &crate::jobs::JobCtx) -> Result<Vec<String>> {
-    let (bytes, warnings) = encode(doc, format, save)?;
+    let (bytes, mut warnings) = encode(doc, format, save)?;
     ctx.batch_before_write()?;
-    write_file(out, &bytes)?;
+    write_saved(out, &bytes, &mut warnings)?;
     Ok(warnings)
 }
 

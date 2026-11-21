@@ -3,7 +3,7 @@
 
 use photocraft_doc::Document;
 use photocraft_format::RecoveryStore;
-use photocraft_format::durability::Reason;
+use photocraft_format::durability::Reasons;
 use photocraft_ui_egui::{Recoverable, Services};
 use std::cell::{Cell, RefCell};
 use std::future::Future;
@@ -102,13 +102,14 @@ fn recovery_dir() -> Option<PathBuf> {
     crate::app_dirs::recovery_dir()
 }
 
-fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    photocraft_format::write(path, bytes).map(drop).map_err(|e| e.to_string())
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<Vec<String>, String> {
+    let unconfirmed = photocraft_format::write(path, bytes).map_err(|e| e.to_string())?;
+    Ok(unconfirmed.map(|reasons| photocraft_format::unconfirmed_warning(path, reasons)).into_iter().collect())
 }
 
 const WRITE_CHUNK: usize = 8 << 20;
 
-fn write_encoded_atomic(path: &Path, encoded: &photocraft_io::Encoded, progress: &dyn Fn(f32)) -> Result<Option<Reason>, String> {
+fn write_encoded_atomic(path: &Path, encoded: &photocraft_io::Encoded, progress: &dyn Fn(f32)) -> Result<Option<Reasons>, String> {
     let fill = |file: &mut std::fs::File| match encoded {
         photocraft_io::Encoded::Bytes(bytes) => {
             let mut written = 0usize;
@@ -220,7 +221,7 @@ fn save_through(
     path: &str,
     settings: &photocraft_ui_egui::ExportSettings,
     ctl: &photocraft_ui_egui::jobs_ui::SaveCtl,
-    write: impl Fn(&str, &photocraft_io::Encoded, &dyn Fn(f32)) -> Result<Option<Reason>, String>,
+    write: impl Fn(&str, &photocraft_io::Encoded, &dyn Fn(f32)) -> Result<Option<Reasons>, String>,
 ) -> Result<Vec<String>, String> {
     ctl.progress(0.0, "Encoding");
     let opts = export_options(settings);
@@ -603,7 +604,7 @@ pub fn native(automation: Option<photocraft_automation::AuthorizedWorkspace>, wa
             if text.len() > photocraft_ui_egui::gpu_memo::MAX_GPU_MEMO_BYTES {
                 return Err("GPU compositor memo exceeds 64 KiB".into());
             }
-            write_atomic(&gpu_memo_file().ok_or("no config directory")?, text.as_bytes())
+            write_atomic(&gpu_memo_file().ok_or("no config directory")?, text.as_bytes()).map(drop)
         })),
         shader_compiler: Some(shader_compiler_identity()),
         append_text: Some(Box::new(|path: &str, text: &str| {

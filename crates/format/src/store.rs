@@ -447,7 +447,7 @@ pub(crate) fn load_measured(src: &dyn ByteSource, opts: &LoadOptions) -> Result<
 // ---------------------------------------------------------------------------
 
 /// What a save did.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SaveStats {
     /// Distinct tiles referenced by the document.
     pub tiles_total: usize,
@@ -461,7 +461,7 @@ pub struct SaveStats {
     pub objects_removed: usize,
     /// Bytes of the manifest.
     pub manifest_bytes: usize,
-    pub unconfirmed: Option<craft_atomic::Reason>,
+    pub durability: crate::durability::Durability,
 }
 
 type BlobHashCache = HashMap<usize, (Weak<Vec<u8>>, Hash)>;
@@ -802,7 +802,16 @@ impl PcraftWriter {
         model.composite = opts.composite.as_ref().map(|_| COMPOSITE.to_owned());
         let full_composite = opts.full_composite.is_some();
         let manifest = manifest_json(&model, full_composite)?;
-        let stats = SaveStats { tiles_total: c.tiles.len(), blobs_total: c.blobs.len(), manifest_bytes: manifest.len(), ..Default::default() };
+        let stats = SaveStats {
+            tiles_total: c.tiles.len(),
+            tiles_written: 0,
+            tiles_reused: 0,
+            blobs_total: c.blobs.len(),
+            blobs_written: 0,
+            objects_removed: 0,
+            manifest_bytes: manifest.len(),
+            durability: crate::durability::Durability::NotMeasured,
+        };
         let invalid = |h: &str| FormatError::corrupt(format!("invalid object hash `{h}`"));
         let mut objects = BTreeMap::new();
         for (h, (t, s)) in c.tiles {
@@ -954,7 +963,7 @@ impl PcraftWriter {
             self.save_dir(doc, path, opts)
         } else {
             let (bytes, stats) = self.save_zip(doc, opts)?;
-            Ok(SaveStats { unconfirmed: crate::write(path, &bytes)?, ..stats })
+            Ok(SaveStats { durability: crate::durability::Durability::of(crate::write(path, &bytes)?), ..stats })
         }
     }
 }

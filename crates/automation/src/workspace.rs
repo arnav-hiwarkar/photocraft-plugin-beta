@@ -6,8 +6,7 @@ use std::sync::Arc;
 
 use cap_std::ambient_authority;
 use cap_std::fs::{Dir, OpenOptions};
-use craft_atomic::RenameRetry;
-use photocraft_format::durability::Reason;
+use photocraft_format::durability::Reasons;
 use serde_json::Value;
 
 use crate::AutomationError;
@@ -163,14 +162,14 @@ impl AuthorizedWorkspace {
     /// The parent directory must already exist. `cap-std` performs path
     /// resolution and file creation relative to the held directory handle, so
     /// a non-existent final target is supported without ambient path access.
-    pub fn write(&self, path: &str, bytes: &[u8]) -> Result<Option<Reason>, AutomationError> {
+    pub fn write(&self, path: &str, bytes: &[u8]) -> Result<Option<Reasons>, AutomationError> {
         self.write_stream(path, &mut |w| w.write_all(bytes))
     }
 
     /// [`Self::write`] with the file's bytes produced by `write` straight into the temporary
     /// file (it may seek back to patch lengths), so a large PSD/PSB is never held in memory
     /// whole (#5333). The same refusals, the same atomic replace.
-    pub fn write_stream(&self, path: &str, write: &mut StreamWriter<'_>) -> Result<Option<Reason>, AutomationError> {
+    pub fn write_stream(&self, path: &str, write: &mut StreamWriter<'_>) -> Result<Option<Reasons>, AutomationError> {
         let relative = request_path(path, self.write.as_ref())?;
         let root = self.write.as_ref().ok_or_else(|| AutomationError::BadRequest(format!("{DENIED}: write authority is absent")))?;
         let leaf = relative.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -190,56 +189,91 @@ impl AuthorizedWorkspace {
                 "automation write refused: `{path}` already exists and is not an image or document file PhotoCraft writes; save to a new name"
             )));
         }
-        let parent = relative.parent().map(Path::to_path_buf).unwrap_or_default();
-        let tmp = parent.join(craft_atomic::temp_name(&leaf));
-        let mut options = OpenOptions::new();
-        options.write(true).create_new(true);
-        let opened = root.dir.open_with(&tmp, &options);
-        // Removes the temporary file on every way out but a rename, a panicking writer included
-        // (unwinding closes the handle inside the closure first), and only one this call made.
-        let mut cleanup = TempRemoval { dir: &root.dir, path: &tmp, armed: opened.is_ok() };
-        let written = opened.and_then(|file| {
-            let mut file = file.into_std();
-            write(&mut file)?;
-            #[cfg(unix)]
-            if let Ok(old) = root.dir.open(&relative) {
-                let old = old.into_std();
-                let _ = craft_atomic::copy_xattrs(&old, &file);
-                let _ = craft_atomic::copy_created(&old, &file);
-            }
-            craft_atomic::sync_file(&file)
-        });
-        let content = match written.and_then(|flush| craft_atomic::retry_rename(RenameRetry::platform(), || rename_in(root, &tmp, &relative)).map(|()| flush)) {
-            Ok(flush) => flush,
-            Err(e) => return Err(file_error("write", path, e)),
-        };
-        cleanup.armed = false;
-        let dir = if parent.as_os_str().is_empty() { PathBuf::from(".") } else { parent };
-        let folder = if cfg!(unix) {
-            root.dir.open(&dir).map(cap_std::fs::File::into_std)
-        } else {
-            Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "a folder reached through a capability cannot be flushed here"))
-        };
-        photocraft_format::settle(Path::new(path), craft_atomic::confirm(&craft_atomic::RealFs, Path::new(path), content, folder))
-            .map_err(|e| file_error("write", path, e))
+        let fs = RootFs(root);
+        let options = craft_atomic::WriteOptions::default().with_fs(&fs).with_links(craft_atomic::Links::Replace);
+        photocraft_format::settle(Path::new(path), options.write_with(&relative, |file| write(file))).map_err(|e| file_error("write", path, e))
     }
 }
 
 pub type StreamWriter<'a> = dyn FnMut(&mut std::fs::File) -> std::io::Result<()> + 'a;
 
-/// Removes a temporary file on drop unless `armed` was cleared after its rename. The removal
-/// goes through the held directory handle ([`remove_file_in`]), so it works below every root.
-struct TempRemoval<'a> {
-    dir: &'a Dir,
-    path: &'a Path,
-    armed: bool,
-}
+struct RootFs<'a>(&'a RootCapability);
 
-impl Drop for TempRemoval<'_> {
-    fn drop(&mut self) {
-        if self.armed {
-            let _ = remove_file_in(self.dir, self.path);
+impl craft_atomic::AtomicFs for RootFs<'_> {
+    fn entry(&self, path: &Path) -> std::io::Result<craft_atomic::Entry> {
+        let m = self.0.dir.symlink_metadata(path)?;
+        let kind = match m.file_type() {
+            t if t.is_symlink() => craft_atomic::EntryKind::Link,
+            t if t.is_file() => craft_atomic::EntryKind::File,
+            _ => craft_atomic::EntryKind::Other,
+        };
+        #[cfg(unix)]
+        {
+            use cap_std::fs::MetadataExt;
+            Ok(craft_atomic::Entry { kind, identity: craft_atomic::Identity::new(m.dev(), m.ino()), mode: m.mode(), gid: m.gid() })
         }
+        #[cfg(not(unix))]
+        {
+            let created = m.created().ok().map(cap_std::time::SystemTime::into_std);
+            let identity = craft_atomic::Identity::new(m.len(), m.modified().ok().map(cap_std::time::SystemTime::into_std), created);
+            Ok(craft_atomic::Entry { kind, identity, readonly: m.permissions().readonly() })
+        }
+    }
+    fn read_link(&self, path: &Path) -> std::io::Result<PathBuf> {
+        self.0.dir.read_link(path)
+    }
+    fn open_read(&self, path: &Path) -> std::io::Result<std::fs::File> {
+        self.0.dir.open(path).map(cap_std::fs::File::into_std)
+    }
+    fn open_write(&self, path: &Path) -> std::io::Result<std::fs::File> {
+        let mut options = OpenOptions::new();
+        options.write(true);
+        self.0.dir.open_with(path, &options).map(cap_std::fs::File::into_std)
+    }
+    fn create_new(&self, path: &Path, permissions: craft_atomic::NewFilePermissions) -> std::io::Result<std::fs::File> {
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use cap_std::fs::OpenOptionsExt;
+            options.mode(if permissions == craft_atomic::NewFilePermissions::Private { 0o600 } else { 0o666 });
+        }
+        #[cfg(not(unix))]
+        let _ = permissions;
+        self.0.dir.open_with(path, &options).map(cap_std::fs::File::into_std)
+    }
+    fn sync(&self, file: &std::fs::File) -> std::io::Result<craft_atomic::Flush> {
+        craft_atomic::RealFs.sync(file)
+    }
+    fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+        rename_in(self.0, from, to)
+    }
+    fn replace_existing(&self, from: &Path, to: &Path) -> Result<(), craft_atomic::ReplaceFailure> {
+        rename_in(self.0, from, to).map_err(craft_atomic::ReplaceFailure::Kept)
+    }
+    fn rename_noreplace(&self, _from: &Path, _to: &Path) -> std::io::Result<()> {
+        Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "a capability directory has no exclusive rename"))
+    }
+    fn hard_link(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+        self.0.dir.hard_link(from, &self.0.dir, to)
+    }
+    fn remove(&self, path: &Path) -> std::io::Result<()> {
+        remove_file_in(&self.0.dir, path)
+    }
+    fn open_dir(&self, dir: &Path) -> std::io::Result<std::fs::File> {
+        if cfg!(unix) {
+            self.0.dir.open(dir).map(cap_std::fs::File::into_std)
+        } else {
+            Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "a folder reached through a capability cannot be flushed here"))
+        }
+    }
+    fn copy_acl(&self, _from: &Path, _to: &Path) {}
+    fn set_permissions(&self, file: &std::fs::File, perms: std::fs::Permissions) -> std::io::Result<()> {
+        craft_atomic::RealFs.set_permissions(file, perms)
+    }
+    #[cfg(unix)]
+    fn set_group(&self, file: &std::fs::File, gid: u32) -> std::io::Result<()> {
+        craft_atomic::RealFs.set_group(file, gid)
     }
 }
 
