@@ -2197,7 +2197,7 @@ dependencies = [
 [[package]]
 name = "craft-testkit"
 version = "0.1.0"
-source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=db83b1554687ed1fd1ae20c37573cd3767601d51#db83b1554687ed1fd1ae20c37573cd3767601d51"
+source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=b468730ac1975d332a275a281558a16406fe3e0c#b468730ac1975d332a275a281558a16406fe3e0c"
 
 [[package]]
 name = "craft-text"
