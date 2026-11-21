@@ -15,6 +15,7 @@ name = "legacy-corpus"
 path = "src/main.rs"
 
 [dependencies]
+craft = { workspace = true }
 photocraft-doc = { workspace = true }
 photocraft-engine = { workspace = true }
 photocraft-format = { workspace = true }
@@ -24,6 +25,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 toml = "1"
 wat = "1.228"
+tempfile = "3"
 
 [dev-dependencies]
-tempfile = "3"
+photocraft-paint = { workspace = true }

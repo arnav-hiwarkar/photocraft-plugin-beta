@@ -1,8 +1,6 @@
 mod coverage;
 mod parity;
 
-use std::path::Path;
-
 use craft_testkit::corpus::Committed;
 use photocraft_doc::{Document, LayerContent, Surface};
 use photocraft_engine::Session;
@@ -50,14 +48,4 @@ pub fn smart_cache(doc: &Document) -> Vec<Vec<u8>> {
 
 pub fn original() -> Vec<Vec<u8>> {
     LAYER_PIXELS.iter().map(|px| px.to_vec()).collect()
-}
-
-pub fn copy_member(member: &str, to: &Path) {
-    let corpus = corpus();
-    let entry = corpus.manifest().entry(member).unwrap().clone();
-    for file in &entry.files {
-        let target = to.join(&file.path);
-        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
-        std::fs::write(target, corpus.bytes(member, &file.path).unwrap()).unwrap();
-    }
 }

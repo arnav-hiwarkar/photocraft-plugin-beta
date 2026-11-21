@@ -17,6 +17,15 @@ files = [
 ]
 
 [[member]]
+name = "commands-module"
+kind = "plugin-commands"
+app = "photocraft"
+expect = "plugin.install by path and by data, a refused second install without replace, plugin.remove and plugin.reload of the folder"
+files = [
+    { path = "commands.wasm", sha256 = "e7eef6b5ba0583d34a3591dd1fb6a213ac92bc0b64da506292c3e0dec8a8f270" },
+]
+
+[[member]]
 name = "fill-module"
 kind = "pc-abi1-module"
 app = "photocraft"
@@ -24,6 +33,24 @@ expect = "plugin.run with org.example.corpus.fill sets every sample of the activ
 files = [
     { path = "fill.wasm", sha256 = "c2e01a0df2eca6f5f4a2308963f83356fc36f45ecfcb1dbf0e06e3faf64696d7" },
     { path = "fill.wat", sha256 = "de6d8e328463692b67c6533a90af722b2785a7813d7ada43bfdf0a1b324ddc4c" },
+]
+
+[[member]]
+name = "filter-mask-document"
+kind = "apply-filter-mask-target"
+app = "photocraft"
+expect = "plugin.run fill with target filterMask sets the smart filter mask to 64 and adds no smart filter"
+files = [
+    { path = "document.pcraft", sha256 = "825a98f8b98f42e47a0f3ca7c6014ef363017b65f5d6e610b5eba1e95046f1e7" },
+]
+
+[[member]]
+name = "legacy-preferences"
+kind = "plugin-folder-legacy-json"
+app = "photocraft"
+expect = "with no config.toml the settings store imports preferences.json and turns on the Plug-ins folder"
+files = [
+    { path = "preferences.json", sha256 = "d01c3985cbe5afc618ff63f783b40ff5c431e26637b4d7d5878a8a719bace291" },
 ]
 
 [[member]]
@@ -46,23 +73,71 @@ files = [
 ]
 
 [[member]]
+name = "mask-document"
+kind = "apply-mask-target"
+app = "photocraft"
+expect = "plugin.run fill with target mask sets the layer mask to 64 and leaves the pixels"
+files = [
+    { path = "document.pcraft", sha256 = "99b74b8fd1eca0d27499024d94b15d38e9c9bfcfd28d05a91a555af3c0121aec" },
+]
+
+[[member]]
 name = "missing-plugin-document"
 kind = "plugin-missing"
 app = "photocraft"
 expect = "the record for the absent org.example.corpus.absent survives reopening, renders as the unfiltered layer, and plugin.run names it"
 files = [
-    { path = "document.pcraft", sha256 = "a91d16f8ac2407cefe359e01a089f43876e743b081364b102e53ae72ad97159c" },
+    { path = "document.pcraft", sha256 = "a5869f07844ade2addaa061859bbe12f7de22b654ee9c9ed20496c0d17f321f1" },
+]
+
+[[member]]
+name = "pixels-locked-document"
+kind = "apply-lock-pixels-refusal"
+app = "photocraft"
+expect = "plugin.run on the layer with locked pixels is refused as locked and leaves the pixels and history alone"
+files = [
+    { path = "document.pcraft", sha256 = "49a70889ecc559a5bfcf569800945daecacbcade76db77ee29efbaaa9c70718b" },
 ]
 
 [[member]]
 name = "plugin-folder"
 kind = "plugin-folder-prefs"
 app = "photocraft"
-expect = "config.toml turns on the Plug-ins folder; loading it installs fill and reports not-a-module.wasm as failed"
+expect = "config.toml from the settings store turns on the Plug-ins folder; loading it installs fill and reports not-a-module.wasm as failed"
 files = [
     { path = "Plug-ins/fill.wasm", sha256 = "c2e01a0df2eca6f5f4a2308963f83356fc36f45ecfcb1dbf0e06e3faf64696d7" },
     { path = "Plug-ins/not-a-module.wasm", sha256 = "93cd816056f28ae55b76347862480044f74c9324a813d8c6825d53ace5cc18f2" },
-    { path = "config.toml", sha256 = "1fcdfa09b23e8dad4ca4bbe23b7950edeec985f6ef7cdeaafeaf04b0287b0f72" },
+    { path = "config.toml", sha256 = "ffffa82090b5d1c618aa49ccaf0adfe7dee398faee2e532dea6bf5071fb0ac21" },
+]
+
+[[member]]
+name = "preview-module"
+kind = "preview-scaling"
+app = "photocraft"
+expect = "a preview reduced 4 times divides the px parameters radius and size and leaves amount; size's minimum 2 caps the factor"
+files = [
+    { path = "preview.wasm", sha256 = "aa7c9bd8688a74e423ea62caaaf6fe9f1dd0169d5c2f65abea80f9ee1d250477" },
+    { path = "preview.wat", sha256 = "30472ce0b819c4c2fa1a98396d4ad12b9a36d3d959f2c0adecf6e4f7b1b3086b" },
+]
+
+[[member]]
+name = "probe-module"
+kind = "pc-abi1-module"
+app = "photocraft"
+expect = "the probe writes width 64, height 4, 4 channels, format code 196896 and the exact params JSON plugin.run passes"
+files = [
+    { path = "document.pcraft", sha256 = "1bfd66abc9e2cca47a73b599d4744537b86386623e55da950d647ca4e618242d" },
+    { path = "probe.wasm", sha256 = "f145051b490b81a01f6f0f18db352b5ef1705b4031021b49133542adec5cd70e" },
+    { path = "probe.wat", sha256 = "98b83bd3d66c9ad31f96892df5bbfe434f7ba3e955a79a7b7953956b1fcf0ff1" },
+]
+
+[[member]]
+name = "quick-mask-document"
+kind = "apply-quick-mask-target"
+app = "photocraft"
+expect = "plugin.run fill with target quickMask sets the Quick Mask channel to 64 and leaves the pixels"
+files = [
+    { path = "document.pcraft", sha256 = "aeb1cbc1dd98b8f9d922d486f00291ff1ac1311211e1ac41d8a684bfba9fb36c" },
 ]
 
 [[member]]
@@ -75,10 +150,28 @@ files = [
 ]
 
 [[member]]
+name = "smart-apply-document"
+kind = "apply-smart-filter"
+app = "photocraft"
+expect = "plugin.run fill on the smart object adds the record and a filter mask taken from the saved selection"
+files = [
+    { path = "document.pcraft", sha256 = "1d4ba976836f2a81e7bf053de2674ddc1efb2e479c9f06ebe113ea0ee40e9229" },
+]
+
+[[member]]
 name = "smart-filter-document"
 kind = "smart-filter-record"
 app = "photocraft"
 expect = "the smart object keeps the record {command: plugin.run, params: {id: org.example.corpus.fill, params: {}}} and renders to 64"
 files = [
-    { path = "document.pcraft", sha256 = "fe1ce84ffff537486149e1e5ea294b2369a0c8b14e1c941bb4b0a74c557535d3" },
+    { path = "document.pcraft", sha256 = "d3d549be8fcda220ec5872f2d373474ecc1450fa2d2ccd2fbbf107d2a3dd0d12" },
+]
+
+[[member]]
+name = "two-layer-document"
+kind = "apply-layer-param"
+app = "photocraft"
+expect = "plugin.run fill with layer 2 fills the lower layer and leaves the active upper layer"
+files = [
+    { path = "document.pcraft", sha256 = "1682b8426077e85a995bbaff3ea2404ee931ebc3616d82bc44f5fc9272506bd2" },
 ]
