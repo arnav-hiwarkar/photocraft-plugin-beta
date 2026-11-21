@@ -36,12 +36,10 @@ pub fn plugin_folder() -> Result<Vec<u8>, Error> {
 }
 
 pub fn legacy_preferences() -> Result<Vec<u8>, Error> {
-    let mut s = Session::new();
-    s.edit_prefs(|prefs| {
-        prefs.plug_ins.use_additional_plugins_folder = true;
-        prefs.plug_ins.additional_plugins_folder = PLUGIN_FOLDER.into();
-    });
-    let full = s.prefs_value();
+    let mut full = Session::new().prefs_value();
+    let mut saved = SavedPrefs::default();
+    with_folder(&mut saved);
+    full["plugIns"] = serde_json::to_value(&saved.prefs.plug_ins).map_err(settings_error)?;
     let kept: serde_json::Map<String, serde_json::Value> =
         ["version", "plugIns"].iter().filter_map(|key| full.get(*key).map(|value| ((*key).to_owned(), value.clone()))).collect();
     serde_json::to_vec_pretty(&kept).map_err(settings_error)

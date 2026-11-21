@@ -7,8 +7,9 @@ use photocraft_engine::Session;
 use photocraft_legacy_corpus::{CANVAS, LAYER_PIXELS};
 use photocraft_plugins::{Limits, Plugin, registry};
 
-pub fn corpus() -> Committed {
-    craft_testkit::corpus::open(&photocraft_legacy_corpus::root()).unwrap()
+pub fn corpus() -> &'static Committed {
+    static CORPUS: std::sync::OnceLock<Committed> = std::sync::OnceLock::new();
+    CORPUS.get_or_init(|| craft_testkit::corpus::open(&photocraft_legacy_corpus::root()).unwrap())
 }
 
 pub fn install(member: &str, file: &str) {
