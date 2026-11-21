@@ -42,6 +42,8 @@ pub enum EngineError {
     #[error("“{name}” changed since it was checked; open it again to approve the new file")]
     SourceChanged { name: String },
     #[error("{0}")]
+    Unresolved(#[from] crate::engine_ids::Unresolved),
+    #[error("{0}")]
     Other(String),
     /// A batch or droplet stopped at its nesting or shared playback-step limit. A batch whose
     /// step hits one fails that input instead of saving it unprocessed.

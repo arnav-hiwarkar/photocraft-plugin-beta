@@ -48,14 +48,15 @@ pub fn parse(value: &str) -> Option<(ThemeId, Option<bool>)> {
 /// The command id a saved one names: the four Window › Workspace commands that moved to the
 /// framework's workspace set read as their new ids, so a binding saved for one still matches a
 /// command. The match is on the whole id: other `window.workspace.*` ids (`window.workspace.motion`,
-/// a saved workspace's entry) read as saved. The old ids are never written.
+/// a saved workspace's entry) read as saved. The old ids are never written. Every other id reads
+/// as `engine.lock` resolves it, and one the lock does not know stays as saved.
 pub fn command_id(id: &str) -> String {
     match id {
         "window.workspace.resetWorkspace" => "workspace.reset",
         "window.workspace.newWorkspace" => "workspace.new",
         "window.workspace.deleteWorkspace" => "workspace.delete",
         "window.workspace.lockWorkspace" => "workspace.lock",
-        other => other,
+        other => crate::engine_ids::current_id(crate::engine_ids::Site::Keymap, other).unwrap_or(other),
     }
     .to_owned()
 }

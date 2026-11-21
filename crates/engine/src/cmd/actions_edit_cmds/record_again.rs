@@ -30,6 +30,7 @@ pub fn target(s: &Session, p: &Value) -> Result<RecordAgainTarget> {
         s.actions.list.action(action).and_then(|a| a.steps.get(step)).ok_or_else(|| bad(COMMAND, "step is out of range"))?;
     let (command, params) =
         if id == crate::atn_cmds::MENU_ITEM { (crate::atn_cmds::menu_item_command(params)?.to_string(), json!({})) } else { (id.clone(), params.clone()) };
+    let (command, params) = crate::actions_cmds::playback_step(&command, &params).map(|(id, params)| (id.to_owned(), params))?;
     if command.starts_with("actions.") || !crate::commands::find(&command).is_some_and(|c| c.journal) {
         return Err(bad(COMMAND, "the selected step has no editable engine command"));
     }

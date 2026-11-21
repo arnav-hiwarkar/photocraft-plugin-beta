@@ -198,6 +198,10 @@ pub fn playback_params(s: &Session, id: &str, p: &Value) -> Result<Value> {
     Ok(p)
 }
 
+pub fn playback_step(id: &str, params: &Value) -> Result<(&'static str, Value)> {
+    Ok(crate::engine_ids::resolve_persisted(crate::engine_ids::Site::ActionStep, id, params.clone())?)
+}
+
 /// Replay commands and named action calls, excluding edits to the action definitions and the
 /// already-expanded Again wrapper.
 pub fn replayable(id: &str) -> bool {
@@ -735,11 +739,19 @@ pub fn saves_smart_contents(s: &Session, id: &str) -> bool {
 fn run_recorded(s: &mut Session, action: &Action, from: usize) -> (u64, Option<Value>) {
     let mut ran = 0u64;
     let mut failed = None;
-    for (i, ActionStep { command: id, params }) in action.enabled_steps().skip_while(|(i, _)| *i < from) {
+    for (i, ActionStep { command: saved, params }) in action.enabled_steps().skip_while(|(i, _)| *i < from) {
         if !consume_playback_step(s) {
-            failed = Some(json!({"step": i, "id": id, "error": format!("action playback exceeded the {}-step limit", MAX_PLAYBACK_STEPS), "limit": true}));
+            failed = Some(json!({"step": i, "id": saved, "error": format!("action playback exceeded the {}-step limit", MAX_PLAYBACK_STEPS), "limit": true}));
             break;
         }
+        let (id, params) = match playback_step(saved, params) {
+            Ok(call) => call,
+            Err(e) => {
+                failed = Some(json!({"step": i, "id": saved, "error": e.to_string()}));
+                break;
+            }
+        };
+        let params = &params;
         let effective = crate::file_cmds::batch_open_params(s, id, params);
         let params = effective.as_ref().unwrap_or(params);
         if let Some(auth) = s.authorize

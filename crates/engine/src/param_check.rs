@@ -26,8 +26,17 @@ const STRICT: &[&str] = &["layer.hideLayers", "layer.showLayers"];
 
 /// The keys a `params` doc names, or `None` when the doc is open-ended.
 fn documented_keys(doc: &str) -> Option<Vec<&str>> {
+    let (keys, open) = scan(doc);
+    (!open).then_some(keys)
+}
+
+pub(crate) fn named_keys(doc: &str) -> Vec<&str> {
+    scan(doc).0
+}
+
+fn scan(doc: &str) -> (Vec<&str>, bool) {
     let bytes = doc.as_bytes();
-    let (mut depth, mut in_str, mut start) = (0usize, false, 0usize);
+    let (mut depth, mut in_str, mut start, mut open) = (0usize, false, 0usize, false);
     let mut quoted: Vec<(usize, usize)> = Vec::new();
     for (i, &b) in bytes.iter().enumerate() {
         if in_str {
@@ -51,7 +60,7 @@ fn documented_keys(doc: &str) -> Option<Vec<&str>> {
             && (doc.get(i..).is_some_and(|r| r.starts_with('…') || r.starts_with("...")))
             && doc.get(..i).is_some_and(|l| l.trim_start().starts_with('{'))
         {
-            return None;
+            open = true;
         }
     }
     let mut keys = Vec::new();
@@ -78,7 +87,7 @@ fn documented_keys(doc: &str) -> Option<Vec<&str>> {
             k += 1;
         }
     }
-    Some(keys)
+    (keys, open)
 }
 
 /// Err when `params` has a key the command does not document (only for commands in [`STRICT`]).

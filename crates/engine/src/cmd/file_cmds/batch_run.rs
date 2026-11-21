@@ -850,7 +850,7 @@ pub(super) fn batch(s: &mut Session, p: &Value) -> Result<Value> {
         }
     };
     let mut called_name = None;
-    let mut steps = if let Some(st) = p.get("steps") {
+    let steps = if let Some(st) = p.get("steps") {
         parse_steps(st)?
     } else if let Some(act) = p.get("action").filter(|v| v.is_array()) {
         parse_steps(act)?
@@ -870,6 +870,10 @@ pub(super) fn batch(s: &mut Session, p: &Value) -> Result<Value> {
         .or_else(|| p.get("action").and_then(Value::as_str).map(str::to_string))
         .or_else(|| p.get("action").and_then(|action| action.get("name")).and_then(Value::as_str).map(str::to_string))
         .unwrap_or_else(|| "Batch".into());
+    let mut steps = steps
+        .iter()
+        .map(|(id, params)| crate::actions_cmds::playback_step(id, params).map(|(id, params)| (id.to_owned(), params)))
+        .collect::<Result<Vec<_>>>()?;
     // Preserve the current Save snapshots and view-step policy while adding named actions.
     steps.retain(|(id, _)| batch_keeps_step(id) && id != "file.export.quickExport");
     if let Some(value) = p.get("overrideSaveAs").filter(|v| !v.is_null()) {

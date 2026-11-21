@@ -7,6 +7,7 @@ mod cache_units;
 mod cargo_env;
 mod corpus;
 mod corpus_pins;
+mod engine_lock;
 mod i18n_report;
 mod ico;
 mod layers;
@@ -84,6 +85,9 @@ commands:
                   pack square PNGs (<= 256 px) into a Windows .ico (see packaging/icons.sh)
   psd-write-oracle <recipes.json> <corpus-dir> <photocraft-cli> <new-output-dir>
                   run PSD export recipes and write a JSON report and manifest
+  engine-lock [--check | --update [--rename OLD=NEW]... [--retire ID]... [--migrate ID=NAME]...]
+                  check plugin-contract/engine.lock against the command registry, or rewrite it with the
+                  new ids and the recorded renames, retirements and argument migrations
 ";
 
 fn main() -> ExitCode {
@@ -108,6 +112,7 @@ fn main() -> ExitCode {
         Some("version") => version::run(&root(), &rest),
         Some("ico") => ico::run(&rest),
         Some("psd-write-oracle") => psd_write_oracle::run(&root(), &rest),
+        Some("engine-lock") => engine_lock::run(&rest),
         Some("-h" | "--help" | "help") | None => {
             print!("{USAGE}");
             Ok(())

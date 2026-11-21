@@ -154,7 +154,13 @@ fn layer_sel(
             v["smartFilters"] = Value::Array(
                 sm.smart_filters
                     .iter()
-                    .map(|f| json!({"command": f.command, "params": f.params, "visible": f.visible, "opacity": f.opacity, "blend": f.blend.label()}))
+                    .map(|f| {
+                        let mut row = json!({"command": f.command, "params": f.params, "visible": f.visible, "opacity": f.opacity, "blend": f.blend.label()});
+                        if let Err(why) = crate::smart_cmds::resolved(f) {
+                            row["unresolved"] = json!(why.to_string());
+                        }
+                        row
+                    })
                     .collect(),
             );
             v["smartFiltersEnabled"] = json!(sm.filters_enabled);

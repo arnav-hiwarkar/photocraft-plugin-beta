@@ -311,9 +311,7 @@ fn update_contents_with_frame_budget(s: &mut Session, p: &Value, native: bool, f
         for instance in &ids {
             let sm = smart(doc, *instance)?;
             if sm.filters_enabled {
-                for filter in sm.smart_filters.iter().filter(|filter| filter.visible) {
-                    authorize(&filter.command, &filter.params)?;
-                }
+                crate::smart_cmds::authorize_filters(sm.smart_filters.iter().filter(|filter| filter.visible), authorize)?;
             }
         }
     }

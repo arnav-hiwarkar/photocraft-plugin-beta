@@ -328,8 +328,8 @@ struct ShellRunner<'a> {
     app: &'a mut PhotocraftApp,
     /// Whether a person is playing: only then do dialog toggles, Stop messages and pacing apply.
     interactive: bool,
-    /// The params of the step being run after [`ActionRunner::authorize`] resolved them.
-    resolved: Option<Value>,
+    /// The command and params of the step being run after [`ActionRunner::authorize`] resolved them.
+    resolved: Option<(&'static str, Value)>,
     /// The `paused` or `stopped` entry of the step that ended the playback without a failure.
     ending: Option<Value>,
     /// The nested command's own result, when the step failed because of it.
@@ -381,21 +381,25 @@ impl ActionRunner for ShellRunner<'_> {
 
     /// The gate judges the step before its dialog opens: a denied step neither runs nor pauses.
     fn authorize(&mut self, step: &ActionStep) -> Result<(), String> {
-        let resolved = actions_cmds::playback_params(&self.app.session, &step.command, &step.params).map_err(|e| e.to_string())?;
+        let (id, params) = actions_cmds::playback_step(&step.command, &step.params).map_err(|e| e.to_string())?;
+        let resolved = actions_cmds::playback_params(&self.app.session, id, &params).map_err(|e| e.to_string())?;
         if let Some(gate) = self.app.session.authorize {
-            gate(&step.command, &resolved).map_err(|e| e.to_string())?;
+            gate(id, &resolved).map_err(|e| e.to_string())?;
         }
-        self.resolved = Some(resolved);
+        self.resolved = Some((id, resolved));
         Ok(())
     }
 
     fn is_noop(&self, step: &ActionStep) -> bool {
-        actions_cmds::noop_step(&self.app.session, &step.command, &step.params)
+        actions_cmds::playback_step(&step.command, &step.params).is_ok_and(|(id, params)| actions_cmds::noop_step(&self.app.session, id, &params))
     }
 
     fn run_step(&mut self, action: &Action, i: usize, step: &ActionStep, show_dialog: bool, budget: &mut PlaybackBudget) -> StepOutcome {
-        let id = step.command.as_str();
-        let p = self.resolved.take().unwrap_or_else(|| step.params.clone());
+        let resolved = self.resolved.take().map_or_else(|| actions_cmds::playback_step(&step.command, &step.params).map_err(|e| e.to_string()), Ok);
+        let (id, p) = match resolved {
+            Ok(call) => call,
+            Err(error) => return StepOutcome::Failed(error),
+        };
         let interactive = self.interactive;
         // A Stop shows its message or ends the playback (`stop_step`). Agents keep the headless
         // semantics of the engine command.

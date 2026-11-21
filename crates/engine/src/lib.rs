@@ -61,6 +61,7 @@ pub use photocraft_paint::BrushSettings;
 
 pub mod cmd;
 mod doc_state;
+pub mod engine_ids;
 mod error;
 mod install;
 pub mod registry;

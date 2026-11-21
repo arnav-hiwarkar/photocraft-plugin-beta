@@ -1767,6 +1767,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-idmap"
+version = "0.1.0"
+source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=93a2de602f50119f9cbfd64d87155719b814818c#93a2de602f50119f9cbfd64d87155719b814818c"
+dependencies = [
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+ "toml",
+]
+
+[[package]]
 name = "craft-idml"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead#bafb4522899d9f814a07dad636cdefcbf705dead"
@@ -6565,6 +6576,7 @@ dependencies = [
  "craft-affinity",
  "craft-cms",
  "craft-file-formats",
+ "craft-idmap",
  "craft-image-codecs 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-pcraft-format",
  "craft-print",
