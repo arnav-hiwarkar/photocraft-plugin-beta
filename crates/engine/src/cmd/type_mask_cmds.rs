@@ -137,6 +137,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: has_doc,
         journal: true,
         run: create_selection,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

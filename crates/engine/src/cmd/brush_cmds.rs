@@ -1437,7 +1437,17 @@ pub fn coalesce_journal(s: &mut Session, id: &str, params: &Value) -> bool {
 
 macro_rules! spec {
     ($id:literal, $label:literal, $params:literal, $en:expr, $run:expr, $journal:expr) => {
-        CommandSpec { id: $id, label: $label, menu: &[], shortcut: None, params: $params, enabled: $en, run: $run, journal: $journal }
+        CommandSpec {
+            id: $id,
+            label: $label,
+            menu: &[],
+            shortcut: None,
+            params: $params,
+            enabled: $en,
+            run: $run,
+            journal: $journal,
+            declared: crate::Declared::COMMAND,
+        }
     };
 }
 

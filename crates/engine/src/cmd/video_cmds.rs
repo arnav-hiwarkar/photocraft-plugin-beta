@@ -760,7 +760,17 @@ fn gif_frame(mut px: Vec<[f32; 4]>, w: usize, delay_cs: u16) -> Result<photocraf
 
 macro_rules! spec {
     ($id:expr, $label:expr, $menu:expr, $en:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: $menu, shortcut: None, params: "{} → {}", enabled: $en, journal: true, run: $run }
+        CommandSpec {
+            id: $id,
+            label: $label,
+            menu: $menu,
+            shortcut: None,
+            params: "{} → {}",
+            enabled: $en,
+            journal: true,
+            run: $run,
+            declared: crate::Declared::COMMAND,
+        }
     };
 }
 

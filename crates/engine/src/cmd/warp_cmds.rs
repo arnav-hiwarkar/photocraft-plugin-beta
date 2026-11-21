@@ -724,6 +724,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             journal: true,
             run: |s, p| apply(s, p, "edit.transform.warp"),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.smartObjects.warp",
@@ -734,6 +735,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: active_smart,
             journal: true,
             run: |s, p| apply(s, p, "layer.smartObjects.warp"),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "edit.transform.splitWarpCrosswise",
@@ -744,6 +746,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             journal: true,
             run: |s, p| split(s, p, "edit.transform.splitWarpCrosswise", Split::Crosswise),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "edit.transform.splitWarpHorizontally",
@@ -754,6 +757,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             journal: true,
             run: |s, p| split(s, p, "edit.transform.splitWarpHorizontally", Split::Horizontal),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "edit.transform.splitWarpVertically",
@@ -764,6 +768,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             journal: true,
             run: |s, p| split(s, p, "edit.transform.splitWarpVertically", Split::Vertical),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "edit.transform.removeWarpSplit",
@@ -774,6 +779,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             journal: true,
             run: |s, p| split(s, p, "edit.transform.removeWarpSplit", Split::Remove),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "edit.transform.warpGrid",
@@ -784,6 +790,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             journal: true,
             run: |s, p| grid(s, p),
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

@@ -584,7 +584,17 @@ fn clear(s: &mut Session) -> Result<Value> {
 pub fn specs() -> Vec<CommandSpec> {
     macro_rules! spec {
         ($id:expr, $label:expr, $menu:expr, $params:expr, $enabled:expr, $run:expr) => {
-            CommandSpec { id: $id, label: $label, menu: $menu, shortcut: None, params: $params, enabled: $enabled, journal: true, run: $run }
+            CommandSpec {
+                id: $id,
+                label: $label,
+                menu: $menu,
+                shortcut: None,
+                params: $params,
+                enabled: $enabled,
+                journal: true,
+                run: $run,
+                declared: crate::Declared::COMMAND,
+            }
         };
     }
     vec![
@@ -626,6 +636,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             journal: false,
             run: |s, _| list(s),
+            declared: crate::Declared::COMMAND,
         },
         spec!(
             "layer.newLayerBasedSlice",

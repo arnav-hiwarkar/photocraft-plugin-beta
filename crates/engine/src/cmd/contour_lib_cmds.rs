@@ -185,6 +185,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: list,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.layerStyle.contours.new",
@@ -195,6 +196,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: new,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.layerStyle.contours.delete",
@@ -205,6 +207,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: delete,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.layerStyle.contours.load",
@@ -215,6 +218,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: load,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "layer.layerStyle.contours.save",
@@ -225,6 +229,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: save,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

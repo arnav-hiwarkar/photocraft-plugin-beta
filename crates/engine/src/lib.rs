@@ -54,7 +54,7 @@ use photocraft_doc::{Document, LayerId};
 use photocraft_ops::{History, LayerTarget};
 use serde_json::Value;
 
-pub use commands::{CommandSpec, command_specs};
+pub use commands::{CommandSpec, ContextInputs, Declared, Preview, Role, command_specs};
 pub use photocraft_doc as doc;
 pub use photocraft_paint as paint;
 pub use photocraft_paint::BrushSettings;
@@ -351,6 +351,8 @@ pub struct Session {
 
 #[cfg(test)]
 mod brush_pressure_size_default_tests;
+#[cfg(test)]
+mod declared_table;
 #[cfg(test)]
 mod embed_all_linked_tests;
 #[cfg(test)]

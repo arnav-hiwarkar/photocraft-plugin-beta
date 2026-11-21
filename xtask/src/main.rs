@@ -64,6 +64,9 @@ commands:
                   --local takes corpus/photoshop and corpus/gimp from the photocraft-corpus authoring clone
   stats [--exact] count tests and lines per crate (--exact: ask the test harness via `-- --list`)
   parity          Photoshop menu parity; rewrites docs/parity-checklist.md
+  legacy-corpus [--check]
+                  regenerate tests/legacy-corpus (the legacy plug-in corpus and corpus.toml) from today's code;
+                  --check lists the members and fails on a missing, changed or stray file
   i18n-report     report UI translation coverage, the missing strings and the rows kept in English per
                   registered language, from the craft-i18n checkout in CRAFT_I18N_DIR (the last `ci`
                   step; it never fails, and says so when CRAFT_I18N_DIR is unset)
@@ -98,6 +101,7 @@ fn main() -> ExitCode {
         Some("test-corpus") => corpus::test_cmd(&rest),
         Some("stats") => stats::run(&root(), rest.contains(&"--exact")),
         Some("parity") => cmd_parity(),
+        Some("legacy-corpus") => cmd_legacy_corpus(&rest),
         Some("i18n-report") => i18n_report::run(&root()),
         Some("perf") => perf::run(&root(), &rest),
         Some("scorecard") => scorecard::run(&root(), &rest),
@@ -617,6 +621,20 @@ fn cmd_parity() -> Result<(), String> {
     let mut c = cargo();
     c.args(["run", "-q", "-p", "photocraft-ui-egui", "--example", "parity", "--", "--write", "docs/parity-checklist.md"]);
     run(c, "cargo run -p photocraft-ui-egui --example parity")
+}
+
+fn cmd_legacy_corpus(rest: &[&str]) -> Result<(), String> {
+    let check = match rest {
+        [] => false,
+        ["--check"] => true,
+        _ => return Err("usage: cargo xtask legacy-corpus [--check]".into()),
+    };
+    let mut c = cargo();
+    c.args(["run", "-q", "-p", "photocraft-legacy-corpus", "--"]);
+    if check {
+        c.arg("--check");
+    }
+    run(c, "cargo run -p photocraft-legacy-corpus")
 }
 
 /// The packages the gate leaves out of a test build: the Windows legs skip the browser apps, and

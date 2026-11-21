@@ -24,6 +24,50 @@ pub struct CommandSpec {
     pub run: Run,
     /// Record in the session journal (false for queries).
     pub journal: bool,
+    pub declared: Declared,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Declared {
+    pub role: Role,
+    pub preview: Preview,
+    pub context: ContextInputs,
+    pub direction: Option<&'static str>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Role {
+    Command,
+    Filter,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Preview {
+    Proxy,
+    FullResolution,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ContextInputs {
+    None,
+    Colours,
+}
+
+impl Declared {
+    pub const COMMAND: Declared = Declared { role: Role::Command, preview: Preview::Proxy, context: ContextInputs::None, direction: None };
+    pub const FILTER: Declared = Declared { role: Role::Filter, ..Declared::COMMAND };
+
+    pub const fn preview(self, preview: Preview) -> Declared {
+        Declared { preview, ..self }
+    }
+
+    pub const fn context(self, context: ContextInputs) -> Declared {
+        Declared { context, ..self }
+    }
+
+    pub const fn direction(self, key: &'static str) -> Declared {
+        Declared { direction: Some(key), ..self }
+    }
 }
 
 /// One command table: a module's or a table fragment's specs, under the name that identifies it
@@ -175,7 +219,17 @@ fn test_panic_command() -> CommandSpec {
     fn run(_: &mut Session, _: &Value) -> Result<Value> {
         panic!("test: this command panicked on purpose")
     }
-    CommandSpec { id: "test.panic", label: "Test Panic", menu: &[], shortcut: None, params: r##"{}"##, enabled: |_: &Session| Ok(()), run, journal: false }
+    CommandSpec {
+        id: "test.panic",
+        label: "Test Panic",
+        menu: &[],
+        shortcut: None,
+        params: r##"{}"##,
+        enabled: |_: &Session| Ok(()),
+        run,
+        journal: false,
+        declared: crate::Declared::COMMAND,
+    }
 }
 
 #[cfg(test)]
@@ -183,7 +237,17 @@ mod tests {
     use super::*;
 
     fn spec(id: &'static str) -> CommandSpec {
-        CommandSpec { id, label: id, menu: &[], shortcut: None, params: "{}", enabled: |_| Ok(()), run: |_, _| Ok(Value::Null), journal: true }
+        CommandSpec {
+            id,
+            label: id,
+            menu: &[],
+            shortcut: None,
+            params: "{}",
+            enabled: |_| Ok(()),
+            run: |_, _| Ok(Value::Null),
+            journal: true,
+            declared: crate::Declared::COMMAND,
+        }
     }
 
     #[test]

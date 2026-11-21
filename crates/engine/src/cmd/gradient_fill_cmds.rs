@@ -561,6 +561,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: create,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: SET,
@@ -571,6 +572,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_gradient_fill,
             run: set,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: STOP,
@@ -581,6 +583,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_gradient_fill,
             run: stop,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: GET,
@@ -591,6 +594,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_gradient_fill,
             run: get,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

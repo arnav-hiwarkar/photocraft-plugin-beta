@@ -458,6 +458,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: crate::filters::has_filterable_layer,
             journal: true,
             run: liquify,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: PUPPET,
@@ -468,6 +469,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: pixel_layer,
             journal: true,
             run: |s, p| puppet(s, p, PUPPET),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: PUPPET_SMART,
@@ -478,6 +480,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: smart_layer,
             journal: true,
             run: |s, p| puppet(s, p, PUPPET_SMART),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: PERSPECTIVE,
@@ -488,6 +491,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: pixel_layer,
             journal: true,
             run: |s, p| perspective(s, p, PERSPECTIVE),
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: PERSPECTIVE_SMART,
@@ -498,6 +502,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: smart_layer,
             journal: true,
             run: |s, p| perspective(s, p, PERSPECTIVE_SMART),
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

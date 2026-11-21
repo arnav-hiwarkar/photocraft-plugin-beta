@@ -568,6 +568,7 @@ pub struct PcraftWriter {
     compressed: HashMap<String, Arc<Vec<u8>>>,
     compressed_budget: usize,
     directory: craft_pcraft_bundle::DirectoryBundleWriter,
+    generator: Option<String>,
 }
 
 impl Default for PcraftWriter {
@@ -578,6 +579,7 @@ impl Default for PcraftWriter {
             compressed: HashMap::new(),
             compressed_budget: usize::MAX,
             directory: craft_pcraft_bundle::DirectoryBundleWriter::default(),
+            generator: None,
         }
     }
 }
@@ -748,6 +750,11 @@ impl PcraftWriter {
         Self::default()
     }
 
+    pub fn with_generator(mut self, generator: impl Into<String>) -> Self {
+        self.generator = Some(generator.into());
+        self
+    }
+
     /// How many compressed bytes of already-verified objects each directory save re-reads and
     /// re-checks (oldest-checked first; at least one object when the budget is non-zero). `0`
     /// trusts unchanged signatures entirely; `u64::MAX` re-verifies everything on every save.
@@ -789,7 +796,8 @@ impl PcraftWriter {
         convert::check_nesting(&doc.layers)?;
         let mut c = Collect { hash_cache: Some(&mut self.hash_cache), blob_hash_cache: Some(&mut self.blob_hash_cache), ..Default::default() };
         let document = convert::doc_m(doc, &mut c)?;
-        let mut model = Manifest::new(format!("photocraft-format {}", env!("CARGO_PKG_VERSION")), document);
+        let generator = self.generator.clone().unwrap_or_else(|| format!("photocraft-format {}", env!("CARGO_PKG_VERSION")));
+        let mut model = Manifest::new(generator, document);
         model.thumbnail = opts.thumbnail.as_ref().map(|_| THUMB.to_owned());
         model.composite = opts.composite.as_ref().map(|_| COMPOSITE.to_owned());
         let full_composite = opts.full_composite.is_some();

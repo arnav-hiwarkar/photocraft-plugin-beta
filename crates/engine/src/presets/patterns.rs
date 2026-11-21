@@ -185,6 +185,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: list,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "pattern.presets.select",
@@ -195,6 +196,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: select,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "pattern.presets.apply",
@@ -205,6 +207,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: super::has_doc,
             run: apply,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "pattern.presets.new",
@@ -215,6 +218,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: super::has_doc,
             run: new_preset,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "pattern.presets.edit",
@@ -225,6 +229,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: edit,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

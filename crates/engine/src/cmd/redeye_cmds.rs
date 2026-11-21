@@ -290,6 +290,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled,
         run: red_eye,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

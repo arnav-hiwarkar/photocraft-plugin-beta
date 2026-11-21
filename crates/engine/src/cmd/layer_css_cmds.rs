@@ -369,6 +369,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled,
         run: copy_css,
         journal: false,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

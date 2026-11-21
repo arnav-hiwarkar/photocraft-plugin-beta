@@ -666,7 +666,7 @@ fn list_looks(_: &mut Session, _: &Value) -> Result<Value> {
 
 macro_rules! spec {
     ($id:literal, $label:literal, [$($m:literal),*], $params:literal, $en:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: None, params: $params, enabled: $en, run: $run, journal: true }
+        CommandSpec { id: $id, label: $label, menu: &[$($m),*], shortcut: None, params: $params, enabled: $en, run: $run, journal: true, declared: crate::Declared::COMMAND }
     };
 }
 
@@ -713,6 +713,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: black_white_auto,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "image.adjustments.colorLookup.list",
@@ -723,6 +724,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: |_| Ok(()),
             run: list_looks,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

@@ -2197,6 +2197,7 @@ pub fn specs() -> Vec<crate::commands::CommandSpec> {
             enabled: |_| Ok(()),
             run: |s, _| Ok(json!({"jobs": s.jobs_with_recent()})),
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "jobs.cancel",
@@ -2221,6 +2222,7 @@ pub fn specs() -> Vec<crate::commands::CommandSpec> {
                 }
             },
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

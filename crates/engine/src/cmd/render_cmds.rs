@@ -211,6 +211,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: run_flame,
             journal: true,
+            declared: crate::Declared::COMMAND.preview(crate::Preview::FullResolution),
         },
         CommandSpec {
             id: "filter.render.pictureFrame",
@@ -221,6 +222,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: run_frame,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "filter.render.tree",
@@ -231,6 +233,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: run_tree,
             journal: true,
+            declared: crate::Declared::COMMAND.preview(crate::Preview::FullResolution),
         },
     ]
 }

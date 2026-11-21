@@ -582,6 +582,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: list,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.add",
@@ -594,6 +595,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: add,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.delete",
@@ -604,6 +606,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_swatches,
             run: delete,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.rename",
@@ -614,6 +617,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_swatches,
             run: rename,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.move",
@@ -624,6 +628,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_swatches,
             run: move_swatch,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.moveGroup",
@@ -634,6 +639,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_groups,
             run: move_group,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.newGroup",
@@ -644,6 +650,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: new_group,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.renameGroup",
@@ -654,6 +661,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_groups,
             run: rename_group,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.deleteGroup",
@@ -664,6 +672,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_groups,
             run: delete_group,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.use",
@@ -676,6 +685,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_swatches,
             run: use_swatch,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.reset",
@@ -686,6 +696,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: reset,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.import",
@@ -696,6 +707,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: import,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "swatches.export",
@@ -706,6 +718,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_swatches,
             run: export,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

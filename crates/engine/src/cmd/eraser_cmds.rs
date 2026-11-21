@@ -317,6 +317,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: magic_eraser,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.backgroundEraser",
@@ -327,6 +328,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_pixel_layer,
             run: background_eraser,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

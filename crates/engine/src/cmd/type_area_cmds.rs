@@ -88,6 +88,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: has_text,
         journal: true,
         run: fill_path,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

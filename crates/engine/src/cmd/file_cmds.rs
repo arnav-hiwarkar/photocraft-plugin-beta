@@ -262,7 +262,17 @@ fn remember_fit_image(s: &mut Session, p: &Value) {
 pub fn specs() -> Vec<CommandSpec> {
     macro_rules! spec {
         ($id:expr, $label:expr, $menu:expr, $sc:expr, $params:expr, $enabled:expr, $run:expr) => {
-            CommandSpec { id: $id, label: $label, menu: $menu, shortcut: $sc, params: $params, enabled: $enabled, journal: true, run: $run }
+            CommandSpec {
+                id: $id,
+                label: $label,
+                menu: $menu,
+                shortcut: $sc,
+                params: $params,
+                enabled: $enabled,
+                journal: true,
+                run: $run,
+                declared: crate::Declared::COMMAND,
+            }
         };
     }
     vec![
@@ -334,6 +344,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: approve_memory,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         spec!(
             "file.placeEmbedded",

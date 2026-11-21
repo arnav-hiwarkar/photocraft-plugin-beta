@@ -260,6 +260,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(json!({"plugins": registry::list().iter().map(|p| describe(p)).collect::<Vec<_>>(), "folder": folder}))
             },
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "plugin.install",
@@ -270,6 +271,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: install,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "plugin.remove",
@@ -283,6 +285,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 if registry::remove(id) { Ok(json!({"removed": id})) } else { Err(err(photocraft_plugins::Error::NotFound(id.into()))) }
             },
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "plugin.reload",
@@ -293,6 +296,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: reload,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: RUN,
@@ -303,6 +307,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: crate::filters::has_filterable_layer,
             run,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

@@ -1,0 +1,271 @@
+schema_version = 1
+recentColors = []
+shortcutSet = ""
+userDictionary = []
+
+[actions]
+createSingleHistoryState = true
+pauseSeconds = 1
+performance = "accelerated"
+
+[alternateShortcuts]
+
+[colorSettings]
+askOnMismatch = true
+askOnMissing = false
+askOnPaste = true
+blendTextGamma = 1.4500000476837158
+bpc = true
+dither = true
+intent = "relative"
+monitorProfile = "auto"
+policyCmyk = "preserve"
+policyGray = "preserve"
+policyRgb = "preserve"
+spotDotGain = 20.0
+workingCmyk = "coated-cmyk"
+workingGray = "dot-gain-20-compat"
+workingRgb = "srgb"
+
+[cursors]
+brushPreviewColor = "#ff0000"
+other = "standard"
+painting = "normalTip"
+showCrosshairInBrushTip = false
+showOnlyCrosshairWhilePainting = false
+
+[dialogs]
+
+[enhancedControls]
+rotateViewWithTrackpad = false
+scrubbySliderAcceleration = true
+touchGestures = true
+zoomWithTrackpadPinch = true
+
+[export]
+convertToSrgb = true
+jpegQuality = 85
+lastFolder = ""
+metadata = "copyright"
+quickExportFormat = "png"
+quickExportLocation = "ask"
+webpLossless = true
+webpQuality = 85
+
+[fileHandling]
+askBeforeSavingLayeredTiff = true
+autosave = true
+autosaveMinutes = 10
+doNotAppendCopy = false
+exrAcesCg = false
+ignoreExifProfileTag = false
+imagePreviews = "always"
+lowercaseExtension = true
+lutFolder = ""
+maximizePsdCompatibility = "always"
+pcraftFullComposite = false
+pdfDpi = 300.0
+pdfFirstPage = 0
+pdfLastPage = 0
+rasterizeSvgGroupsDeeperThan = 100
+recentFileCount = 20
+recentFiles = []
+recoverOnLaunch = true
+saveInBackground = true
+
+[general]
+alwaysCreateSmartObjectsWhenPlacing = true
+animatedZoom = true
+autoShowHomeScreen = true
+automaticallyCheckUpdates = true
+beepWhenDone = false
+colorPicker = "adobe"
+exportClipboard = true
+imageInterpolation = "bicubicAutomatic"
+resizeImageDuringPlace = true
+skipTransformWhenPlacing = false
+useLegacyFreeTransform = false
+zoomResizesWindows = false
+zoomWithScrollWheel = false
+
+[guidesGridAndSlices]
+gridColor = "#8c8c8c"
+gridStyle = "lines"
+gridUnit = "inches"
+gridlineEvery = 1.0
+guideColor = "#4affff"
+guideStyle = "lines"
+showSliceNumbers = true
+sliceColor = "#38b5ff"
+smartGuideColor = "#ff00ff"
+subdivisions = 4
+
+[historyLog]
+destination = "metadata"
+detail = "concise"
+enabled = false
+filePath = ""
+
+[historyOptions]
+allowNonLinearHistory = false
+automaticallyCreateFirstSnapshot = true
+automaticallyCreateNewSnapshotWhenSaving = false
+makeLayerVisibilityChangesUndoable = true
+showNewSnapshotDialogByDefault = false
+
+[integrations]
+allowAgentControl = true
+connectAgents = false
+controlPort = 0
+readRoot = ""
+whenAppClosed = "launch"
+writeRoot = ""
+
+[interface]
+appearanceMode = "dark"
+canvasBorder = "dropShadow"
+canvasColor = "default"
+canvasCustomColor = "#282828"
+clipThumbnailsToLayerBounds = false
+darkTheme = "craft.artcraft"
+dynamicColorSliders = true
+favoriteThemes = []
+language = "auto"
+lightTheme = "craft.pro"
+notificationAutoHide = true
+notificationDurationSeconds = 6
+showBoundingBoxWhenDraggingLayer = false
+showCanvasDots = true
+showChannelsInColor = false
+showFileNameInTitle = true
+showHomeRecentFiles = true
+showMenuColors = true
+showTooltips = true
+systemTitleBar = false
+uiFontSize = "small"
+uiScale = "auto"
+
+[layerMaskOverlay]
+color = "#ff0000"
+opacity = 50.0
+
+[menus]
+hidden = []
+
+[menus.colors]
+
+[performance]
+cacheLevels = 4
+cacheTileSize = 8192
+effectCacheMb = 768
+gpuAdapter = ""
+gpuBackend = "auto"
+gpuMemoryMb = 0
+historyStates = 50
+legacyCompositing = false
+linuxDisplayServer = "auto"
+lowLatencyDrawing = false
+lowResolutionPreviews = true
+memoryUsageMb = 8192
+memoryUsagePercent = 70
+useGpu = true
+
+[plugIns]
+additionalPluginsFolder = "Plug-ins"
+allowScriptsToConnect = false
+generatorEnabled = false
+showExtensionPanels = true
+useAdditionalPluginsFolder = true
+
+[rawDefaults]
+applyAutoTone = false
+bitDepth = "16"
+colorSpace = "adobeRgb"
+demosaic = "ahd"
+openAsSmartObject = false
+openInCameraRaw = true
+resolution = 300.0
+sharpenFor = "none"
+writeXmpSidecars = true
+
+[scratchDisks]
+disks = [{ enabled = true, path = "(system temp)" }]
+sizeLimitMb = 0
+
+[scriptEvents]
+bindings = []
+enabled = false
+
+[sections]
+
+[shortcutSets]
+
+[shortcuts]
+
+[toolColors]
+background = [1.0, 1.0, 1.0, 1.0]
+cmykPicks = []
+foreground = [0.0, 0.0, 0.0, 1.0]
+maskBackground = [0.0, 0.0, 0.0, 1.0]
+maskForeground = [1.0, 1.0, 1.0, 1.0]
+
+[toolbar]
+hidden = []
+
+[tools]
+bundleNudges = true
+doubleClickLayerMaskLaunchesSelectAndMask = true
+enableFlickPanning = true
+nudgeBundlePauseMs = 1000
+overscroll = true
+pressureCurve = [[0.0, 0.0], [1.0, 1.0]]
+rightClickWithPaintingTools = "brushPicker"
+showHighlightOnRollover = true
+showTooltips = true
+showTransformationValues = true
+snapVectorToolsAndTransformsToPixelGrid = true
+tabletInput = "windowsInk"
+useShiftKeyForToolSwitch = true
+useTabletPressure = true
+varyRoundBrushHardnessOnHud = true
+zoomClickedPointToCenter = false
+
+[transparencyAndGamut]
+customDark = "#cccccc"
+customLight = "#ffffff"
+gamutWarningColor = "#808080"
+gamutWarningOpacity = 100
+gridColors = "light"
+gridSize = "medium"
+
+[type]
+favoriteFonts = []
+fillNewTypeLayersWithPlaceholder = true
+fontPreview = "medium"
+missingGlyphProtection = true
+recentFonts = 10
+showFontNamesInEnglish = true
+smartQuotes = true
+textEngine = "worldReady"
+useEscToCommit = true
+
+[unitsAndRulers]
+columnWidth = 180.0
+gutter = 12.0
+pointSize = "postScript"
+printResolution = 300.0
+rulers = "pixels"
+screenResolution = 72.0
+showRulers = false
+typeUnits = "points"
+
+[workspace]
+autoCollapseIconPanels = false
+autoShowHiddenPanels = true
+enableFloatingDocumentWindowDocking = true
+enableNarrowOptionsBar = false
+largeTabs = false
+openDocumentsAsTabs = true
+rememberWorkspaceChanges = true
+
+[workspaceExtras]

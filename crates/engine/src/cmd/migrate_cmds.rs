@@ -76,6 +76,7 @@ pub fn specs() -> Vec<crate::commands::CommandSpec> {
         enabled: |_s| Ok(()),
         journal: false,
         run: |s, p| migrate(s, p),
+        declared: crate::Declared::COMMAND,
     }]
 }
 

@@ -20,6 +20,7 @@
    - a params doc string such as `{"radius":px=4,"mode":"a|b"="a"}` (this is what agents read through `commands` / `command_list`),
    - an `enabled` predicate (greys the menu item out),
    - `run`, which returns a JSON result and records exactly **one** history step (use `coalesce` for drags and typing sessions).
+   - `declared`, what the command declares about itself: `Declared::FILTER` for a pixel filter Last Filter repeats (`Declared::COMMAND` otherwise), `.preview(Preview::FullResolution)` when a reduced proxy would change the look of its live preview, `.context(ContextInputs::Colours)` when it reads the foreground and background colours, and `.direction("angle")` when that parameter is a direction edited on a dial. The filter macros (`filter_cmd!`, and `cmd!` in `filters_ext.rs`) start from `Declared::FILTER` and take only these modifiers, such as `preview(Preview::FullResolution)`. Add a row to `crates/engine/src/declared_table.rs` for anything but `Declared::COMMAND`.
 4. **Respect the context:** active selection (feathered), layer vs mask target, locks, the colour model and depth.
 5. **Tests** in the module: behaviour, undo/redo, disabled states, bad params, several depths.
 6. **Dialog** (if it has parameters): filters and adjustments get schema-driven dialogs with live preview (`ui-egui/src/filter_dialog.rs`, `dialogs.rs`).

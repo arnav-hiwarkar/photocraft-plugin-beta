@@ -144,6 +144,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled,
         run: rasterize_layer_style,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

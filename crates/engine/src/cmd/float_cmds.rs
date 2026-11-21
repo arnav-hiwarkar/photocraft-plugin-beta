@@ -428,6 +428,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: can_float,
             journal: true,
             run: float,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "select.drop",
@@ -438,6 +439,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: |s| s.active().map(|_| ()).ok_or_else(|| "no document".into()),
             journal: true,
             run: |s, _| drop_floating(s),
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

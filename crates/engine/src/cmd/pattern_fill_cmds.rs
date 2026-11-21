@@ -143,6 +143,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: |s| s.active().map(|_| ()).ok_or_else(|| "no document open".into()),
         run: set,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

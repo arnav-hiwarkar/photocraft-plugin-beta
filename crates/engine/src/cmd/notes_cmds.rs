@@ -265,6 +265,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: add,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "notes.set",
@@ -275,6 +276,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_notes,
             run: set,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "notes.delete",
@@ -285,6 +287,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_notes,
             run: delete,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "notes.list",
@@ -295,6 +298,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: list,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "file.import.notes",
@@ -305,6 +309,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: import,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

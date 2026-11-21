@@ -361,7 +361,17 @@ fn fit(s: &mut Session, p: &Value) -> Result<Value> {
     }
 }
 pub fn specs() -> Vec<CommandSpec> {
-    let spec = |id, label, params, enabled, run| CommandSpec { id, label, params, menu: &[], shortcut: None, journal: true, enabled, run };
+    let spec = |id, label, params, enabled, run| CommandSpec {
+        id,
+        label,
+        params,
+        menu: &[],
+        shortcut: None,
+        journal: true,
+        enabled,
+        run,
+        declared: crate::Declared::COMMAND,
+    };
     vec![
         spec(
             "layer.new.frame",

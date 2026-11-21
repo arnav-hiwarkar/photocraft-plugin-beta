@@ -291,6 +291,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: import_abr,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "brush.presets.importImage",
@@ -301,6 +302,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: import_image,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "gradient.presets.importGrd",
@@ -311,6 +313,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: import_grd,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

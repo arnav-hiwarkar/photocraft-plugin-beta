@@ -233,6 +233,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: |s| s.active().map(|_| ()).ok_or_else(|| "no document open".into()),
             run: set_preset,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.symmetryFromPath",
@@ -243,6 +244,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: |s| s.active().map(|_| ()).ok_or_else(|| "no document open".into()),
             run: enable,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "paint.symmetryDisable",
@@ -253,6 +255,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: |s| s.active().filter(|st| st.symmetry.is_some()).map(|_| ()).ok_or_else(|| "no active painting symmetry".into()),
             run: |s, _| disable(s),
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

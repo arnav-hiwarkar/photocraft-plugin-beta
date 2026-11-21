@@ -220,7 +220,7 @@ impl AuthorizedWorkspace {
         } else {
             Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "a folder reached through a capability cannot be flushed here"))
         };
-        photocraft_format::settle(Path::new(path), craft_atomic::confirm(&craft_atomic::RealFs, content, folder)).map_err(|e| file_error("write", path, e))
+        photocraft_format::settle(Path::new(path), craft_atomic::confirm(&craft_atomic::RealFs, Path::new(path), content, folder)).map_err(|e| file_error("write", path, e))
     }
 }
 

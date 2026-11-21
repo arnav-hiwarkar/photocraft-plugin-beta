@@ -78,6 +78,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled,
         run: set_label,
         journal: true,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

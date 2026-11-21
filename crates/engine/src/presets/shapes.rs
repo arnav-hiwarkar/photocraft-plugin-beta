@@ -490,6 +490,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: list,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "shape.presets.place",
@@ -500,6 +501,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: place,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "shape.presets.new",
@@ -510,6 +512,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: new_preset,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "shape.presets.edit",
@@ -520,6 +523,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: edit,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "shape.presets.reset",
@@ -530,6 +534,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: reset,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

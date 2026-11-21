@@ -1425,9 +1425,10 @@ dependencies = [
 [[package]]
 name = "craft-atomic"
 version = "0.1.0"
-source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5#65d231ec8e9ce924203a5cdf7a30b101c0334cb5"
+source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=a8e0243d72e46b3f211712d08d7de2e5705dd124#a8e0243d72e46b3f211712d08d7de2e5705dd124"
 dependencies = [
  "exacl",
+ "log",
  "rustix 1.1.5",
  "winsafe",
 ]
@@ -2207,7 +2208,12 @@ dependencies = [
 [[package]]
 name = "craft-testkit"
 version = "0.1.0"
-source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=b468730ac1975d332a275a281558a16406fe3e0c#b468730ac1975d332a275a281558a16406fe3e0c"
+source = "git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=6e4df1d034883c90af908d3833aa3be7e377a7ab#6e4df1d034883c90af908d3833aa3be7e377a7ab"
+dependencies = [
+ "serde",
+ "sha2 0.10.9",
+ "toml",
+]
 
 [[package]]
 name = "craft-text"
@@ -6405,7 +6411,7 @@ dependencies = [
  "clap",
  "core-graphics2",
  "craft",
- "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5)",
+ "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=a8e0243d72e46b3f211712d08d7de2e5705dd124)",
  "craft-cms",
  "craft-image-codecs 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-svg 0.1.0 (git+https://github.com/storytold/craft-libs?rev=7b8c1eccea0c695a495ab279c9523e6efcc9b8be)",
@@ -6474,7 +6480,7 @@ dependencies = [
  "cap-std",
  "clap",
  "craft",
- "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5)",
+ "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=a8e0243d72e46b3f211712d08d7de2e5705dd124)",
  "craft-image-codecs 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-psd",
  "getrandom 0.3.4",
@@ -6570,7 +6576,7 @@ dependencies = [
  "chrono",
  "craft",
  "craft-affinity",
- "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5)",
+ "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=a8e0243d72e46b3f211712d08d7de2e5705dd124)",
  "craft-cms",
  "craft-file-formats",
  "craft-image-codecs 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
@@ -6614,7 +6620,7 @@ name = "photocraft-format"
 version = "0.23.1"
 dependencies = [
  "blake3",
- "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=65d231ec8e9ce924203a5cdf7a30b101c0334cb5)",
+ "craft-atomic 0.1.0 (git+https://github.com/arnav-hiwarkar/craft-libs-plugin-beta?rev=a8e0243d72e46b3f211712d08d7de2e5705dd124)",
  "craft-image-codecs 0.1.0 (git+https://github.com/storytold/craft-libs?rev=bafb4522899d9f814a07dad636cdefcbf705dead)",
  "craft-pcraft-bundle",
  "craft-pcraft-format",
@@ -6714,6 +6720,24 @@ name = "photocraft-ipp"
 version = "0.23.1"
 dependencies = [
  "craft-ipp",
+]
+
+[[package]]
+name = "photocraft-legacy-corpus"
+version = "0.23.1"
+dependencies = [
+ "craft",
+ "craft-testkit",
+ "photocraft-doc",
+ "photocraft-engine",
+ "photocraft-format",
+ "photocraft-paint",
+ "photocraft-plugins",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml",
+ "wat",
 ]
 
 [[package]]

@@ -1041,6 +1041,7 @@ pub fn specs() -> Vec<CommandSpec> {
         enabled: has_layer,
         journal: true,
         run: transform,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

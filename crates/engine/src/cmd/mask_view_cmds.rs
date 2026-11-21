@@ -180,6 +180,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_doc,
             run: set_view,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: OVERLAY_ID,
@@ -190,6 +191,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: active_has_mask,
             run: toggle_overlay,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

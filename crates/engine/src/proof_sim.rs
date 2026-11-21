@@ -287,6 +287,7 @@ macro_rules! kind_spec {
             enabled: has_doc,
             run: |s, _| run_kind(s, $id),
             journal: false,
+            declared: crate::Declared::COMMAND,
         }
     };
 }
@@ -311,6 +312,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: is_32,
             run: preview_32,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

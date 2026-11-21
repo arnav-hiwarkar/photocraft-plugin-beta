@@ -147,6 +147,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: import,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: EXPORT,
@@ -157,6 +158,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_styles,
             run: export,
             journal: true,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

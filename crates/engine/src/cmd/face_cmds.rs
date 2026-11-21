@@ -89,6 +89,7 @@ pub fn specs() -> Vec<CommandSpec> {
         },
         run: detect_faces,
         journal: false,
+        declared: crate::Declared::COMMAND,
     }]
 }
 

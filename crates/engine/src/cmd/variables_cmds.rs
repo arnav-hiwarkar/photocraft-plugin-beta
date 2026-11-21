@@ -550,10 +550,30 @@ fn list(s: &mut Session) -> Result<Value> {
 
 macro_rules! spec {
     ($id:expr, $label:expr, $menu:expr, $params:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: $menu, shortcut: None, params: $params, enabled: has_doc, journal: true, run: $run }
+        CommandSpec {
+            id: $id,
+            label: $label,
+            menu: $menu,
+            shortcut: None,
+            params: $params,
+            enabled: has_doc,
+            journal: true,
+            run: $run,
+            declared: crate::Declared::COMMAND,
+        }
     };
     ($id:expr, $label:expr, $menu:expr, $params:expr, $enabled:expr, $run:expr) => {
-        CommandSpec { id: $id, label: $label, menu: $menu, shortcut: None, params: $params, enabled: $enabled, journal: true, run: $run }
+        CommandSpec {
+            id: $id,
+            label: $label,
+            menu: $menu,
+            shortcut: None,
+            params: $params,
+            enabled: $enabled,
+            journal: true,
+            run: $run,
+            declared: crate::Declared::COMMAND,
+        }
     };
 }
 
@@ -606,6 +626,7 @@ pub fn specs() -> Vec<CommandSpec> {
             params: "{} → {defs,dataSets,active}",
             enabled: has_doc,
             run: |s, _| list(s),
+            declared: crate::Declared::COMMAND,
         },
     ]
 }

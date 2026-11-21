@@ -87,6 +87,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: favorite,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
         CommandSpec {
             id: "type.font.library",
@@ -97,6 +98,7 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: always,
             run: library,
             journal: false,
+            declared: crate::Declared::COMMAND,
         },
     ]
 }
